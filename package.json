@@ -1,0 +1,30 @@
+{
+  "name": "@routerbase/ai",
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "default": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^3.0.64",
+    "@openrouter/ai-sdk-provider": "^2.6.0",
+    "voyage-ai-provider": "^3.0.0"
+  },
+  "peerDependencies": {
+    "ai": "^6.0.0",
+    "typescript": "^5"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "ai": "^6.0.168",
+    "tsdown": "^0.21.9",
+    "typescript": "^5.9.3"
+  }
+}
