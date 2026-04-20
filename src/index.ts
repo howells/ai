@@ -1,11 +1,11 @@
 /**
- * @routerbase/ai — Unified AI client for all projects.
+ * @howells/routerbase-ai — Unified AI client for all projects.
  *
  * One package, 11 configurable model slots, three providers (OpenRouter + Voyage + Google).
  *
  * @example
  * ```ts
- * import { createAI } from "@routerbase/ai";
+ * import { createAI } from "@howells/routerbase-ai";
  * import { generateText, generateObject, streamText, embed } from "ai";
  *
  * const ai = createAI({

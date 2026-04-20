@@ -1,11 +1,11 @@
-# @routerbase/ai
+# @howells/routerbase-ai
 
 Unified AI client for all projects. One package, three providers (OpenRouter + Voyage + Google), 11 configurable model slots.
 
 ## Quick Start
 
 ```typescript
-import { createAI } from "@routerbase/ai";
+import { createAI } from "@howells/routerbase-ai";
 import { generateText, generateObject, streamText, embed } from "ai";
 
 const ai = createAI({
@@ -60,7 +60,7 @@ const { object } = await generateObject({
 Override any slot per-project:
 
 ```typescript
-import { createAI, VOYAGE_MODELS } from "@routerbase/ai";
+import { createAI, VOYAGE_MODELS } from "@howells/routerbase-ai";
 
 const ai = createAI({
   app: { name: "Sorrel", url: "https://sorrel.app" },
@@ -128,7 +128,7 @@ ai.model("fast", { agent: "search" })
 ## Model Constants
 
 ```typescript
-import { VOYAGE_MODELS, GOOGLE_EMBED_MODELS } from "@routerbase/ai";
+import { VOYAGE_MODELS, GOOGLE_EMBED_MODELS } from "@howells/routerbase-ai";
 
 // Voyage
 VOYAGE_MODELS.VOYAGE_3            // "voyage-3"

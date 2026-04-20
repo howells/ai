@@ -1,5 +1,5 @@
 /**
- * @routerbase/ai — Unified AI client factory.
+ * @howells/routerbase-ai — Unified AI client factory.
  *
  * Creates a configured client with an 11-slot model matrix.
  * Text generation routes through OpenRouter.
@@ -10,7 +10,7 @@
  *
  * @example
  * ```ts
- * import { createAI } from "@routerbase/ai";
+ * import { createAI } from "@howells/routerbase-ai";
  * import { generateText, embed } from "ai";
  *
  * const ai = createAI({
