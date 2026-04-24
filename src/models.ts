@@ -5,7 +5,7 @@
  * across 40+ projects. Override any slot via createAI({ models: {...} }).
  */
 
-import type { ModelMatrix } from "./types";
+import type { ModelMatrix, ProviderRoute } from "./types";
 
 // ── Voyage AI model constants ─────────────────────────────────────────
 // Use these when overriding the embed/rerank slots in createAI().
@@ -60,4 +60,55 @@ export const DEFAULT_MODELS: ModelMatrix = {
 export function resolveModels(overrides?: Partial<ModelMatrix>): ModelMatrix {
   if (!overrides) return { ...DEFAULT_MODELS };
   return { ...DEFAULT_MODELS, ...overrides };
+}
+
+// ── Provider routing helpers ─────────────────────────────────────────
+
+/** Known OpenRouter prefixes that map to direct providers. */
+const PROVIDER_PREFIXES: Record<string, ProviderRoute> = {
+  anthropic: "anthropic",
+  openai: "openai",
+  google: "google",
+};
+
+/**
+ * Strip the OpenRouter provider prefix from a model ID.
+ * "anthropic/claude-sonnet-4-6" → "claude-sonnet-4-6"
+ * "gpt-4.1" (no prefix) → "gpt-4.1"
+ */
+export function toDirectModelId(openRouterId: string): string {
+  const slash = openRouterId.indexOf("/");
+  return slash === -1 ? openRouterId : openRouterId.slice(slash + 1);
+}
+
+/**
+ * Infer the direct provider from an OpenRouter model ID.
+ * "anthropic/claude-sonnet-4-6" → "anthropic"
+ * Returns undefined if no known direct provider matches.
+ */
+export function inferProvider(openRouterId: string): ProviderRoute | undefined {
+  const slash = openRouterId.indexOf("/");
+  if (slash === -1) return undefined;
+  const prefix = openRouterId.slice(0, slash);
+  return PROVIDER_PREFIXES[prefix];
+}
+
+/**
+ * Validate that an OpenRouter model ID matches the requested provider.
+ * Throws if the model belongs to a different provider.
+ */
+export function validateProviderMatch(
+  openRouterId: string,
+  requestedProvider: ProviderRoute,
+): void {
+  if (requestedProvider === "openrouter") return;
+  const modelProvider = inferProvider(openRouterId);
+  if (modelProvider !== requestedProvider) {
+    throw new Error(
+      `Model "${openRouterId}" cannot be used with provider "${requestedProvider}". ` +
+        (modelProvider
+          ? `It belongs to "${modelProvider}".`
+          : "Only OpenRouter can route this model."),
+    );
+  }
 }

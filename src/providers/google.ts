@@ -1,15 +1,19 @@
 /**
- * Google Gemini provider — instance-per-client for embeddings.
+ * Google Gemini provider — instance-per-client for text generation and embeddings.
  *
- * Provides access to Gemini embedding models (gemini-embedding-2-preview, etc.)
- * as an alternative to Voyage for A/B testing embedding quality.
+ * Text generation: direct access to Gemini models (eliminates OpenRouter hop).
+ * Embeddings: access to Gemini embedding models as an alternative to Voyage.
  *
- * This provider is optional — only required if you call googleEmbedModel().
+ * This provider is optional — only required if you call googleEmbedModel() or
+ * use { provider: "google" } on a Google model slot.
  */
 
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import type { LanguageModel } from "ai";
+import type { ModelOptions } from "../types";
 
 export interface GoogleProvider {
+  textModel: (modelId: string, options?: ModelOptions) => LanguageModel;
   embedModel: (
     modelId: string,
   ) => ReturnType<
@@ -32,8 +36,7 @@ export function createGoogleProvider(
     const key = apiKey ?? process.env.GOOGLE_GEMINI_API_KEY;
     if (!key) {
       throw new Error(
-        "GOOGLE_GEMINI_API_KEY is required for Google embeddings. " +
-          "This is optional — only needed if you call googleEmbedModel(). " +
+        "GOOGLE_GEMINI_API_KEY is required for direct Google access. " +
           "Pass it to createAI({ googleKey }) or set the environment variable.",
       );
     }
@@ -43,6 +46,9 @@ export function createGoogleProvider(
   }
 
   return {
+    textModel(modelId, _options) {
+      return getClient()(modelId);
+    },
     embedModel(modelId) {
       return getClient().embeddingModel(modelId);
     },

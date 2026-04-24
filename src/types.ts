@@ -56,18 +56,49 @@ export interface AppConfig {
 export interface AIConfig {
   /** OpenRouter API key. Defaults to process.env.OPENROUTER_API_KEY. */
   openRouterKey?: string;
+  /** Anthropic API key. Defaults to process.env.ANTHROPIC_API_KEY. */
+  anthropicKey?: string;
+  /** OpenAI API key. Defaults to process.env.OPENAI_API_KEY. */
+  openaiKey?: string;
   /** Voyage API key. Defaults to process.env.VOYAGE_API_KEY. */
   voyageKey?: string;
   /** Google Gemini API key. Defaults to process.env.GOOGLE_GEMINI_API_KEY. */
   googleKey?: string;
+  /** Vercel API key for AI Gateway. Defaults to process.env.VERCEL_API_KEY. Auto-authenticates on Vercel. */
+  gatewayKey?: string;
   /** Override default models for any slot. */
   models?: Partial<ModelMatrix>;
   /** App attribution for OpenRouter. */
   app?: AppConfig;
 }
 
+/**
+ * Provider routes for text generation.
+ *
+ * - "openrouter" — proxied through OpenRouter (default, works with any model)
+ * - "gateway"    — Vercel AI Gateway (works with any model via "provider/model" strings)
+ * - "anthropic"  — direct Anthropic API (Anthropic models only)
+ * - "openai"     — direct OpenAI API (OpenAI models only)
+ * - "google"     — direct Google API (Google models only)
+ */
+export type ProviderRoute =
+  | "openrouter"
+  | "gateway"
+  | "anthropic"
+  | "openai"
+  | "google";
+
 /** Options passed when selecting a model. */
 export interface ModelOptions {
   /** Agent identifier for usage attribution (e.g. "search", "enrichment"). */
   agent?: string;
+  /**
+   * Override the provider route for this call.
+   * Defaults to "openrouter". Use "anthropic", "openai", or "google"
+   * to hit the provider's API directly (lower latency, no proxy hop).
+   *
+   * The model must belong to the requested provider — e.g. requesting
+   * provider "anthropic" for a DeepSeek model will throw.
+   */
+  provider?: ProviderRoute;
 }

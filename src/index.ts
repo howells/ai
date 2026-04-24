@@ -33,7 +33,9 @@ export { createAI } from "./client";
 export {
   DEFAULT_MODELS,
   GOOGLE_EMBED_MODELS,
+  inferProvider,
   resolveModels,
+  toDirectModelId,
   VOYAGE_MODELS,
 } from "./models";
 
@@ -45,4 +47,5 @@ export type {
   ModelMatrix,
   ModelOptions,
   ModelSlot,
+  ProviderRoute,
 } from "./types";

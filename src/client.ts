@@ -33,9 +33,16 @@
  */
 
 import type { LanguageModel } from "ai";
-import { resolveModels } from "./models";
+import {
+  resolveModels,
+  toDirectModelId,
+  validateProviderMatch,
+} from "./models";
+import { createAnthropicProvider } from "./providers/anthropic";
+import { createGatewayProvider } from "./providers/gateway";
 import type { GoogleProvider } from "./providers/google";
 import { createGoogleProvider } from "./providers/google";
+import { createOpenAIProvider } from "./providers/openai";
 import { createOpenRouterProvider } from "./providers/openrouter";
 import type { VoyageProvider } from "./providers/voyage";
 import { createVoyageProvider } from "./providers/voyage";
@@ -44,6 +51,7 @@ import type {
   LanguageModelSlot,
   ModelMatrix,
   ModelOptions,
+  ProviderRoute,
 } from "./types";
 
 export interface AIClient {
@@ -51,15 +59,22 @@ export interface AIClient {
    * Get a LanguageModel for the given slot.
    *
    * @param slot - One of: nano, fast, standard, powerful, reasoning, tools, vision
-   * @param options - Optional agent attribution for usage tracking
+   * @param options - Optional agent attribution and provider routing
    */
   model: (slot: LanguageModelSlot, options?: ModelOptions) => LanguageModel;
 
   /**
-   * Get a LanguageModel by explicit OpenRouter model ID.
-   * Escape hatch for when no slot fits.
+   * Get a LanguageModel by explicit model ID.
+   *
+   * When provider is "openrouter" (default), pass the OpenRouter-prefixed ID
+   * (e.g. "anthropic/claude-sonnet-4-6").
+   * When provider is "anthropic"/"openai"/"google", pass the bare model ID
+   * (e.g. "claude-sonnet-4-6") or the prefixed ID (the prefix will be stripped).
    */
   modelById: (modelId: string, options?: ModelOptions) => LanguageModel;
+
+  /** Which direct providers have API keys configured. */
+  readonly availableProviders: readonly ProviderRoute[];
 
   /**
    * Get the Voyage text embedding model for the configured embed slot.
@@ -119,17 +134,78 @@ export function createAI(config?: AIConfig): AIClient {
     config?.openRouterKey,
     config?.app,
   );
+  const anthropic = createAnthropicProvider(config?.anthropicKey);
+  const openai = createOpenAIProvider(config?.openaiKey);
+  const gateway = createGatewayProvider(config?.gatewayKey);
   const voyage = createVoyageProvider(config?.voyageKey);
   const google = createGoogleProvider(config?.googleKey);
 
+  // Detect which direct providers have keys available
+  const available: ProviderRoute[] = ["openrouter"];
+  // Gateway works on Vercel without a key, or with AI_GATEWAY_API_KEY locally
+  if (
+    config?.gatewayKey ??
+    process.env.AI_GATEWAY_API_KEY ??
+    process.env.VERCEL_API_KEY ??
+    process.env.VERCEL_ENV
+  ) {
+    available.push("gateway");
+  }
+  if (config?.anthropicKey ?? process.env.ANTHROPIC_API_KEY) {
+    available.push("anthropic");
+  }
+  if (config?.openaiKey ?? process.env.OPENAI_API_KEY) {
+    available.push("openai");
+  }
+  if (config?.googleKey ?? process.env.GOOGLE_GEMINI_API_KEY) {
+    available.push("google");
+  }
+
+  function resolveModel(
+    modelId: string,
+    options?: ModelOptions,
+  ): LanguageModel {
+    const provider = options?.provider ?? "openrouter";
+
+    if (provider === "openrouter") {
+      return openrouter.model(modelId, options);
+    }
+
+    // Gateway uses "provider/model" format — same as OpenRouter IDs
+    if (provider === "gateway") {
+      return gateway.model(modelId, options);
+    }
+
+    // For direct providers, strip the OpenRouter prefix if present
+    const directId = toDirectModelId(modelId);
+
+    switch (provider) {
+      case "anthropic":
+        return anthropic.model(directId, options);
+      case "openai":
+        return openai.model(directId, options);
+      case "google":
+        return google.textModel(directId, options);
+      default:
+        throw new Error(`Unknown provider: ${provider}`);
+    }
+  }
+
   return {
     model(slot, options) {
-      return openrouter.model(matrix[slot], options);
+      const modelId = matrix[slot];
+      const provider = options?.provider;
+      if (provider && provider !== "openrouter" && provider !== "gateway") {
+        validateProviderMatch(modelId, provider);
+      }
+      return resolveModel(modelId, options);
     },
 
     modelById(modelId, options) {
-      return openrouter.model(modelId, options);
+      return resolveModel(modelId, options);
     },
+
+    availableProviders: available,
 
     embedModel() {
       return voyage.embedModel(matrix.embed);
