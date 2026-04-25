@@ -12,6 +12,7 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import type { LanguageModel } from "ai";
 import type { ModelOptions } from "../types";
 
+/** Minimal direct Anthropic provider adapter used by the AI client. */
 export interface AnthropicProvider {
   model: (modelId: string, options?: ModelOptions) => LanguageModel;
 }

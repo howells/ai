@@ -1,12 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import type { ModelSlot } from "../src";
 import {
+  ANTHROPIC_MODELS,
+  DEEPSEEK_MODELS,
   DEFAULT_MODELS,
   GOOGLE_EMBED_MODELS,
+  GOOGLE_MODELS,
   inferProvider,
+  OPENAI_MODELS,
+  QWEN_MODELS,
   resolveModels,
   toDirectModelId,
   VOYAGE_MODELS,
+  XAI_MODELS,
 } from "../src";
 
 const MODEL_SLOTS = [
@@ -28,11 +34,24 @@ describe("model matrix", () => {
     expect(Object.keys(DEFAULT_MODELS).sort()).toEqual([...MODEL_SLOTS].sort());
   });
 
+  test("uses provider constants for all default language model slots", () => {
+    expect(DEFAULT_MODELS.nano).toBe(GOOGLE_MODELS.GEMINI_2_5_FLASH_LITE);
+    expect(DEFAULT_MODELS.fast).toBe(DEEPSEEK_MODELS.DEEPSEEK_V3_2);
+    expect(DEFAULT_MODELS.standard).toBe(GOOGLE_MODELS.GEMINI_2_5_FLASH);
+    expect(DEFAULT_MODELS.powerful).toBe(ANTHROPIC_MODELS.CLAUDE_SONNET_4_6);
+    expect(DEFAULT_MODELS.reasoning).toBe(ANTHROPIC_MODELS.CLAUDE_OPUS_4_6);
+    expect(DEFAULT_MODELS.tools).toBe(XAI_MODELS.GROK_4_1_FAST);
+    expect(DEFAULT_MODELS.vision).toBe(GOOGLE_MODELS.GEMINI_3_FLASH);
+    expect(QWEN_MODELS.QWEN_2_5_VL_72B_INSTRUCT).toBe(
+      "qwen/qwen2.5-vl-72b-instruct",
+    );
+  });
+
   test("returns a fresh default matrix", () => {
     const first = resolveModels();
     const second = resolveModels();
 
-    first.fast = "openai/gpt-5-nano";
+    first.fast = OPENAI_MODELS.GPT_5_NANO;
 
     expect(second.fast).toBe(DEFAULT_MODELS.fast);
   });
@@ -41,12 +60,12 @@ describe("model matrix", () => {
     const models = resolveModels({
       embed: VOYAGE_MODELS.VOYAGE_3_LITE,
       googleEmbed: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_1,
-      standard: "anthropic/claude-sonnet-4-6",
+      standard: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,
     });
 
     expect(models.embed).toBe("voyage-3-lite");
     expect(models.googleEmbed).toBe("gemini-embedding-001");
-    expect(models.standard).toBe("anthropic/claude-sonnet-4-6");
+    expect(models.standard).toBe(ANTHROPIC_MODELS.CLAUDE_SONNET_4_6);
     expect(models.fast).toBe(DEFAULT_MODELS.fast);
   });
 });

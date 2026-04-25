@@ -7,9 +7,56 @@
 
 import type { ModelMatrix, ProviderRoute } from "./types";
 
+// ── Language model constants ─────────────────────────────────────────
+// These use OpenRouter/Vercel AI Gateway "provider/model" IDs. Direct provider
+// calls strip the provider prefix via toDirectModelId().
+
+/** Supported Anthropic model IDs for language model slots. */
+export const ANTHROPIC_MODELS = {
+  /** Frontier reasoning model for the reasoning slot. */
+  CLAUDE_OPUS_4_6: "anthropic/claude-opus-4-6",
+  /** Complex reasoning and coding model for the powerful slot. */
+  CLAUDE_SONNET_4_6: "anthropic/claude-sonnet-4-6",
+} as const;
+
+/** Supported DeepSeek model IDs for language model slots. */
+export const DEEPSEEK_MODELS = {
+  /** Fast, low-cost model with strong tool-calling value. */
+  DEEPSEEK_V3_2: "deepseek/deepseek-v3.2",
+} as const;
+
+/** Supported Google model IDs for language model slots. */
+export const GOOGLE_MODELS = {
+  /** Gemini 3 Flash for fast multimodal/vision workloads. */
+  GEMINI_3_FLASH: "google/gemini-3-flash",
+  /** Ultra-cheap Gemini model for bulk/simple work. */
+  GEMINI_2_5_FLASH_LITE: "google/gemini-2.5-flash-lite",
+  /** General-purpose Gemini model for standard work. */
+  GEMINI_2_5_FLASH: "google/gemini-2.5-flash",
+} as const;
+
+/** Supported OpenAI model IDs for language model slot overrides. */
+export const OPENAI_MODELS = {
+  /** Low-cost OpenAI model option for nano-style overrides. */
+  GPT_5_NANO: "openai/gpt-5-nano",
+} as const;
+
+/** Supported xAI model IDs for language model slots. */
+export const XAI_MODELS = {
+  /** Cheap frontier-quality tool-calling model. */
+  GROK_4_1_FAST: "x-ai/grok-4.1-fast",
+} as const;
+
+/** Supported Qwen model IDs for language model slots. */
+export const QWEN_MODELS = {
+  /** Vision model with strong grounding and bounding-box support. */
+  QWEN_2_5_VL_72B_INSTRUCT: "qwen/qwen2.5-vl-72b-instruct",
+} as const;
+
 // ── Voyage AI model constants ─────────────────────────────────────────
 // Use these when overriding the embed/rerank slots in createAI().
 
+/** Supported Voyage model IDs for embedding and reranking slots. */
 export const VOYAGE_MODELS = {
   /** 1024d text embeddings — best quality, asymmetric retrieval. */
   VOYAGE_3: "voyage-3",
@@ -25,6 +72,7 @@ export const VOYAGE_MODELS = {
 
 // ── Google embedding model constants ──────────────────────────────────
 
+/** Supported Google embedding model IDs for the googleEmbed slot. */
 export const GOOGLE_EMBED_MODELS = {
   /** Gemini Embedding 2 preview — Google's latest embedding model. */
   GEMINI_EMBEDDING_2: "gemini-embedding-2-preview",
@@ -34,17 +82,18 @@ export const GOOGLE_EMBED_MODELS = {
 
 // ── Default matrix ────────────────────────────────────────────────────
 
+/** Default slot-to-model mapping used by `createAI()` when no override exists. */
 export const DEFAULT_MODELS: ModelMatrix = {
   // ── Cost tiers ──────────────────────────────────────────────────────
-  nano: "google/gemini-2.5-flash-lite", // $0.075/$0.30 — reliable JSON, 1M context
-  fast: "deepseek/deepseek-v3.2", // $0.14/$0.28 — excellent tool calling, fast
-  standard: "google/gemini-2.5-flash", // $0.30/$2.50 — built-in thinking, 1M context
-  powerful: "anthropic/claude-sonnet-4-6", // $3/$15 — complex reasoning, coding
-  reasoning: "anthropic/claude-opus-4-6", // $15/$75 — frontier quality
+  nano: GOOGLE_MODELS.GEMINI_2_5_FLASH_LITE, // $0.075/$0.30 — reliable JSON, 1M context
+  fast: DEEPSEEK_MODELS.DEEPSEEK_V3_2, // $0.14/$0.28 — excellent tool calling, fast
+  standard: GOOGLE_MODELS.GEMINI_2_5_FLASH, // $0.30/$2.50 — built-in thinking, 1M context
+  powerful: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6, // $3/$15 — complex reasoning, coding
+  reasoning: ANTHROPIC_MODELS.CLAUDE_OPUS_4_6, // $15/$75 — frontier quality
 
   // ── Specialties ─────────────────────────────────────────────────────
-  tools: "deepseek/deepseek-v3.2", // $0.14/$0.28 — best tool-calling value
-  vision: "qwen/qwen2.5-vl-72b-instruct", // best bounding box grounding (0-1000 format)
+  tools: XAI_MODELS.GROK_4_1_FAST, // $0.20/$0.50 — cheap frontier tool calling
+  vision: GOOGLE_MODELS.GEMINI_3_FLASH, // fast multimodal vision model
 
   // ── Retrieval ────────────────────────────────────────────────────────
   embed: VOYAGE_MODELS.VOYAGE_3, // 1024d text embeddings (Voyage AI)

@@ -9,6 +9,7 @@ import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { LanguageModel } from "ai";
 import type { AppConfig, ModelOptions } from "../types";
 
+/** Minimal OpenRouter provider adapter used by the AI client. */
 export interface OpenRouterProvider {
   model: (modelId: string, options?: ModelOptions) => LanguageModel;
 }

@@ -54,6 +54,13 @@ import type {
   ProviderRoute,
 } from "./types";
 
+/**
+ * Configured Routerbase AI client.
+ *
+ * The client exposes slot-based language models, explicit model routing, and
+ * retrieval helpers while keeping provider instances scoped to one `createAI`
+ * call.
+ */
 export interface AIClient {
   /**
    * Get a LanguageModel for the given slot.

@@ -31,12 +31,18 @@ export { createAI } from "./client";
 
 // Default model matrix and provider constants
 export {
+  ANTHROPIC_MODELS,
+  DEEPSEEK_MODELS,
   DEFAULT_MODELS,
   GOOGLE_EMBED_MODELS,
+  GOOGLE_MODELS,
   inferProvider,
+  OPENAI_MODELS,
+  QWEN_MODELS,
   resolveModels,
   toDirectModelId,
   VOYAGE_MODELS,
+  XAI_MODELS,
 } from "./models";
 
 // Types

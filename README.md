@@ -43,8 +43,8 @@ const { object } = await generateObject({
 | `standard` | `google/gemini-2.5-flash` | $0.30/M | Everyday tasks, chat, moderate reasoning |
 | `powerful` | `anthropic/claude-sonnet-4-6` | $3/M | Complex analysis, synthesis, creative |
 | `reasoning` | `anthropic/claude-opus-4-6` | $15/M | Frontier quality, deep multi-step reasoning |
-| `tools` | `deepseek/deepseek-v3.2` | $0.14/M | Agentic workflows, function calling |
-| `vision` | `qwen/qwen2.5-vl-72b-instruct` | varies | Image understanding, bounding boxes |
+| `tools` | `x-ai/grok-4.1-fast` | $0.20/M | Cheap frontier tool calling |
+| `vision` | `google/gemini-3-flash` | varies | Fast multimodal image understanding |
 
 ### Retrieval Models
 
@@ -60,12 +60,12 @@ const { object } = await generateObject({
 Override any slot per-project:
 
 ```typescript
-import { createAI, VOYAGE_MODELS } from "@howells/routerbase-ai";
+import { ANTHROPIC_MODELS, createAI, VOYAGE_MODELS } from "@howells/routerbase-ai";
 
 const ai = createAI({
   app: { name: "Sorrel", url: "https://sorrel.app" },
   models: {
-    standard: "anthropic/claude-sonnet-4-6",       // use Sonnet for general tasks
+    standard: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,  // use Sonnet for general tasks
     embed: VOYAGE_MODELS.VOYAGE_3_LITE,            // 512d, cheaper for this project
     rerank: VOYAGE_MODELS.RERANK_2_5_LITE,         // faster reranking
   },
@@ -135,7 +135,37 @@ ai.model("fast", { agent: "search" })
 ## Model Constants
 
 ```typescript
-import { VOYAGE_MODELS, GOOGLE_EMBED_MODELS } from "@howells/routerbase-ai";
+import {
+  ANTHROPIC_MODELS,
+  DEEPSEEK_MODELS,
+  GOOGLE_EMBED_MODELS,
+  GOOGLE_MODELS,
+  OPENAI_MODELS,
+  QWEN_MODELS,
+  VOYAGE_MODELS,
+  XAI_MODELS,
+} from "@howells/routerbase-ai";
+
+// Anthropic
+ANTHROPIC_MODELS.CLAUDE_OPUS_4_6        // "anthropic/claude-opus-4-6"
+ANTHROPIC_MODELS.CLAUDE_SONNET_4_6      // "anthropic/claude-sonnet-4-6"
+
+// DeepSeek
+DEEPSEEK_MODELS.DEEPSEEK_V3_2           // "deepseek/deepseek-v3.2"
+
+// Google language models
+GOOGLE_MODELS.GEMINI_3_FLASH            // "google/gemini-3-flash"
+GOOGLE_MODELS.GEMINI_2_5_FLASH_LITE     // "google/gemini-2.5-flash-lite"
+GOOGLE_MODELS.GEMINI_2_5_FLASH          // "google/gemini-2.5-flash"
+
+// OpenAI
+OPENAI_MODELS.GPT_5_NANO                // "openai/gpt-5-nano"
+
+// Qwen
+QWEN_MODELS.QWEN_2_5_VL_72B_INSTRUCT    // "qwen/qwen2.5-vl-72b-instruct"
+
+// xAI
+XAI_MODELS.GROK_4_1_FAST                // "x-ai/grok-4.1-fast"
 
 // Voyage
 VOYAGE_MODELS.VOYAGE_3            // "voyage-3"

@@ -10,6 +10,7 @@ import { createGateway } from "@ai-sdk/gateway";
 import type { LanguageModel } from "ai";
 import type { ModelOptions } from "../types";
 
+/** Minimal Vercel AI Gateway provider adapter used by the AI client. */
 export interface GatewayProvider {
   model: (modelId: string, options?: ModelOptions) => LanguageModel;
 }

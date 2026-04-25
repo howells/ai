@@ -9,6 +9,7 @@
 
 import { createVoyage } from "voyage-ai-provider";
 
+/** Voyage provider adapter for embeddings and reranking. */
 export interface VoyageProvider {
   embedModel: (
     modelId: string,

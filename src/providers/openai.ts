@@ -11,6 +11,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import type { LanguageModel } from "ai";
 import type { ModelOptions } from "../types";
 
+/** Minimal direct OpenAI provider adapter used by the AI client. */
 export interface OpenAIProvider {
   model: (modelId: string, options?: ModelOptions) => LanguageModel;
 }

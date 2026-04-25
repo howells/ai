@@ -12,6 +12,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { LanguageModel } from "ai";
 import type { ModelOptions } from "../types";
 
+/** Direct Google provider adapter for text generation and embeddings. */
 export interface GoogleProvider {
   textModel: (modelId: string, options?: ModelOptions) => LanguageModel;
   embedModel: (
