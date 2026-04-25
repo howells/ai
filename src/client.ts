@@ -165,7 +165,7 @@ export function createAI(config?: AIConfig): AIClient {
     modelId: string,
     options?: ModelOptions,
   ): LanguageModel {
-    const provider = options?.provider ?? "openrouter";
+    const provider = options?.provider ?? "gateway";
 
     if (provider === "openrouter") {
       return openrouter.model(modelId, options);

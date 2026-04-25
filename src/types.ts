@@ -94,8 +94,8 @@ export interface ModelOptions {
   agent?: string;
   /**
    * Override the provider route for this call.
-   * Defaults to "openrouter". Use "anthropic", "openai", or "google"
-   * to hit the provider's API directly (lower latency, no proxy hop).
+   * Defaults to "gateway" (Vercel AI Gateway). Use "anthropic", "openai",
+   * or "google" for direct API access, or "openrouter" for OpenRouter proxy.
    *
    * The model must belong to the requested provider — e.g. requesting
    * provider "anthropic" for a DeepSeek model will throw.
