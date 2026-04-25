@@ -62,6 +62,10 @@ export const VOYAGE_MODELS = {
   VOYAGE_3: "voyage-3",
   /** 512d text embeddings — fast + cheap, good for high-volume. */
   VOYAGE_3_LITE: "voyage-3-lite",
+  /** 1024d text embeddings — newer high-quality text embedding model. */
+  VOYAGE_3_5: "voyage-3.5",
+  /** 1024d text embeddings — newer fast + cheap text embedding model. */
+  VOYAGE_3_5_LITE: "voyage-3.5-lite",
   /** 1024d multimodal — stable text + image embeddings in the same vector space. */
   MULTIMODAL_3: "voyage-multimodal-3",
   /** 1024d multimodal — text + images in the same vector space. */

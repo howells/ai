@@ -1,6 +1,6 @@
 {
   "name": "@howells/routerbase-ai",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "type": "module",
   "description": "Unified AI client for all projects — Gateway, OpenRouter, direct providers, and retrieval models with 11 configurable slots.",
   "files": [
