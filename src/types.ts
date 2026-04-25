@@ -41,7 +41,7 @@ export type LanguageModelSlot = Exclude<
   "embed" | "multimodalEmbed" | "googleEmbed" | "rerank"
 >;
 
-/** The full model matrix — one OpenRouter/Voyage model ID per slot. */
+/** The full model matrix — one provider model ID per slot. */
 export type ModelMatrix = Record<ModelSlot, string>;
 
 /** App-level configuration for OpenRouter attribution headers. */
@@ -64,7 +64,7 @@ export interface AIConfig {
   voyageKey?: string;
   /** Google Gemini API key. Defaults to process.env.GOOGLE_GEMINI_API_KEY. */
   googleKey?: string;
-  /** Vercel API key for AI Gateway. Defaults to process.env.VERCEL_API_KEY. Auto-authenticates on Vercel. */
+  /** Vercel AI Gateway API key. Defaults to process.env.AI_GATEWAY_API_KEY. Auto-authenticates on Vercel. */
   gatewayKey?: string;
   /** Override default models for any slot. */
   models?: Partial<ModelMatrix>;
@@ -75,8 +75,8 @@ export interface AIConfig {
 /**
  * Provider routes for text generation.
  *
- * - "openrouter" — proxied through OpenRouter (default, works with any model)
- * - "gateway"    — Vercel AI Gateway (works with any model via "provider/model" strings)
+ * - "gateway"    — Vercel AI Gateway (default, works with any model via "provider/model" strings)
+ * - "openrouter" — proxied through OpenRouter (works with any OpenRouter model ID)
  * - "anthropic"  — direct Anthropic API (Anthropic models only)
  * - "openai"     — direct OpenAI API (OpenAI models only)
  * - "google"     — direct Google API (Google models only)
@@ -94,8 +94,9 @@ export interface ModelOptions {
   agent?: string;
   /**
    * Override the provider route for this call.
-   * Defaults to "gateway" (Vercel AI Gateway). Use "anthropic", "openai",
-   * or "google" for direct API access, or "openrouter" for OpenRouter proxy.
+   * Defaults to "gateway" (Vercel AI Gateway). Use "openrouter" for
+   * OpenRouter proxying, or "anthropic", "openai", and "google" for direct
+   * API access.
    *
    * The model must belong to the requested provider — e.g. requesting
    * provider "anthropic" for a DeepSeek model will throw.

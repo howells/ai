@@ -2,7 +2,7 @@
  * @howells/routerbase-ai — Unified AI client factory.
  *
  * Creates a configured client with an 11-slot model matrix.
- * Text generation routes through OpenRouter.
+ * Text generation routes through Vercel AI Gateway by default.
  * Embeddings through Voyage AI or Google Gemini.
  * Reranking through Voyage AI.
  *
@@ -66,14 +66,15 @@ export interface AIClient {
   /**
    * Get a LanguageModel by explicit model ID.
    *
-   * When provider is "openrouter" (default), pass the OpenRouter-prefixed ID
+   * When provider is "gateway" (default), pass the provider-prefixed ID
    * (e.g. "anthropic/claude-sonnet-4-6").
+   * When provider is "openrouter", pass the OpenRouter-prefixed ID.
    * When provider is "anthropic"/"openai"/"google", pass the bare model ID
    * (e.g. "claude-sonnet-4-6") or the prefixed ID (the prefix will be stripped).
    */
   modelById: (modelId: string, options?: ModelOptions) => LanguageModel;
 
-  /** Which direct providers have API keys configured. */
+  /** Which providers appear configured for use in this process. */
   readonly availableProviders: readonly ProviderRoute[];
 
   /**
@@ -140,16 +141,17 @@ export function createAI(config?: AIConfig): AIClient {
   const voyage = createVoyageProvider(config?.voyageKey);
   const google = createGoogleProvider(config?.googleKey);
 
-  // Detect which direct providers have keys available
-  const available: ProviderRoute[] = ["openrouter"];
-  // Gateway works on Vercel without a key, or with AI_GATEWAY_API_KEY locally
+  const available: ProviderRoute[] = [];
+  // Gateway uses AI_GATEWAY_API_KEY locally and Vercel OIDC in deployments.
   if (
     config?.gatewayKey ??
     process.env.AI_GATEWAY_API_KEY ??
-    process.env.VERCEL_API_KEY ??
     process.env.VERCEL_ENV
   ) {
     available.push("gateway");
+  }
+  if (config?.openRouterKey ?? process.env.OPENROUTER_API_KEY) {
+    available.push("openrouter");
   }
   if (config?.anthropicKey ?? process.env.ANTHROPIC_API_KEY) {
     available.push("anthropic");
@@ -202,6 +204,15 @@ export function createAI(config?: AIConfig): AIClient {
     },
 
     modelById(modelId, options) {
+      const provider = options?.provider;
+      if (
+        provider &&
+        provider !== "openrouter" &&
+        provider !== "gateway" &&
+        modelId.includes("/")
+      ) {
+        validateProviderMatch(modelId, provider);
+      }
       return resolveModel(modelId, options);
     },
 

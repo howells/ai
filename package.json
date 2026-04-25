@@ -2,7 +2,7 @@
   "name": "@howells/routerbase-ai",
   "version": "0.1.0",
   "type": "module",
-  "description": "Unified AI client for all projects — OpenRouter, Voyage, and Google with 11 configurable model slots.",
+  "description": "Unified AI client for all projects — Gateway, OpenRouter, direct providers, and retrieval models with 11 configurable slots.",
   "files": [
     "dist",
     "README.md"
@@ -15,7 +15,8 @@
   },
   "scripts": {
     "build": "tsdown",
-    "check-types": "tsc --noEmit"
+    "check-types": "tsc --noEmit",
+    "test": "bun test"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.71",

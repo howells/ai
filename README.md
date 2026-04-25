@@ -1,6 +1,6 @@
 # @howells/routerbase-ai
 
-Unified AI client for all projects. One package, three providers (OpenRouter + Voyage + Google), 11 configurable model slots.
+Unified AI client for all projects. One package, Vercel AI Gateway by default, direct provider escape hatches, and 11 configurable model slots.
 
 ## Quick Start
 
@@ -34,7 +34,7 @@ const { object } = await generateObject({
 
 ## Model Slots
 
-### Language Models (via OpenRouter)
+### Language Models (via Vercel AI Gateway by default)
 
 | Slot | Default | Cost | Use When |
 |------|---------|------|----------|
@@ -116,13 +116,20 @@ const { text } = await generateText({
 });
 ```
 
+Route through OpenRouter or direct providers when needed:
+
+```typescript
+ai.model("standard", { provider: "openrouter" });
+ai.modelById("claude-sonnet-4-6", { provider: "anthropic" });
+```
+
 ## Agent Attribution
 
-Tag requests for per-agent cost tracking in OpenRouter:
+Tag OpenRouter requests for per-agent cost tracking:
 
 ```typescript
 ai.model("fast", { agent: "search" })
-// Sends user tag: "search/production" (or "search/development")
+// Sends user tag when provider is "openrouter"
 ```
 
 ## Model Constants
@@ -146,14 +153,18 @@ GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_1  // "gemini-embedding-001"
 
 | Variable | Required | Used By |
 |----------|----------|---------|
-| `OPENROUTER_API_KEY` | Yes (for language models) | OpenRouter provider |
+| `AI_GATEWAY_API_KEY` | Yes locally for default language models | Vercel AI Gateway |
+| `OPENROUTER_API_KEY` | Only if using `provider: "openrouter"` | OpenRouter provider |
+| `ANTHROPIC_API_KEY` | Only if using `provider: "anthropic"` | Anthropic provider |
+| `OPENAI_API_KEY` | Only if using `provider: "openai"` | OpenAI provider |
 | `VOYAGE_API_KEY` | Yes (for embed/rerank) | Voyage provider |
-| `GOOGLE_GEMINI_API_KEY` | Only if using `googleEmbedModel()` | Google provider |
+| `GOOGLE_GEMINI_API_KEY` | Only if using `googleEmbedModel()` or `provider: "google"` | Google provider |
 
 Keys can also be passed directly to `createAI()`:
 
 ```typescript
 const ai = createAI({
+  gatewayKey: "vck_...",
   openRouterKey: "sk-or-...",
   voyageKey: "pa-...",
   googleKey: "...",
@@ -165,5 +176,6 @@ const ai = createAI({
 - Each `createAI()` returns an independent client (no shared module state)
 - Providers are lazy-initialized on first use
 - Safe for tests and multi-config scenarios
-- All language models route through OpenRouter
+- Language models route through Vercel AI Gateway by default
+- OpenRouter and direct Anthropic/OpenAI/Google routes are available per call
 - Embeddings/reranking through Voyage AI or Google
