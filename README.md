@@ -170,6 +170,7 @@ XAI_MODELS.GROK_4_1_FAST                // "x-ai/grok-4.1-fast"
 // Voyage
 VOYAGE_MODELS.VOYAGE_3            // "voyage-3"
 VOYAGE_MODELS.VOYAGE_3_LITE       // "voyage-3-lite"
+VOYAGE_MODELS.MULTIMODAL_3        // "voyage-multimodal-3"
 VOYAGE_MODELS.MULTIMODAL_3_5      // "voyage-multimodal-3.5"
 VOYAGE_MODELS.RERANK_2_5          // "rerank-2.5"
 VOYAGE_MODELS.RERANK_2_5_LITE     // "rerank-2.5-lite"

@@ -42,6 +42,7 @@ describe("model matrix", () => {
     expect(DEFAULT_MODELS.reasoning).toBe(ANTHROPIC_MODELS.CLAUDE_OPUS_4_6);
     expect(DEFAULT_MODELS.tools).toBe(XAI_MODELS.GROK_4_1_FAST);
     expect(DEFAULT_MODELS.vision).toBe(GOOGLE_MODELS.GEMINI_3_FLASH);
+    expect(VOYAGE_MODELS.MULTIMODAL_3).toBe("voyage-multimodal-3");
     expect(QWEN_MODELS.QWEN_2_5_VL_72B_INSTRUCT).toBe(
       "qwen/qwen2.5-vl-72b-instruct",
     );
