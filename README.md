@@ -86,6 +86,9 @@ const { embedding } = await embed({
 // Voyage multimodal (text + images in same space)
 const mm = ai.multimodalEmbedModel();
 
+// Voyage image-only embeddings with explicit provider options
+const imageModel = ai.imageEmbedModel();
+
 // Google Gemini embeddings (for benchmarking)
 const { embedding: g } = await embed({
   model: ai.googleEmbedModel(),
@@ -103,6 +106,36 @@ const { embeddings } = await embedMany({
 
 ```typescript
 const reranker = ai.rerankModel();
+```
+
+## Non-AI-SDK Runtimes
+
+Some frameworks accept OpenRouter config objects instead of AI SDK models:
+
+```typescript
+const model = ai.openRouterModelConfig("deepseek/deepseek-v3.2", {
+  agent: "materials-agent",
+});
+// { id, url, apiKey, headers }
+```
+
+For direct HTTP clients, use request config and pass `user` in the request body:
+
+```typescript
+const config = ai.openRouterRequestConfig({ agent: "nl-search" });
+await fetch(`${config.baseURL}/chat/completions`, {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${config.apiKey}`,
+    ...config.headers,
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    model: "deepseek/deepseek-v3.2",
+    messages,
+    user: config.user,
+  }),
+});
 ```
 
 ## Escape Hatch

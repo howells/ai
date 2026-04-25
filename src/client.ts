@@ -51,6 +51,8 @@ import type {
   LanguageModelSlot,
   ModelMatrix,
   ModelOptions,
+  OpenRouterModelConfig,
+  OpenRouterRequestConfig,
   ProviderRoute,
 } from "./types";
 
@@ -81,6 +83,21 @@ export interface AIClient {
    */
   modelById: (modelId: string, options?: ModelOptions) => LanguageModel;
 
+  /**
+   * Get OpenRouter request settings for direct HTTP code paths.
+   * Prefer `model()`/`modelById()` when the runtime accepts AI SDK models.
+   */
+  openRouterRequestConfig: (options?: ModelOptions) => OpenRouterRequestConfig;
+
+  /**
+   * Get an OpenRouter-compatible model config for non-AI-SDK runtimes.
+   * Useful for frameworks that accept `{ id, url, apiKey, headers }`.
+   */
+  openRouterModelConfig: (
+    modelId: `${string}/${string}`,
+    options?: ModelOptions,
+  ) => OpenRouterModelConfig;
+
   /** Which providers appear configured for use in this process. */
   readonly availableProviders: readonly ProviderRoute[];
 
@@ -93,6 +110,12 @@ export interface AIClient {
    * ```
    */
   embedModel: () => ReturnType<VoyageProvider["embedModel"]>;
+
+  /**
+   * Get the Voyage image embedding model for the configured multimodal slot.
+   * Use this for image-only embedding calls with explicit Voyage input types.
+   */
+  imageEmbedModel: () => ReturnType<VoyageProvider["imageEmbedModel"]>;
 
   /**
    * Get the Voyage multimodal embedding model.
@@ -225,8 +248,20 @@ export function createAI(config?: AIConfig): AIClient {
 
     availableProviders: available,
 
+    openRouterRequestConfig(options) {
+      return openrouter.requestConfig(options);
+    },
+
+    openRouterModelConfig(modelId, options) {
+      return openrouter.modelConfig(modelId, options);
+    },
+
     embedModel() {
       return voyage.embedModel(matrix.embed);
+    },
+
+    imageEmbedModel() {
+      return voyage.imageEmbedModel(matrix.multimodalEmbed);
     },
 
     multimodalEmbedModel() {

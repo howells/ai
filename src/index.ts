@@ -53,5 +53,7 @@ export type {
   ModelMatrix,
   ModelOptions,
   ModelSlot,
+  OpenRouterModelConfig,
+  OpenRouterRequestConfig,
   ProviderRoute,
 } from "./types";

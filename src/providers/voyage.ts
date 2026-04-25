@@ -14,6 +14,9 @@ export interface VoyageProvider {
   embedModel: (
     modelId: string,
   ) => ReturnType<ReturnType<typeof createVoyage>["textEmbeddingModel"]>;
+  imageEmbedModel: (
+    modelId: string,
+  ) => ReturnType<ReturnType<typeof createVoyage>["imageEmbeddingModel"]>;
   multimodalEmbedModel: (
     modelId: string,
   ) => ReturnType<ReturnType<typeof createVoyage>["multimodalEmbeddingModel"]>;
@@ -48,6 +51,9 @@ export function createVoyageProvider(
   return {
     embedModel(modelId) {
       return getClient().textEmbeddingModel(modelId);
+    },
+    imageEmbedModel(modelId) {
+      return getClient().imageEmbeddingModel(modelId);
     },
     multimodalEmbedModel(modelId) {
       return getClient().multimodalEmbeddingModel(modelId);

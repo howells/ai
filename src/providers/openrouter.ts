@@ -7,11 +7,23 @@
 
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { LanguageModel } from "ai";
-import type { AppConfig, ModelOptions } from "../types";
+import type {
+  AppConfig,
+  ModelOptions,
+  OpenRouterModelConfig,
+  OpenRouterRequestConfig,
+} from "../types";
+
+const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
 
 /** Minimal OpenRouter provider adapter used by the AI client. */
 export interface OpenRouterProvider {
   model: (modelId: string, options?: ModelOptions) => LanguageModel;
+  modelConfig: (
+    modelId: `${string}/${string}`,
+    options?: ModelOptions,
+  ) => OpenRouterModelConfig;
+  requestConfig: (options?: ModelOptions) => OpenRouterRequestConfig;
 }
 
 /**
@@ -26,16 +38,17 @@ export function createOpenRouterProvider(
 
   const env = process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development";
 
-  function getClient() {
-    if (client) return client;
-
+  function getApiKey() {
     const key = apiKey ?? process.env.OPENROUTER_API_KEY;
     if (!key) {
       throw new Error(
         "OPENROUTER_API_KEY is required. Pass it to createAI() or set the environment variable.",
       );
     }
+    return key;
+  }
 
+  function getHeaders() {
     const headers: Record<string, string> = {};
     if (app?.url) {
       headers["HTTP-Referer"] = app.url;
@@ -44,8 +57,19 @@ export function createOpenRouterProvider(
       headers["X-Title"] = app.name;
     }
 
+    return headers;
+  }
+
+  function getUser(options?: ModelOptions) {
+    return options?.agent ? `${options.agent}/${env}` : undefined;
+  }
+
+  function getClient() {
+    if (client) return client;
+
+    const headers = getHeaders();
     client = createOpenRouter({
-      apiKey: key,
+      apiKey: getApiKey(),
       ...(Object.keys(headers).length > 0 ? { headers } : {}),
     });
 
@@ -54,9 +78,26 @@ export function createOpenRouterProvider(
 
   return {
     model(modelId, options) {
-      const c = getClient();
-      const user = options?.agent ? `${options.agent}/${env}` : undefined;
-      return c(modelId, user ? { user } : {});
+      const user = getUser(options);
+      return getClient()(modelId, user ? { user } : {});
+    },
+    modelConfig(modelId, _options) {
+      const headers = getHeaders();
+      return {
+        id: modelId,
+        url: OPENROUTER_BASE_URL,
+        apiKey: getApiKey(),
+        ...(Object.keys(headers).length > 0 ? { headers } : {}),
+      };
+    },
+    requestConfig(options) {
+      const user = getUser(options);
+      return {
+        baseURL: OPENROUTER_BASE_URL,
+        apiKey: getApiKey(),
+        headers: getHeaders(),
+        ...(user ? { user } : {}),
+      };
     },
   };
 }

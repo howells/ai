@@ -9,6 +9,7 @@ const ENV_KEYS = [
   "ANTHROPIC_API_KEY",
   "OPENAI_API_KEY",
   "GOOGLE_GEMINI_API_KEY",
+  "VOYAGE_API_KEY",
 ] as const;
 
 const originalEnv = new Map<string, string | undefined>();
@@ -113,5 +114,35 @@ describe("createAI", () => {
     expect(() =>
       ai.modelById("claude-sonnet-4-6", { provider: "anthropic" }),
     ).not.toThrow();
+  });
+
+  test("exposes Voyage image embedding models", () => {
+    const ai = createAI({ voyageKey: "voyage-key" });
+
+    expect(() => ai.imageEmbedModel()).not.toThrow();
+  });
+
+  test("exposes OpenRouter runtime config for non-AI-SDK callers", () => {
+    const env = process.env.NODE_ENV ?? "development";
+    const ai = createAI({
+      app: { name: "Routerbase", url: "https://routerbase.dev" },
+      openRouterKey: "openrouter-key",
+    });
+
+    expect(ai.openRouterRequestConfig({ agent: "search" })).toEqual({
+      baseURL: "https://openrouter.ai/api/v1",
+      apiKey: "openrouter-key",
+      headers: {
+        "HTTP-Referer": "https://routerbase.dev",
+        "X-Title": "Routerbase",
+      },
+      user: `search/${env}`,
+    });
+
+    expect(ai.openRouterModelConfig("deepseek/deepseek-v3.2")).toMatchObject({
+      id: "deepseek/deepseek-v3.2",
+      url: "https://openrouter.ai/api/v1",
+      apiKey: "openrouter-key",
+    });
   });
 });

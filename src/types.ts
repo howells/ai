@@ -103,3 +103,20 @@ export interface ModelOptions {
    */
   provider?: ProviderRoute;
 }
+
+/** OpenRouter request configuration for code paths that need direct HTTP access. */
+export interface OpenRouterRequestConfig {
+  baseURL: string;
+  apiKey: string;
+  headers: Record<string, string>;
+  /** Body-level OpenRouter user attribution value, when an agent is provided. */
+  user?: string;
+}
+
+/** OpenRouter-compatible model config for runtimes that do not accept AI SDK models. */
+export interface OpenRouterModelConfig {
+  id: `${string}/${string}`;
+  url: string;
+  apiKey: string;
+  headers?: Record<string, string>;
+}
