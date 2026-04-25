@@ -1,6 +1,6 @@
 # @howells/routerbase-ai
 
-Unified AI client for all projects. One package, Vercel AI Gateway by default, direct provider escape hatches, and 11 configurable model slots.
+Unified AI client for all projects. One package, Vercel AI Gateway by default, direct provider escape hatches, and 12 configurable model slots.
 
 ## Quick Start
 
@@ -53,6 +53,7 @@ const { object } = await generateObject({
 | `embed` | `voyage-3` | Voyage AI | Text embeddings (1024d) |
 | `multimodalEmbed` | `voyage-multimodal-3.5` | Voyage AI | Text + image embeddings (1024d) |
 | `googleEmbed` | `gemini-embedding-2-preview` | Google | A/B testing against Voyage |
+| `googleImageEmbed` | `gemini-embedding-2-preview` | Google | Gemini image embeddings |
 | `rerank` | `rerank-2.5` | Voyage AI | Search result reranking |
 
 ## Overriding Slots
@@ -77,22 +78,33 @@ const ai = createAI({
 ```typescript
 import { embed, embedMany } from "ai";
 
-// Voyage text embeddings
+// Provider-neutral text embeddings
 const { embedding } = await embed({
-  model: ai.embedModel(),
+  model: ai.embeddingModel({ input: "text", provider: "voyage" }),
   value: "some text",
 });
 
-// Voyage multimodal (text + images in same space)
-const mm = ai.multimodalEmbedModel();
+// Provider-neutral image or image+text embeddings.
+// Switch to { provider: "gemini" } without changing the call site shape.
+const imageModel = ai.embeddingModel({ input: "image", provider: "voyage" });
 
-// Voyage image-only embeddings with explicit provider options
-const imageModel = ai.imageEmbedModel();
-
-// Google Gemini embeddings (for benchmarking)
+// Google Gemini text embeddings (for benchmarking)
 const { embedding: g } = await embed({
-  model: ai.googleEmbedModel(),
+  model: ai.embeddingModel({ input: "text", provider: "gemini" }),
   value: "some text",
+});
+
+// Google Gemini image+text embeddings
+const { embedding: imageEmbedding } = await embed({
+  model: ai.embeddingModel({ input: "image", provider: "gemini" }),
+  value: "green woven upholstery",
+  providerOptions: {
+    google: {
+      content: [
+        [{ inlineData: { mimeType: "image/png", data: "<base64>" } }],
+      ],
+    },
+  },
 });
 
 // Batch

@@ -3,7 +3,7 @@
  */
 
 /**
- * The 10 configurable model slots.
+ * The 12 configurable model slots.
  *
  * Cost tiers (generalist ladder):
  *   nano      — Free/ultra-cheap bulk processing ($0-0.10/M)
@@ -20,6 +20,7 @@
  *   embed           — Text embeddings (Voyage)
  *   multimodalEmbed — Text + image embeddings in same vector space (Voyage)
  *   googleEmbed     — Text embeddings (Gemini Embedding 2)
+ *   googleImageEmbed — Image embeddings (Gemini Embedding 2 multimodal content)
  *   rerank          — Search result reranking (Voyage)
  */
 export type ModelSlot =
@@ -33,12 +34,13 @@ export type ModelSlot =
   | "embed"
   | "multimodalEmbed"
   | "googleEmbed"
+  | "googleImageEmbed"
   | "rerank";
 
 /** Slots that return a LanguageModel (everything except retrieval slots). */
 export type LanguageModelSlot = Exclude<
   ModelSlot,
-  "embed" | "multimodalEmbed" | "googleEmbed" | "rerank"
+  "embed" | "multimodalEmbed" | "googleEmbed" | "googleImageEmbed" | "rerank"
 >;
 
 /** The full model matrix — one provider model ID per slot. */
@@ -87,6 +89,26 @@ export type ProviderRoute =
   | "anthropic"
   | "openai"
   | "google";
+
+/** Provider routes for embedding models. */
+export type EmbeddingProviderRoute = "voyage" | "gemini";
+
+/** Input family for provider-neutral embedding model selection. */
+export type EmbeddingInputKind = "text" | "image";
+
+/** Options passed when selecting an embedding model. */
+export interface EmbeddingModelOptions {
+  /**
+   * Embedding provider to use.
+   * Defaults to "voyage" for backwards-compatible text/image retrieval.
+   */
+  provider?: EmbeddingProviderRoute;
+  /**
+   * Input family to embed.
+   * "image" covers image-only and image+text multimodal embedding calls.
+   */
+  input?: EmbeddingInputKind;
+}
 
 /** Options passed when selecting a model. */
 export interface ModelOptions {

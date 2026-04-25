@@ -78,7 +78,7 @@ export const VOYAGE_MODELS = {
 
 // ── Google embedding model constants ──────────────────────────────────
 
-/** Supported Google embedding model IDs for the googleEmbed slot. */
+/** Supported Google embedding model IDs for the googleEmbed and googleImageEmbed slots. */
 export const GOOGLE_EMBED_MODELS = {
   /** Gemini Embedding 2 preview — Google's latest embedding model. */
   GEMINI_EMBEDDING_2: "gemini-embedding-2-preview",
@@ -105,6 +105,7 @@ export const DEFAULT_MODELS: ModelMatrix = {
   embed: VOYAGE_MODELS.VOYAGE_3, // 1024d text embeddings (Voyage AI)
   multimodalEmbed: VOYAGE_MODELS.MULTIMODAL_3_5, // 1024d text + images in same space (Voyage AI)
   googleEmbed: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2, // Gemini Embedding 2 (Google)
+  googleImageEmbed: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2, // Gemini image embeddings (Google)
   rerank: VOYAGE_MODELS.RERANK_2_5, // standard reranker (Voyage AI)
 } as const;
 

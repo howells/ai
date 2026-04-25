@@ -1,7 +1,7 @@
 /**
  * @howells/routerbase-ai — Unified AI client factory.
  *
- * Creates a configured client with an 11-slot model matrix.
+ * Creates a configured client with a 12-slot model matrix.
  * Text generation routes through Vercel AI Gateway by default.
  * Embeddings through Voyage AI or Google Gemini.
  * Reranking through Voyage AI.
@@ -24,11 +24,8 @@
  * // Voyage text embeddings
  * const { embedding } = await embed({ model: ai.embedModel(), value: "hello" });
  *
- * // Voyage multimodal embeddings (text + images in same space)
- * const mm = ai.multimodalEmbedModel();
- *
- * // Google Gemini embeddings (for A/B testing)
- * const { embedding: g } = await embed({ model: ai.googleEmbedModel(), value: "hello" });
+ * // Provider-neutral image/multimodal embeddings
+ * const imageModel = ai.embeddingModel({ input: "image", provider: "gemini" });
  * ```
  */
 
@@ -48,6 +45,7 @@ import type { VoyageProvider } from "./providers/voyage";
 import { createVoyageProvider } from "./providers/voyage";
 import type {
   AIConfig,
+  EmbeddingModelOptions,
   LanguageModelSlot,
   ModelMatrix,
   ModelOptions,
@@ -102,6 +100,20 @@ export interface AIClient {
   readonly availableProviders: readonly ProviderRoute[];
 
   /**
+   * Get a provider-neutral embedding model.
+   *
+   * Use `{ input: "text" }` for text embeddings and `{ input: "image" }`
+   * for image-only or image+text multimodal embeddings.
+   */
+  embeddingModel: (
+    options?: EmbeddingModelOptions,
+  ) =>
+    | ReturnType<VoyageProvider["embedModel"]>
+    | ReturnType<VoyageProvider["multimodalEmbedModel"]>
+    | ReturnType<GoogleProvider["embedModel"]>
+    | ReturnType<GoogleProvider["imageEmbedModel"]>;
+
+  /**
    * Get the Voyage text embedding model for the configured embed slot.
    *
    * @example
@@ -136,6 +148,13 @@ export interface AIClient {
    * ```
    */
   googleEmbedModel: () => ReturnType<GoogleProvider["embedModel"]>;
+
+  /**
+   * Get the Google Gemini image embedding model.
+   * Use Gemini provider options to pass image content for the embedding value.
+   * Requires GOOGLE_GEMINI_API_KEY.
+   */
+  googleImageEmbedModel: () => ReturnType<GoogleProvider["imageEmbedModel"]>;
 
   /**
    * Get the Voyage reranking model for the configured rerank slot.
@@ -223,6 +242,21 @@ export function createAI(config?: AIConfig): AIClient {
     }
   }
 
+  function resolveEmbeddingModel(options?: EmbeddingModelOptions) {
+    const provider = options?.provider ?? "voyage";
+    const input = options?.input ?? "text";
+
+    if (provider === "gemini") {
+      return input === "image"
+        ? google.imageEmbedModel(matrix.googleImageEmbed)
+        : google.embedModel(matrix.googleEmbed);
+    }
+
+    return input === "image"
+      ? voyage.multimodalEmbedModel(matrix.multimodalEmbed)
+      : voyage.embedModel(matrix.embed);
+  }
+
   return {
     model(slot, options) {
       const modelId = matrix[slot];
@@ -256,6 +290,10 @@ export function createAI(config?: AIConfig): AIClient {
       return openrouter.modelConfig(modelId, options);
     },
 
+    embeddingModel(options) {
+      return resolveEmbeddingModel(options);
+    },
+
     embedModel() {
       return voyage.embedModel(matrix.embed);
     },
@@ -270,6 +308,10 @@ export function createAI(config?: AIConfig): AIClient {
 
     googleEmbedModel() {
       return google.embedModel(matrix.googleEmbed);
+    },
+
+    googleImageEmbedModel() {
+      return google.imageEmbedModel(matrix.googleImageEmbed);
     },
 
     rerankModel() {

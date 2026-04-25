@@ -1,7 +1,7 @@
 /**
  * @howells/routerbase-ai — Unified AI client for all projects.
  *
- * One package, 11 configurable model slots, three providers (OpenRouter + Voyage + Google).
+ * One package, 12 configurable model slots, three providers (OpenRouter + Voyage + Google).
  *
  * @example
  * ```ts
@@ -49,6 +49,9 @@ export {
 export type {
   AIConfig,
   AppConfig,
+  EmbeddingInputKind,
+  EmbeddingModelOptions,
+  EmbeddingProviderRoute,
   LanguageModelSlot,
   ModelMatrix,
   ModelOptions,

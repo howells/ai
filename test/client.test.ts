@@ -120,6 +120,30 @@ describe("createAI", () => {
     const ai = createAI({ voyageKey: "voyage-key" });
 
     expect(() => ai.imageEmbedModel()).not.toThrow();
+    expect(() =>
+      ai.embeddingModel({ input: "image", provider: "voyage" }),
+    ).not.toThrow();
+  });
+
+  test("exposes Google Gemini image embedding models", () => {
+    const ai = createAI({ googleKey: "google-key" });
+
+    expect(() => ai.googleImageEmbedModel()).not.toThrow();
+    expect(() =>
+      ai.embeddingModel({ input: "image", provider: "gemini" }),
+    ).not.toThrow();
+  });
+
+  test("exposes provider-neutral text embedding models", () => {
+    const voyage = createAI({ voyageKey: "voyage-key" });
+    const gemini = createAI({ googleKey: "google-key" });
+
+    expect(() =>
+      voyage.embeddingModel({ input: "text", provider: "voyage" }),
+    ).not.toThrow();
+    expect(() =>
+      gemini.embeddingModel({ input: "text", provider: "gemini" }),
+    ).not.toThrow();
   });
 
   test("exposes OpenRouter runtime config for non-AI-SDK callers", () => {

@@ -26,6 +26,7 @@ const MODEL_SLOTS = [
   "embed",
   "multimodalEmbed",
   "googleEmbed",
+  "googleImageEmbed",
   "rerank",
 ] as const satisfies readonly ModelSlot[];
 
@@ -62,11 +63,13 @@ describe("model matrix", () => {
     const models = resolveModels({
       embed: VOYAGE_MODELS.VOYAGE_3_LITE,
       googleEmbed: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_1,
+      googleImageEmbed: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2,
       standard: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,
     });
 
     expect(models.embed).toBe("voyage-3-lite");
     expect(models.googleEmbed).toBe("gemini-embedding-001");
+    expect(models.googleImageEmbed).toBe("gemini-embedding-2-preview");
     expect(models.standard).toBe(ANTHROPIC_MODELS.CLAUDE_SONNET_4_6);
     expect(models.fast).toBe(DEFAULT_MODELS.fast);
   });

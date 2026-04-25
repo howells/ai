@@ -20,6 +20,11 @@ export interface GoogleProvider {
   ) => ReturnType<
     ReturnType<typeof createGoogleGenerativeAI>["embeddingModel"]
   >;
+  imageEmbedModel: (
+    modelId: string,
+  ) => ReturnType<
+    ReturnType<typeof createGoogleGenerativeAI>["embeddingModel"]
+  >;
 }
 
 /**
@@ -51,6 +56,9 @@ export function createGoogleProvider(
       return getClient()(modelId);
     },
     embedModel(modelId) {
+      return getClient().embeddingModel(modelId);
+    },
+    imageEmbedModel(modelId) {
       return getClient().embeddingModel(modelId);
     },
   };
