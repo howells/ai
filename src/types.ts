@@ -2,7 +2,13 @@
  * @howells/ai — Shared types
  */
 
-import type { CallSettings, StopCondition, ToolChoice, ToolSet } from "ai";
+import type {
+  CallSettings,
+  JSONValue,
+  StopCondition,
+  ToolChoice,
+  ToolSet,
+} from "ai";
 
 /**
  * Language model tiers.
@@ -190,7 +196,7 @@ export type ServiceTier = "auto" | "standard" | "flex" | "priority";
 /** Provider-specific options object accepted by AI SDK generation calls. */
 export type GenerationProviderOptions = Record<
   string,
-  Record<string, unknown>
+  Record<string, JSONValue | undefined>
 >;
 
 /** Provider-neutral generation settings resolved into AI SDK call options. */

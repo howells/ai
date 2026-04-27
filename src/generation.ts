@@ -17,6 +17,8 @@ import type {
   ServiceTier,
 } from "./types";
 
+type ProviderOptionValue = GenerationProviderOptions[string][string];
+
 const OUTPUT_TOKENS: Record<Exclude<OutputLength, number>, number> = {
   short: 512,
   medium: 2048,
@@ -88,17 +90,19 @@ function inferOptionTargets(options: GenerationOptions): ProviderRoute[] {
 function setProviderOptions(
   providerOptions: GenerationProviderOptions,
   provider: string,
-  values: Record<string, unknown>,
+  values: Record<string, ProviderOptionValue>,
 ): void {
-  const entries = Object.entries(values).filter(
-    ([, value]) => value !== undefined,
-  );
-  if (entries.length === 0) return;
-
-  providerOptions[provider] = {
+  const next: Record<string, ProviderOptionValue> = {
     ...(providerOptions[provider] ?? {}),
-    ...Object.fromEntries(entries),
   };
+
+  for (const [key, value] of Object.entries(values)) {
+    if (value !== undefined) next[key] = value;
+  }
+
+  if (Object.keys(next).length === 0) return;
+
+  providerOptions[provider] = next;
 }
 
 function mapOpenAIServiceTier(

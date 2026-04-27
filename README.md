@@ -115,6 +115,23 @@ matrix:
 pnpm test:live
 ```
 
+## CLI
+
+The package ships a small CLI as both `ai` and `howells-ai`:
+
+```bash
+ai models
+ai providers
+ai doctor
+ai doctor --live
+ai test --provider openai
+ai bench --provider gateway --tier fast --prompt "Reply in one sentence."
+```
+
+Use `--json` on `models`, `providers`, `doctor`, `test`, and `bench` for
+scriptable output. The CLI loads local keys from `.env`, `.env.local`, and
+`apps/benchmark/.env.local`, and never prints secret values.
+
 ## Model Matrix
 
 ### Language Models (via Vercel AI Gateway by default)

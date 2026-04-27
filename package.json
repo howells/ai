@@ -1,6 +1,6 @@
 {
   "name": "@howells/ai",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "type": "module",
   "description": "Unified AI client for all projects — Gateway, OpenRouter, direct providers, tiered language models, and retrieval models.",
   "license": "MIT",
@@ -13,6 +13,10 @@
     "dist",
     "README.md"
   ],
+  "bin": {
+    "ai": "./dist/cli.mjs",
+    "howells-ai": "./dist/cli.mjs"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.mts",
