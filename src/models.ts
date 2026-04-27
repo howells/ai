@@ -8,15 +8,15 @@
 import type { ModelMatrix, ProviderRoute } from "./types";
 
 // ── Language model constants ─────────────────────────────────────────
-// These use OpenRouter/Vercel AI Gateway "provider/model" IDs. Direct provider
-// calls strip the provider prefix via toDirectModelId().
+// These use canonical Routerbase/OpenRouter "provider/model" IDs. Some
+// providers use different IDs at runtime; resolveProviderModelId() maps them.
 
 /** Supported Anthropic model IDs for language model slots. */
 export const ANTHROPIC_MODELS = {
   /** Frontier reasoning model for the reasoning slot. */
-  CLAUDE_OPUS_4_6: "anthropic/claude-opus-4-6",
+  CLAUDE_OPUS_4_6: "anthropic/claude-opus-4.6",
   /** Complex reasoning and coding model for the powerful slot. */
-  CLAUDE_SONNET_4_6: "anthropic/claude-sonnet-4-6",
+  CLAUDE_SONNET_4_6: "anthropic/claude-sonnet-4.6",
 } as const;
 
 /** Supported DeepSeek model IDs for language model slots. */
@@ -28,7 +28,7 @@ export const DEEPSEEK_MODELS = {
 /** Supported Google model IDs for language model slots. */
 export const GOOGLE_MODELS = {
   /** Gemini 3 Flash for fast multimodal/vision workloads. */
-  GEMINI_3_FLASH: "google/gemini-3-flash",
+  GEMINI_3_FLASH: "google/gemini-3-flash-preview",
   /** Ultra-cheap Gemini model for bulk/simple work. */
   GEMINI_2_5_FLASH_LITE: "google/gemini-2.5-flash-lite",
   /** General-purpose Gemini model for standard work. */
@@ -91,11 +91,11 @@ export const GOOGLE_EMBED_MODELS = {
 /** Default slot-to-model mapping used by `createAI()` when no override exists. */
 export const DEFAULT_MODELS: ModelMatrix = {
   // ── Cost tiers ──────────────────────────────────────────────────────
-  nano: GOOGLE_MODELS.GEMINI_2_5_FLASH_LITE, // $0.075/$0.30 — reliable JSON, 1M context
-  fast: DEEPSEEK_MODELS.DEEPSEEK_V3_2, // $0.14/$0.28 — excellent tool calling, fast
+  nano: GOOGLE_MODELS.GEMINI_2_5_FLASH_LITE, // $0.10/$0.40 — reliable JSON, 1M context
+  fast: DEEPSEEK_MODELS.DEEPSEEK_V3_2, // $0.252/$0.378 — excellent tool calling, strong value
   standard: GOOGLE_MODELS.GEMINI_2_5_FLASH, // $0.30/$2.50 — built-in thinking, 1M context
   powerful: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6, // $3/$15 — complex reasoning, coding
-  reasoning: ANTHROPIC_MODELS.CLAUDE_OPUS_4_6, // $15/$75 — frontier quality
+  reasoning: ANTHROPIC_MODELS.CLAUDE_OPUS_4_6, // $5/$25 — frontier quality
 
   // ── Specialties ─────────────────────────────────────────────────────
   tools: XAI_MODELS.GROK_4_1_FAST, // $0.20/$0.50 — cheap frontier tool calling
@@ -127,19 +127,62 @@ const PROVIDER_PREFIXES: Record<string, ProviderRoute> = {
   google: "google",
 };
 
-/**
- * Strip the OpenRouter provider prefix from a model ID.
- * "anthropic/claude-sonnet-4-6" → "claude-sonnet-4-6"
- * "gpt-4.1" (no prefix) → "gpt-4.1"
- */
-export function toDirectModelId(openRouterId: string): string {
-  const slash = openRouterId.indexOf("/");
-  return slash === -1 ? openRouterId : openRouterId.slice(slash + 1);
+const DIRECT_PROVIDER_PREFIXES: Record<string, ProviderRoute> = {
+  anthropic: "anthropic",
+  openai: "openai",
+  google: "google",
+};
+
+const PROVIDER_MODEL_IDS: Record<
+  string,
+  Partial<Record<ProviderRoute, string>>
+> = {
+  "anthropic/claude-opus-4.6": {
+    anthropic: "claude-opus-4-6",
+  },
+  "anthropic/claude-opus-4-6": {
+    openrouter: "anthropic/claude-opus-4.6",
+    gateway: "anthropic/claude-opus-4.6",
+    anthropic: "claude-opus-4-6",
+  },
+  "anthropic/claude-sonnet-4.6": {
+    anthropic: "claude-sonnet-4-6",
+  },
+  "anthropic/claude-sonnet-4-6": {
+    openrouter: "anthropic/claude-sonnet-4.6",
+    gateway: "anthropic/claude-sonnet-4.6",
+    anthropic: "claude-sonnet-4-6",
+  },
+  "google/gemini-3-flash-preview": {
+    gateway: "google/gemini-3-flash",
+    google: "gemini-3-flash-preview",
+  },
+  "google/gemini-3-flash": {
+    openrouter: "google/gemini-3-flash-preview",
+    google: "gemini-3-flash-preview",
+  },
+  "x-ai/grok-4.1-fast": {
+    gateway: "xai/grok-4.1-fast-non-reasoning",
+  },
+};
+
+function stripProviderPrefix(modelId: string): string {
+  const slash = modelId.indexOf("/");
+  return slash === -1 ? modelId : modelId.slice(slash + 1);
 }
 
 /**
- * Infer the direct provider from an OpenRouter model ID.
- * "anthropic/claude-sonnet-4-6" → "anthropic"
+ * Strip the provider prefix from a model ID.
+ * "anthropic/claude-sonnet-4.6" → "claude-sonnet-4.6"
+ * "gpt-4.1" (no prefix) → "gpt-4.1"
+ */
+export function toDirectModelId(openRouterId: string): string {
+  return stripProviderPrefix(openRouterId);
+}
+
+/**
+ * Infer the direct provider from a provider-prefixed model ID.
+ * "anthropic/claude-sonnet-4.6" → "anthropic"
  * Returns undefined if no known direct provider matches.
  */
 export function inferProvider(openRouterId: string): ProviderRoute | undefined {
@@ -157,7 +200,9 @@ export function validateProviderMatch(
   openRouterId: string,
   requestedProvider: ProviderRoute,
 ): void {
-  if (requestedProvider === "openrouter") return;
+  if (requestedProvider === "openrouter" || requestedProvider === "gateway") {
+    return;
+  }
   const modelProvider = inferProvider(openRouterId);
   if (modelProvider !== requestedProvider) {
     throw new Error(
@@ -167,4 +212,39 @@ export function validateProviderMatch(
           : "Only OpenRouter can route this model."),
     );
   }
+}
+
+/**
+ * Resolve a canonical OpenRouter-style model ID to the provider-specific ID
+ * expected by the selected route.
+ */
+export function resolveProviderModelId(
+  modelId: string,
+  provider: ProviderRoute,
+): string {
+  const mapped = PROVIDER_MODEL_IDS[modelId]?.[provider];
+  if (mapped) return mapped;
+
+  if (provider === "openrouter" || provider === "gateway") {
+    return modelId;
+  }
+
+  const prefix = inferProvider(modelId);
+  if (prefix === provider || !modelId.includes("/")) {
+    return stripProviderPrefix(modelId);
+  }
+
+  return modelId;
+}
+
+/** Return true when the selected provider can plausibly route this model. */
+export function canRouteModelToProvider(
+  modelId: string,
+  provider: ProviderRoute,
+): boolean {
+  if (provider === "openrouter" || provider === "gateway") return true;
+  if (!modelId.includes("/")) return true;
+
+  const prefix = modelId.slice(0, modelId.indexOf("/"));
+  return DIRECT_PROVIDER_PREFIXES[prefix] === provider;
 }

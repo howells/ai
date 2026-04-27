@@ -1,7 +1,7 @@
 /**
  * Vercel AI Gateway provider — unified routing with zero data retention.
  *
- * Uses plain "provider/model" strings (e.g. "anthropic/claude-sonnet-4-6").
+ * Uses Gateway "provider/model" strings (e.g. "anthropic/claude-sonnet-4.6").
  * Runs on Vercel infrastructure, so requests from Vercel Functions
  * have near-zero added latency.
  */

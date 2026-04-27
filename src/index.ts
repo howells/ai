@@ -1,7 +1,7 @@
 /**
  * @howells/ai — Unified AI client for all projects.
  *
- * One package, 12 configurable model slots, three providers (OpenRouter + Voyage + Google).
+ * One package, 12 configurable model slots, provider-aware model routing.
  *
  * @example
  * ```ts
@@ -17,7 +17,7 @@
  *
  * // Override a slot for this project
  * const ai = createAI({
- *   models: { standard: "anthropic/claude-sonnet-4-6" },
+ *   models: { standard: "anthropic/claude-sonnet-4.6" },
  * });
  *
  * // Embed text
@@ -48,6 +48,7 @@ export { createAI } from "./client";
 // Default model matrix and provider constants
 export {
   ANTHROPIC_MODELS,
+  canRouteModelToProvider,
   DEEPSEEK_MODELS,
   DEFAULT_MODELS,
   GOOGLE_EMBED_MODELS,
@@ -56,6 +57,7 @@ export {
   OPENAI_MODELS,
   QWEN_MODELS,
   resolveModels,
+  resolveProviderModelId,
   toDirectModelId,
   VOYAGE_MODELS,
   XAI_MODELS,

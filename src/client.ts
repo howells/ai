@@ -15,7 +15,7 @@
  *
  * const ai = createAI({
  *   app: { name: "Sorrel", url: "https://sorrel.app" },
- *   models: { standard: "anthropic/claude-sonnet-4-6" },
+ *   models: { standard: "anthropic/claude-sonnet-4.6" },
  * });
  *
  * // Text generation — pick a slot
@@ -31,8 +31,9 @@
 
 import type { LanguageModel } from "ai";
 import {
+  canRouteModelToProvider,
   resolveModels,
-  toDirectModelId,
+  resolveProviderModelId,
   validateProviderMatch,
 } from "./models";
 import { createAnthropicProvider } from "./providers/anthropic";
@@ -74,10 +75,10 @@ export interface AIClient {
    * Get a LanguageModel by explicit model ID.
    *
    * When provider is "gateway" (default), pass the provider-prefixed ID
-   * (e.g. "anthropic/claude-sonnet-4-6").
+   * (e.g. "anthropic/claude-sonnet-4.6").
    * When provider is "openrouter", pass the OpenRouter-prefixed ID.
    * When provider is "anthropic"/"openai"/"google", pass the bare model ID
-   * (e.g. "claude-sonnet-4-6") or the prefixed ID (the prefix will be stripped).
+   * (e.g. "claude-sonnet-4-6") or a canonical provider-prefixed ID.
    */
   modelById: (modelId: string, options?: ModelOptions) => LanguageModel;
 
@@ -219,24 +220,25 @@ export function createAI(config?: AIConfig): AIClient {
     const provider = options?.provider ?? "gateway";
 
     if (provider === "openrouter") {
-      return openrouter.model(modelId, options);
+      return openrouter.model(
+        resolveProviderModelId(modelId, provider),
+        options,
+      );
     }
 
-    // Gateway uses "provider/model" format — same as OpenRouter IDs
     if (provider === "gateway") {
-      return gateway.model(modelId, options);
+      return gateway.model(resolveProviderModelId(modelId, provider), options);
     }
 
-    // For direct providers, strip the OpenRouter prefix if present
-    const directId = toDirectModelId(modelId);
+    const providerModelId = resolveProviderModelId(modelId, provider);
 
     switch (provider) {
       case "anthropic":
-        return anthropic.model(directId, options);
+        return anthropic.model(providerModelId, options);
       case "openai":
-        return openai.model(directId, options);
+        return openai.model(providerModelId, options);
       case "google":
-        return google.textModel(directId, options);
+        return google.textModel(providerModelId, options);
       default:
         throw new Error(`Unknown provider: ${provider}`);
     }
@@ -261,7 +263,7 @@ export function createAI(config?: AIConfig): AIClient {
     model(slot, options) {
       const modelId = matrix[slot];
       const provider = options?.provider;
-      if (provider && provider !== "openrouter" && provider !== "gateway") {
+      if (provider && !canRouteModelToProvider(modelId, provider)) {
         validateProviderMatch(modelId, provider);
       }
       return resolveModel(modelId, options);
@@ -271,8 +273,7 @@ export function createAI(config?: AIConfig): AIClient {
       const provider = options?.provider;
       if (
         provider &&
-        provider !== "openrouter" &&
-        provider !== "gateway" &&
+        !canRouteModelToProvider(modelId, provider) &&
         modelId.includes("/")
       ) {
         validateProviderMatch(modelId, provider);
@@ -287,7 +288,10 @@ export function createAI(config?: AIConfig): AIClient {
     },
 
     openRouterModelConfig(modelId, options) {
-      return openrouter.modelConfig(modelId, options);
+      return openrouter.modelConfig(
+        resolveProviderModelId(modelId, "openrouter") as `${string}/${string}`,
+        options,
+      );
     },
 
     embeddingModel(options) {

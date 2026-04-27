@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createAI } from "../src";
+import type { LanguageModelSlot, ProviderRoute } from "../src";
 
 const ENV_KEYS = [
   "AI_GATEWAY_API_KEY",
@@ -13,6 +14,8 @@ const ENV_KEYS = [
 ] as const;
 
 const originalEnv = new Map<string, string | undefined>();
+
+const modelIdOf = (model: unknown) => (model as { modelId: string }).modelId;
 
 const clearProviderEnv = () => {
   for (const key of ENV_KEYS) {
@@ -116,6 +119,68 @@ describe("createAI", () => {
     ).not.toThrow();
   });
 
+  test("translates default slot model IDs for each viable provider route", () => {
+    const ai = createAI({
+      gatewayKey: "gateway-key",
+      openRouterKey: "openrouter-key",
+      anthropicKey: "anthropic-key",
+      googleKey: "google-key",
+    });
+
+    const cases = [
+      ["nano", "gateway", "google/gemini-2.5-flash-lite"],
+      ["nano", "openrouter", "google/gemini-2.5-flash-lite"],
+      ["nano", "google", "gemini-2.5-flash-lite"],
+      ["fast", "gateway", "deepseek/deepseek-v3.2"],
+      ["fast", "openrouter", "deepseek/deepseek-v3.2"],
+      ["standard", "gateway", "google/gemini-2.5-flash"],
+      ["standard", "openrouter", "google/gemini-2.5-flash"],
+      ["standard", "google", "gemini-2.5-flash"],
+      ["powerful", "gateway", "anthropic/claude-sonnet-4.6"],
+      ["powerful", "openrouter", "anthropic/claude-sonnet-4.6"],
+      ["powerful", "anthropic", "claude-sonnet-4-6"],
+      ["reasoning", "gateway", "anthropic/claude-opus-4.6"],
+      ["reasoning", "openrouter", "anthropic/claude-opus-4.6"],
+      ["reasoning", "anthropic", "claude-opus-4-6"],
+      ["tools", "gateway", "xai/grok-4.1-fast-non-reasoning"],
+      ["tools", "openrouter", "x-ai/grok-4.1-fast"],
+      ["vision", "gateway", "google/gemini-3-flash"],
+      ["vision", "openrouter", "google/gemini-3-flash-preview"],
+      ["vision", "google", "gemini-3-flash-preview"],
+    ] as const satisfies readonly [
+      LanguageModelSlot,
+      ProviderRoute,
+      string,
+    ][];
+
+    for (const [slot, provider, expected] of cases) {
+      expect(modelIdOf(ai.model(slot, { provider }))).toBe(expected);
+    }
+  });
+
+  test("normalizes legacy IDs when selecting explicit models", () => {
+    const ai = createAI({
+      gatewayKey: "gateway-key",
+      openRouterKey: "openrouter-key",
+      anthropicKey: "anthropic-key",
+    });
+
+    expect(
+      modelIdOf(
+        ai.modelById("anthropic/claude-sonnet-4-6", {
+          provider: "openrouter",
+        }),
+      ),
+    ).toBe("anthropic/claude-sonnet-4.6");
+    expect(
+      modelIdOf(
+        ai.modelById("anthropic/claude-sonnet-4.6", {
+          provider: "anthropic",
+        }),
+      ),
+    ).toBe("claude-sonnet-4-6");
+  });
+
   test("exposes Voyage image embedding models", () => {
     const ai = createAI({ voyageKey: "voyage-key" });
 
@@ -168,5 +233,8 @@ describe("createAI", () => {
       url: "https://openrouter.ai/api/v1",
       apiKey: "openrouter-key",
     });
+    expect(
+      ai.openRouterModelConfig("anthropic/claude-sonnet-4-6").id,
+    ).toBe("anthropic/claude-sonnet-4.6");
   });
 });

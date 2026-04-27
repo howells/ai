@@ -38,13 +38,13 @@ const { object } = await generateObject({
 
 | Slot | Default | Cost | Use When |
 |------|---------|------|----------|
-| `nano` | `google/gemini-2.5-flash-lite` | $0.075/M | Bulk classification, extraction, simple JSON |
-| `fast` | `deepseek/deepseek-v3.2` | $0.14/M | Agent tool calls, quick enrichment |
+| `nano` | `google/gemini-2.5-flash-lite` | $0.10/M | Bulk classification, extraction, simple JSON |
+| `fast` | `deepseek/deepseek-v3.2` | $0.252/M | Agent tool calls, quick enrichment |
 | `standard` | `google/gemini-2.5-flash` | $0.30/M | Everyday tasks, chat, moderate reasoning |
-| `powerful` | `anthropic/claude-sonnet-4-6` | $3/M | Complex analysis, synthesis, creative |
-| `reasoning` | `anthropic/claude-opus-4-6` | $15/M | Frontier quality, deep multi-step reasoning |
+| `powerful` | `anthropic/claude-sonnet-4.6` | $3/M | Complex analysis, synthesis, creative |
+| `reasoning` | `anthropic/claude-opus-4.6` | $5/M | Frontier quality, deep multi-step reasoning |
 | `tools` | `x-ai/grok-4.1-fast` | $0.20/M | Cheap frontier tool calling |
-| `vision` | `google/gemini-3-flash` | varies | Fast multimodal image understanding |
+| `vision` | `google/gemini-3-flash-preview` | $0.50/M | Fast multimodal image understanding |
 
 ### Retrieval Models
 
@@ -168,6 +168,10 @@ ai.model("standard", { provider: "openrouter" });
 ai.modelById("claude-sonnet-4-6", { provider: "anthropic" });
 ```
 
+Canonical constants use Routerbase/OpenRouter IDs. `createAI()` translates the
+known provider mismatches at runtime, such as Anthropic's direct `4-6` IDs,
+Gateway's `google/gemini-3-flash`, and Gateway's `xai/grok-4.1-fast-non-reasoning`.
+
 ## Agent Attribution
 
 Tag OpenRouter requests for per-agent cost tracking:
@@ -192,14 +196,14 @@ import {
 } from "@howells/ai";
 
 // Anthropic
-ANTHROPIC_MODELS.CLAUDE_OPUS_4_6        // "anthropic/claude-opus-4-6"
-ANTHROPIC_MODELS.CLAUDE_SONNET_4_6      // "anthropic/claude-sonnet-4-6"
+ANTHROPIC_MODELS.CLAUDE_OPUS_4_6        // "anthropic/claude-opus-4.6"
+ANTHROPIC_MODELS.CLAUDE_SONNET_4_6      // "anthropic/claude-sonnet-4.6"
 
 // DeepSeek
 DEEPSEEK_MODELS.DEEPSEEK_V3_2           // "deepseek/deepseek-v3.2"
 
 // Google language models
-GOOGLE_MODELS.GEMINI_3_FLASH            // "google/gemini-3-flash"
+GOOGLE_MODELS.GEMINI_3_FLASH            // "google/gemini-3-flash-preview"
 GOOGLE_MODELS.GEMINI_2_5_FLASH_LITE     // "google/gemini-2.5-flash-lite"
 GOOGLE_MODELS.GEMINI_2_5_FLASH          // "google/gemini-2.5-flash"
 

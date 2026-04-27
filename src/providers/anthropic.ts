@@ -5,7 +5,7 @@
  * Supports prompt caching and all Anthropic-specific features.
  *
  * Model IDs should be bare Anthropic IDs (e.g. "claude-sonnet-4-6"),
- * NOT OpenRouter-prefixed (e.g. "anthropic/claude-sonnet-4-6").
+ * NOT OpenRouter-prefixed (e.g. "anthropic/claude-sonnet-4.6").
  */
 
 import { createAnthropic } from "@ai-sdk/anthropic";
