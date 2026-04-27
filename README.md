@@ -1,11 +1,11 @@
-# @howells/routerbase-ai
+# @howells/ai
 
 Unified AI client for all projects. One package, Vercel AI Gateway by default, direct provider escape hatches, and 12 configurable model slots.
 
 ## Quick Start
 
 ```typescript
-import { createAI } from "@howells/routerbase-ai";
+import { createAI } from "@howells/ai";
 import { generateText, generateObject, streamText, embed } from "ai";
 
 const ai = createAI({
@@ -61,7 +61,7 @@ const { object } = await generateObject({
 Override any slot per-project:
 
 ```typescript
-import { ANTHROPIC_MODELS, createAI, VOYAGE_MODELS } from "@howells/routerbase-ai";
+import { ANTHROPIC_MODELS, createAI, VOYAGE_MODELS } from "@howells/ai";
 
 const ai = createAI({
   app: { name: "Sorrel", url: "https://sorrel.app" },
@@ -189,7 +189,7 @@ import {
   QWEN_MODELS,
   VOYAGE_MODELS,
   XAI_MODELS,
-} from "@howells/routerbase-ai";
+} from "@howells/ai";
 
 // Anthropic
 ANTHROPIC_MODELS.CLAUDE_OPUS_4_6        // "anthropic/claude-opus-4-6"

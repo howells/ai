@@ -149,7 +149,7 @@ describe("createAI", () => {
   test("exposes OpenRouter runtime config for non-AI-SDK callers", () => {
     const env = process.env.NODE_ENV ?? "development";
     const ai = createAI({
-      app: { name: "Routerbase", url: "https://routerbase.dev" },
+      app: { name: "Howells AI", url: "https://github.com/howells/ai" },
       openRouterKey: "openrouter-key",
     });
 
@@ -157,8 +157,8 @@ describe("createAI", () => {
       baseURL: "https://openrouter.ai/api/v1",
       apiKey: "openrouter-key",
       headers: {
-        "HTTP-Referer": "https://routerbase.dev",
-        "X-Title": "Routerbase",
+        "HTTP-Referer": "https://github.com/howells/ai",
+        "X-Title": "Howells AI",
       },
       user: `search/${env}`,
     });

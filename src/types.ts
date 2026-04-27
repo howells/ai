@@ -1,5 +1,5 @@
 /**
- * @howells/routerbase-ai — Shared types
+ * @howells/ai — Shared types
  */
 
 /**

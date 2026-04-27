@@ -1,5 +1,5 @@
 /**
- * @howells/routerbase-ai — Unified AI client factory.
+ * @howells/ai — Unified AI client factory.
  *
  * Creates a configured client with a 12-slot model matrix.
  * Text generation routes through Vercel AI Gateway by default.
@@ -10,7 +10,7 @@
  *
  * @example
  * ```ts
- * import { createAI } from "@howells/routerbase-ai";
+ * import { createAI } from "@howells/ai";
  * import { generateText, embed } from "ai";
  *
  * const ai = createAI({
@@ -55,7 +55,7 @@ import type {
 } from "./types";
 
 /**
- * Configured Routerbase AI client.
+ * Configured Howells AI client.
  *
  * The client exposes slot-based language models, explicit model routing, and
  * retrieval helpers while keeping provider instances scoped to one `createAI`
