@@ -14,8 +14,8 @@
     "README.md"
   ],
   "bin": {
-    "ai": "./dist/cli.mjs",
-    "howells-ai": "./dist/cli.mjs"
+    "ai": "dist/cli.mjs",
+    "howells-ai": "dist/cli.mjs"
   },
   "exports": {
     ".": {
