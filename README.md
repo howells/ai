@@ -1,74 +1,111 @@
 # @howells/ai
 
-Unified AI client for all projects. One package, Vercel AI Gateway by default, direct provider escape hatches, and 12 configurable model slots.
+Unified AI client for all projects. One package, Vercel AI Gateway by default,
+direct provider escape hatches, and provider-aware model tiers.
 
 ## Quick Start
 
 ```typescript
 import { createAI } from "@howells/ai";
-import { generateText, generateObject, streamText, embed } from "ai";
+import { generateText, Output, streamText, embed } from "ai";
 
 const ai = createAI({
   app: { name: "MyApp", url: "https://myapp.com" },
 });
 
-// Pick a model by slot
+// Pick a model by tier
 const { text } = await generateText({
   model: ai.model("fast"),
   prompt: "Classify this ingredient",
 });
 
-// With agent attribution for cost tracking
+// Add capabilities per tier
 const { text: analysis } = await generateText({
-  model: ai.model("powerful", { agent: "taste-analysis" }),
+  model: ai.model("powerful", {
+    agent: "taste-analysis",
+    tools: true,
+    vision: true,
+  }),
   prompt: "Analyze this design",
 });
 
 // Structured output
-const { object } = await generateObject({
+const { output } = await generateText({
   model: ai.model("standard", { agent: "search" }),
-  schema: myZodSchema,
+  output: Output.object({ schema: myZodSchema }),
   prompt: "Extract entities from this text",
 });
 ```
 
-## Model Slots
+## Model Matrix
 
 ### Language Models (via Vercel AI Gateway by default)
 
-| Slot | Default | Cost | Use When |
-|------|---------|------|----------|
-| `nano` | `google/gemini-2.5-flash-lite` | $0.10/M | Bulk classification, extraction, simple JSON |
-| `fast` | `deepseek/deepseek-v3.2` | $0.252/M | Agent tool calls, quick enrichment |
-| `standard` | `google/gemini-2.5-flash` | $0.30/M | Everyday tasks, chat, moderate reasoning |
-| `powerful` | `anthropic/claude-sonnet-4.6` | $3/M | Complex analysis, synthesis, creative |
-| `reasoning` | `anthropic/claude-opus-4.6` | $5/M | Frontier quality, deep multi-step reasoning |
-| `tools` | `x-ai/grok-4.1-fast` | $0.20/M | Cheap frontier tool calling |
-| `vision` | `google/gemini-3-flash-preview` | $0.50/M | Fast multimodal image understanding |
+Language models are selected by tier, then capability flags. Structured
+input/output is a baseline requirement for every default language model.
+
+| Tier | Text Default | Tools Default | Vision / Vision Tools Default | Use When |
+|------|--------------|---------------|-------------------------------|----------|
+| `nano` | `google/gemini-2.5-flash-lite` | `google/gemini-2.5-flash-lite` | `google/gemini-2.5-flash-lite` | Bulk classification, extraction, simple structured output |
+| `fast` | `deepseek/deepseek-v3.2` | `x-ai/grok-4.1-fast` | `google/gemini-3-flash` | Low-latency enrichment, cheap tool calls, fast image reads |
+| `standard` | `google/gemini-2.5-flash` | `google/gemini-2.5-flash` | `google/gemini-3-flash` | Everyday tasks, chat, moderate reasoning |
+| `powerful` | `anthropic/claude-sonnet-4.6` | `anthropic/claude-sonnet-4.6` | `anthropic/claude-sonnet-4.6` | Complex analysis, synthesis, coding |
+| `reasoning` | `anthropic/claude-opus-4.6` | `anthropic/claude-opus-4.6` | `anthropic/claude-opus-4.6` | Frontier quality, deep multi-step reasoning |
+
+```typescript
+ai.model("fast"); // fast text
+ai.model("fast", { tools: true }); // fast tool calling
+ai.model("fast", { vision: true }); // fast image understanding
+ai.model("fast", { tools: true, vision: true }); // fast image + tools
+```
 
 ### Retrieval Models
 
-| Slot | Default | Provider | Use When |
-|------|---------|----------|----------|
-| `embed` | `voyage-3` | Voyage AI | Text embeddings (1024d) |
-| `multimodalEmbed` | `voyage-multimodal-3.5` | Voyage AI | Text + image embeddings (1024d) |
-| `googleEmbed` | `gemini-embedding-2-preview` | Google | A/B testing against Voyage |
-| `googleImageEmbed` | `gemini-embedding-2-preview` | Google | Gemini image embeddings |
-| `rerank` | `rerank-2.5` | Voyage AI | Search result reranking |
+| Slot | Voyage Default | Gemini Default | Use When |
+|------|----------------|----------------|----------|
+| `embed` | `voyage-3` | `gemini-embedding-2-preview` | Text embeddings |
+| `multimodalEmbed` | `voyage-multimodal-3.5` | `gemini-embedding-2-preview` | Text + image embeddings |
+| `rerank` | `rerank-2.5` | n/a | Search result reranking |
 
-## Overriding Slots
+## Overriding Models
 
-Override any slot per-project:
+Override any tier variant or retrieval model per project:
 
 ```typescript
-import { ANTHROPIC_MODELS, createAI, VOYAGE_MODELS } from "@howells/ai";
+import {
+  ANTHROPIC_MODELS,
+  createAI,
+  GOOGLE_EMBED_MODELS,
+  VOYAGE_MODELS,
+} from "@howells/ai";
 
 const ai = createAI({
   app: { name: "Sorrel", url: "https://sorrel.app" },
   models: {
-    standard: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,  // use Sonnet for general tasks
-    embed: VOYAGE_MODELS.VOYAGE_3_LITE,            // 512d, cheaper for this project
-    rerank: VOYAGE_MODELS.RERANK_2_5_LITE,         // faster reranking
+    standard: {
+      text: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,
+      tools: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,
+    },
+    embed: { voyage: VOYAGE_MODELS.VOYAGE_3_LITE },
+    rerank: VOYAGE_MODELS.RERANK_2_5_LITE,
+  },
+});
+```
+
+Embedding slots are provider-aware. Configure `embed` and `multimodalEmbed`
+once, then select the provider at the call site:
+
+```typescript
+const ai = createAI({
+  models: {
+    embed: {
+      voyage: VOYAGE_MODELS.VOYAGE_3,
+      gemini: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2,
+    },
+    multimodalEmbed: {
+      voyage: VOYAGE_MODELS.MULTIMODAL_3_5,
+      gemini: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2,
+    },
   },
 });
 ```
@@ -109,7 +146,7 @@ const { embedding: imageEmbedding } = await embed({
 
 // Batch
 const { embeddings } = await embedMany({
-  model: ai.embedModel(),
+  model: ai.embeddingModel({ provider: "voyage" }),
   values: ["text one", "text two", "text three"],
 });
 ```
@@ -122,19 +159,36 @@ const reranker = ai.rerankModel();
 
 ## Non-AI-SDK Runtimes
 
-Some frameworks accept OpenRouter config objects instead of AI SDK models:
+Some frameworks accept config objects instead of AI SDK models:
 
 ```typescript
-const model = ai.openRouterModelConfig("deepseek/deepseek-v3.2", {
+const model = ai.modelConfig("deepseek/deepseek-v3.2", {
+  provider: "openrouter",
   agent: "materials-agent",
 });
-// { id, url, apiKey, headers }
+// { provider, id, capabilities, apiKey, baseURL, headers, user }
 ```
 
-For direct HTTP clients, use request config and pass `user` in the request body:
+The `capabilities` field describes which config fields the selected provider
+can consume, so callers can pass through the useful fields without branching on
+one provider-specific helper.
+
+| Provider | API Key | Base URL | Headers | App Attribution | Agent Attribution |
+|----------|---------|----------|---------|-----------------|-------------------|
+| `gateway` | yes | no | no | no | no |
+| `openrouter` | yes | yes | yes | yes | yes |
+| `anthropic` | yes | no | no | no | no |
+| `openai` | yes | no | no | no | no |
+| `google` | yes | no | no | no | no |
+
+For OpenRouter direct HTTP clients, request an OpenRouter model config and pass
+`user` in the request body:
 
 ```typescript
-const config = ai.openRouterRequestConfig({ agent: "nl-search" });
+const config = ai.modelConfig("deepseek/deepseek-v3.2", {
+  provider: "openrouter",
+  agent: "nl-search",
+});
 await fetch(`${config.baseURL}/chat/completions`, {
   method: "POST",
   headers: {
@@ -152,7 +206,7 @@ await fetch(`${config.baseURL}/chat/completions`, {
 
 ## Escape Hatch
 
-For models that don't fit any slot:
+For models that don't fit any tier:
 
 ```typescript
 const { text } = await generateText({
@@ -168,16 +222,17 @@ ai.model("standard", { provider: "openrouter" });
 ai.modelById("claude-sonnet-4-6", { provider: "anthropic" });
 ```
 
-Canonical constants use Routerbase/OpenRouter IDs. `createAI()` translates the
-known provider mismatches at runtime, such as Anthropic's direct `4-6` IDs,
-Gateway's `google/gemini-3-flash`, and Gateway's `xai/grok-4.1-fast-non-reasoning`.
+Constants use normalized package IDs. `createAI()` translates known provider
+mismatches at runtime, such as Anthropic's direct `4-6` IDs, OpenRouter and
+Google direct `google/gemini-3-flash-preview` IDs for Gemini 3 Flash, and
+Gateway's `xai/grok-4.1-fast-non-reasoning`.
 
 ## Agent Attribution
 
 Tag OpenRouter requests for per-agent cost tracking:
 
 ```typescript
-ai.model("fast", { agent: "search" })
+ai.model("fast", { agent: "search", provider: "openrouter" });
 // Sends user tag when provider is "openrouter"
 ```
 
@@ -203,7 +258,7 @@ ANTHROPIC_MODELS.CLAUDE_SONNET_4_6      // "anthropic/claude-sonnet-4.6"
 DEEPSEEK_MODELS.DEEPSEEK_V3_2           // "deepseek/deepseek-v3.2"
 
 // Google language models
-GOOGLE_MODELS.GEMINI_3_FLASH            // "google/gemini-3-flash-preview"
+GOOGLE_MODELS.GEMINI_3_FLASH            // "google/gemini-3-flash"
 GOOGLE_MODELS.GEMINI_2_5_FLASH_LITE     // "google/gemini-2.5-flash-lite"
 GOOGLE_MODELS.GEMINI_2_5_FLASH          // "google/gemini-2.5-flash"
 
@@ -240,7 +295,7 @@ GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_1  // "gemini-embedding-001"
 | `ANTHROPIC_API_KEY` | Only if using `provider: "anthropic"` | Anthropic provider |
 | `OPENAI_API_KEY` | Only if using `provider: "openai"` | OpenAI provider |
 | `VOYAGE_API_KEY` | Yes (for embed/rerank) | Voyage provider |
-| `GOOGLE_GEMINI_API_KEY` | Only if using `googleEmbedModel()` or `provider: "google"` | Google provider |
+| `GOOGLE_GEMINI_API_KEY` | Only if using Gemini embeddings or `provider: "google"` | Google provider |
 
 Keys can also be passed directly to `createAI()`:
 

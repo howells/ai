@@ -1,8 +1,8 @@
 {
   "name": "@howells/ai",
-  "version": "0.1.8",
+  "version": "0.1.10",
   "type": "module",
-  "description": "Unified AI client for all projects — Gateway, OpenRouter, direct providers, and retrieval models with 12 configurable slots.",
+  "description": "Unified AI client for all projects — Gateway, OpenRouter, direct providers, tiered language models, and retrieval models.",
   "license": "MIT",
   "packageManager": "pnpm@10.23.0",
   "repository": {

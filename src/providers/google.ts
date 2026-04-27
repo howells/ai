@@ -4,8 +4,8 @@
  * Text generation: direct access to Gemini models (eliminates OpenRouter hop).
  * Embeddings: access to Gemini embedding models as an alternative to Voyage.
  *
- * This provider is optional — only required if you call googleEmbedModel() or
- * use { provider: "google" } on a Google model slot.
+ * This provider is optional — only required if you use Gemini embeddings or
+ * use { provider: "google" } on a Google language model slot.
  */
 
 import { createGoogleGenerativeAI } from "@ai-sdk/google";

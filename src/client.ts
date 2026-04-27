@@ -1,7 +1,7 @@
 /**
  * @howells/ai — Unified AI client factory.
  *
- * Creates a configured client with a 12-slot model matrix.
+ * Creates a configured client with provider-aware model tiers and retrieval models.
  * Text generation routes through Vercel AI Gateway by default.
  * Embeddings through Voyage AI or Google Gemini.
  * Reranking through Voyage AI.
@@ -15,14 +15,17 @@
  *
  * const ai = createAI({
  *   app: { name: "Sorrel", url: "https://sorrel.app" },
- *   models: { standard: "anthropic/claude-sonnet-4.6" },
+ *   models: { standard: { text: "anthropic/claude-sonnet-4.6" } },
  * });
  *
- * // Text generation — pick a slot
+ * // Text generation — pick a tier and optional capabilities
  * await generateText({ model: ai.model("fast"), prompt: "..." });
  *
  * // Voyage text embeddings
- * const { embedding } = await embed({ model: ai.embedModel(), value: "hello" });
+ * const { embedding } = await embed({
+ *   model: ai.embeddingModel(),
+ *   value: "hello",
+ * });
  *
  * // Provider-neutral image/multimodal embeddings
  * const imageModel = ai.embeddingModel({ input: "image", provider: "gemini" });
@@ -32,7 +35,10 @@
 import type { LanguageModel } from "ai";
 import {
   canRouteModelToProvider,
+  LANGUAGE_MODEL_CAPABILITIES,
+  PROVIDER_CONFIG_CAPABILITIES,
   resolveModels,
+  resolveLanguageModelVariant,
   resolveProviderModelId,
   validateProviderMatch,
 } from "./models";
@@ -47,29 +53,29 @@ import { createVoyageProvider } from "./providers/voyage";
 import type {
   AIConfig,
   EmbeddingModelOptions,
-  LanguageModelSlot,
+  LanguageModelCapabilities,
   ModelMatrix,
   ModelOptions,
-  OpenRouterModelConfig,
-  OpenRouterRequestConfig,
+  ModelTier,
+  ProviderModelConfig,
   ProviderRoute,
 } from "./types";
 
 /**
  * Configured Howells AI client.
  *
- * The client exposes slot-based language models, explicit model routing, and
+ * The client exposes tier-based language models, explicit model routing, and
  * retrieval helpers while keeping provider instances scoped to one `createAI`
  * call.
  */
 export interface AIClient {
   /**
-   * Get a LanguageModel for the given slot.
+   * Get a LanguageModel for the given tier and capability options.
    *
-   * @param slot - One of: nano, fast, standard, powerful, reasoning, tools, vision
-   * @param options - Optional agent attribution and provider routing
+   * @param tier - One of: nano, fast, standard, powerful, reasoning
+   * @param options - Optional capability, agent attribution, and provider routing
    */
-  model: (slot: LanguageModelSlot, options?: ModelOptions) => LanguageModel;
+  model: (tier: ModelTier, options?: ModelOptions) => LanguageModel;
 
   /**
    * Get a LanguageModel by explicit model ID.
@@ -83,19 +89,20 @@ export interface AIClient {
   modelById: (modelId: string, options?: ModelOptions) => LanguageModel;
 
   /**
-   * Get OpenRouter request settings for direct HTTP code paths.
+   * Get a provider-neutral model config for non-AI-SDK runtimes.
+   *
    * Prefer `model()`/`modelById()` when the runtime accepts AI SDK models.
+   * This returns the provider-resolved model ID plus a capability matrix so
+   * callers can pass along only the fields their runtime supports.
    */
-  openRouterRequestConfig: (options?: ModelOptions) => OpenRouterRequestConfig;
+  modelConfig: (modelId: string, options?: ModelOptions) => ProviderModelConfig;
 
   /**
-   * Get an OpenRouter-compatible model config for non-AI-SDK runtimes.
-   * Useful for frameworks that accept `{ id, url, apiKey, headers }`.
+   * Return the structured/tool/vision capability flags for a model selection.
    */
-  openRouterModelConfig: (
-    modelId: `${string}/${string}`,
-    options?: ModelOptions,
-  ) => OpenRouterModelConfig;
+  modelCapabilities: (
+    options?: Pick<ModelOptions, "tools" | "vision">,
+  ) => LanguageModelCapabilities;
 
   /** Which providers appear configured for use in this process. */
   readonly availableProviders: readonly ProviderRoute[];
@@ -113,49 +120,6 @@ export interface AIClient {
     | ReturnType<VoyageProvider["multimodalEmbedModel"]>
     | ReturnType<GoogleProvider["embedModel"]>
     | ReturnType<GoogleProvider["imageEmbedModel"]>;
-
-  /**
-   * Get the Voyage text embedding model for the configured embed slot.
-   *
-   * @example
-   * ```ts
-   * const { embedding } = await embed({ model: ai.embedModel(), value: "hello" });
-   * ```
-   */
-  embedModel: () => ReturnType<VoyageProvider["embedModel"]>;
-
-  /**
-   * Get the Voyage image embedding model for the configured multimodal slot.
-   * Use this for image-only embedding calls with explicit Voyage input types.
-   */
-  imageEmbedModel: () => ReturnType<VoyageProvider["imageEmbedModel"]>;
-
-  /**
-   * Get the Voyage multimodal embedding model.
-   * Text + images in the same vector space (1024d).
-   */
-  multimodalEmbedModel: () => ReturnType<
-    VoyageProvider["multimodalEmbedModel"]
-  >;
-
-  /**
-   * Get the Google Gemini embedding model.
-   * Alternative to Voyage for A/B testing embedding quality.
-   * Requires GOOGLE_GEMINI_API_KEY.
-   *
-   * @example
-   * ```ts
-   * const { embedding } = await embed({ model: ai.googleEmbedModel(), value: "hello" });
-   * ```
-   */
-  googleEmbedModel: () => ReturnType<GoogleProvider["embedModel"]>;
-
-  /**
-   * Get the Google Gemini image embedding model.
-   * Use Gemini provider options to pass image content for the embedding value.
-   * Requires GOOGLE_GEMINI_API_KEY.
-   */
-  googleImageEmbedModel: () => ReturnType<GoogleProvider["imageEmbedModel"]>;
 
   /**
    * Get the Voyage reranking model for the configured rerank slot.
@@ -244,24 +208,79 @@ export function createAI(config?: AIConfig): AIClient {
     }
   }
 
+  function getProviderApiKey(provider: ProviderRoute): string | undefined {
+    switch (provider) {
+      case "gateway":
+        return config?.gatewayKey ?? process.env.AI_GATEWAY_API_KEY;
+      case "openrouter":
+        return config?.openRouterKey ?? process.env.OPENROUTER_API_KEY;
+      case "anthropic":
+        return config?.anthropicKey ?? process.env.ANTHROPIC_API_KEY;
+      case "openai":
+        return config?.openaiKey ?? process.env.OPENAI_API_KEY;
+      case "google":
+        return config?.googleKey ?? process.env.GOOGLE_GEMINI_API_KEY;
+    }
+  }
+
+  function resolveModelConfig(
+    modelId: string,
+    options?: ModelOptions,
+  ): ProviderModelConfig {
+    const provider = options?.provider ?? "gateway";
+    if (
+      provider &&
+      !canRouteModelToProvider(modelId, provider) &&
+      modelId.includes("/")
+    ) {
+      validateProviderMatch(modelId, provider);
+    }
+
+    const resolvedId = resolveProviderModelId(modelId, provider);
+    const capabilities = PROVIDER_CONFIG_CAPABILITIES[provider];
+
+    if (provider === "openrouter") {
+      const requestConfig = openrouter.requestConfig(options);
+      return {
+        provider,
+        id: resolvedId,
+        capabilities,
+        apiKey: requestConfig.apiKey,
+        baseURL: requestConfig.baseURL,
+        url: requestConfig.baseURL,
+        headers: requestConfig.headers,
+        ...(requestConfig.user ? { user: requestConfig.user } : {}),
+      };
+    }
+
+    const apiKey = getProviderApiKey(provider);
+    return {
+      provider,
+      id: resolvedId,
+      capabilities,
+      ...(apiKey ? { apiKey } : {}),
+    };
+  }
+
   function resolveEmbeddingModel(options?: EmbeddingModelOptions) {
     const provider = options?.provider ?? "voyage";
     const input = options?.input ?? "text";
 
     if (provider === "gemini") {
       return input === "image"
-        ? google.imageEmbedModel(matrix.googleImageEmbed)
-        : google.embedModel(matrix.googleEmbed);
+        ? google.imageEmbedModel(matrix.multimodalEmbed.gemini)
+        : google.embedModel(matrix.embed.gemini);
     }
 
     return input === "image"
-      ? voyage.multimodalEmbedModel(matrix.multimodalEmbed)
-      : voyage.embedModel(matrix.embed);
+      ? voyage.multimodalEmbedModel(matrix.multimodalEmbed.voyage)
+      : voyage.embedModel(matrix.embed.voyage);
   }
 
   return {
-    model(slot, options) {
-      const modelId = matrix[slot];
+    model(tier, options) {
+      const variant = resolveLanguageModelVariant(options);
+      const modelId = matrix[tier][variant];
       const provider = options?.provider;
       if (provider && !canRouteModelToProvider(modelId, provider)) {
         validateProviderMatch(modelId, provider);
@@ -283,39 +302,16 @@ export function createAI(config?: AIConfig): AIClient {
 
     availableProviders: available,
 
-    openRouterRequestConfig(options) {
-      return openrouter.requestConfig(options);
+    modelConfig(modelId, options) {
+      return resolveModelConfig(modelId, options);
     },
 
-    openRouterModelConfig(modelId, options) {
-      return openrouter.modelConfig(
-        resolveProviderModelId(modelId, "openrouter") as `${string}/${string}`,
-        options,
-      );
+    modelCapabilities(options) {
+      return LANGUAGE_MODEL_CAPABILITIES[resolveLanguageModelVariant(options)];
     },
 
     embeddingModel(options) {
       return resolveEmbeddingModel(options);
-    },
-
-    embedModel() {
-      return voyage.embedModel(matrix.embed);
-    },
-
-    imageEmbedModel() {
-      return voyage.imageEmbedModel(matrix.multimodalEmbed);
-    },
-
-    multimodalEmbedModel() {
-      return voyage.multimodalEmbedModel(matrix.multimodalEmbed);
-    },
-
-    googleEmbedModel() {
-      return google.embedModel(matrix.googleEmbed);
-    },
-
-    googleImageEmbedModel() {
-      return google.imageEmbedModel(matrix.googleImageEmbed);
     },
 
     rerankModel() {

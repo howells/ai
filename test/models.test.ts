@@ -8,9 +8,11 @@ import {
   GOOGLE_EMBED_MODELS,
   GOOGLE_MODELS,
   inferProvider,
+  LANGUAGE_MODEL_CAPABILITIES,
   OPENAI_MODELS,
   QWEN_MODELS,
   resolveModels,
+  resolveLanguageModelVariant,
   resolveProviderModelId,
   toDirectModelId,
   VOYAGE_MODELS,
@@ -23,37 +25,51 @@ const MODEL_SLOTS = [
   "standard",
   "powerful",
   "reasoning",
-  "tools",
-  "vision",
   "embed",
   "multimodalEmbed",
-  "googleEmbed",
-  "googleImageEmbed",
   "rerank",
 ] as const satisfies readonly ModelSlot[];
 
 describe("model matrix", () => {
-  test("defines every public model slot", () => {
+  test("defines every public model tier and retrieval slot", () => {
     expect(Object.keys(DEFAULT_MODELS).sort()).toEqual([...MODEL_SLOTS].sort());
   });
 
-  test("uses provider constants for all default language model slots", () => {
-    expect(DEFAULT_MODELS.nano).toBe(GOOGLE_MODELS.GEMINI_2_5_FLASH_LITE);
-    expect(DEFAULT_MODELS.fast).toBe(DEEPSEEK_MODELS.DEEPSEEK_V3_2);
-    expect(DEFAULT_MODELS.standard).toBe(GOOGLE_MODELS.GEMINI_2_5_FLASH);
-    expect(DEFAULT_MODELS.powerful).toBe(ANTHROPIC_MODELS.CLAUDE_SONNET_4_6);
-    expect(DEFAULT_MODELS.reasoning).toBe(ANTHROPIC_MODELS.CLAUDE_OPUS_4_6);
-    expect(DEFAULT_MODELS.tools).toBe(XAI_MODELS.GROK_4_1_FAST);
-    expect(DEFAULT_MODELS.vision).toBe(GOOGLE_MODELS.GEMINI_3_FLASH);
+  test("uses provider constants for all default language model tiers", () => {
+    expect(DEFAULT_MODELS.nano.text).toBe(GOOGLE_MODELS.GEMINI_2_5_FLASH_LITE);
+    expect(DEFAULT_MODELS.nano.tools).toBe(
+      GOOGLE_MODELS.GEMINI_2_5_FLASH_LITE,
+    );
+    expect(DEFAULT_MODELS.fast.text).toBe(DEEPSEEK_MODELS.DEEPSEEK_V3_2);
+    expect(DEFAULT_MODELS.fast.tools).toBe(XAI_MODELS.GROK_4_1_FAST);
+    expect(DEFAULT_MODELS.fast.vision).toBe(GOOGLE_MODELS.GEMINI_3_FLASH);
+    expect(DEFAULT_MODELS.fast.visionTools).toBe(
+      GOOGLE_MODELS.GEMINI_3_FLASH,
+    );
+    expect(DEFAULT_MODELS.standard.text).toBe(GOOGLE_MODELS.GEMINI_2_5_FLASH);
+    expect(DEFAULT_MODELS.standard.tools).toBe(GOOGLE_MODELS.GEMINI_2_5_FLASH);
+    expect(DEFAULT_MODELS.standard.vision).toBe(GOOGLE_MODELS.GEMINI_3_FLASH);
+    expect(DEFAULT_MODELS.powerful.text).toBe(
+      ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,
+    );
+    expect(DEFAULT_MODELS.reasoning.text).toBe(
+      ANTHROPIC_MODELS.CLAUDE_OPUS_4_6,
+    );
     expect(ANTHROPIC_MODELS.CLAUDE_OPUS_4_6).toBe(
       "anthropic/claude-opus-4.6",
     );
     expect(ANTHROPIC_MODELS.CLAUDE_SONNET_4_6).toBe(
       "anthropic/claude-sonnet-4.6",
     );
-    expect(GOOGLE_MODELS.GEMINI_3_FLASH).toBe(
-      "google/gemini-3-flash-preview",
-    );
+    expect(GOOGLE_MODELS.GEMINI_3_FLASH).toBe("google/gemini-3-flash");
+    expect(DEFAULT_MODELS.embed).toEqual({
+      voyage: "voyage-3",
+      gemini: "gemini-embedding-2-preview",
+    });
+    expect(DEFAULT_MODELS.multimodalEmbed).toEqual({
+      voyage: "voyage-multimodal-3.5",
+      gemini: "gemini-embedding-2-preview",
+    });
     expect(VOYAGE_MODELS.VOYAGE_3_5_LITE).toBe("voyage-3.5-lite");
     expect(VOYAGE_MODELS.MULTIMODAL_3).toBe("voyage-multimodal-3");
     expect(QWEN_MODELS.QWEN_2_5_VL_72B_INSTRUCT).toBe(
@@ -65,24 +81,50 @@ describe("model matrix", () => {
     const first = resolveModels();
     const second = resolveModels();
 
-    first.fast = OPENAI_MODELS.GPT_5_NANO;
+    first.fast.text = OPENAI_MODELS.GPT_5_NANO;
+    first.embed.voyage = VOYAGE_MODELS.VOYAGE_3_LITE;
 
-    expect(second.fast).toBe(DEFAULT_MODELS.fast);
+    expect(second.fast.text).toBe(DEFAULT_MODELS.fast.text);
+    expect(second.embed.voyage).toBe(DEFAULT_MODELS.embed.voyage);
   });
 
-  test("merges overrides without dropping other slots", () => {
+  test("merges overrides without dropping other variants", () => {
     const models = resolveModels({
-      embed: VOYAGE_MODELS.VOYAGE_3_LITE,
-      googleEmbed: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_1,
-      googleImageEmbed: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2,
-      standard: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,
+      embed: {
+        voyage: VOYAGE_MODELS.VOYAGE_3_LITE,
+        gemini: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_1,
+      },
+      multimodalEmbed: {
+        gemini: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2,
+      },
+      standard: {
+        text: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,
+        tools: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,
+      },
     });
 
-    expect(models.embed).toBe("voyage-3-lite");
-    expect(models.googleEmbed).toBe("gemini-embedding-001");
-    expect(models.googleImageEmbed).toBe("gemini-embedding-2-preview");
-    expect(models.standard).toBe(ANTHROPIC_MODELS.CLAUDE_SONNET_4_6);
-    expect(models.fast).toBe(DEFAULT_MODELS.fast);
+    expect(models.embed.voyage).toBe("voyage-3-lite");
+    expect(models.embed.gemini).toBe("gemini-embedding-001");
+    expect(models.multimodalEmbed.voyage).toBe("voyage-multimodal-3.5");
+    expect(models.multimodalEmbed.gemini).toBe("gemini-embedding-2-preview");
+    expect(models.standard.text).toBe(ANTHROPIC_MODELS.CLAUDE_SONNET_4_6);
+    expect(models.standard.tools).toBe(ANTHROPIC_MODELS.CLAUDE_SONNET_4_6);
+    expect(models.standard.vision).toBe(DEFAULT_MODELS.standard.vision);
+    expect(models.fast).toEqual(DEFAULT_MODELS.fast);
+  });
+
+  test("maps option flags to language model variants", () => {
+    expect(resolveLanguageModelVariant()).toBe("text");
+    expect(resolveLanguageModelVariant({ tools: true })).toBe("tools");
+    expect(resolveLanguageModelVariant({ vision: true })).toBe("vision");
+    expect(resolveLanguageModelVariant({ tools: true, vision: true })).toBe(
+      "visionTools",
+    );
+    expect(LANGUAGE_MODEL_CAPABILITIES.visionTools).toEqual({
+      structured: true,
+      tools: true,
+      vision: true,
+    });
   });
 });
 

@@ -1,27 +1,30 @@
 /**
  * @howells/ai — Unified AI client for all projects.
  *
- * One package, 12 configurable model slots, provider-aware model routing.
+ * One package, provider-aware model tiers and retrieval models.
  *
  * @example
  * ```ts
  * import { createAI } from "@howells/ai";
- * import { generateText, generateObject, streamText, embed } from "ai";
+ * import { generateText, Output, streamText, embed } from "ai";
  *
  * const ai = createAI({
  *   app: { name: "MyApp", url: "https://myapp.com" },
  * });
  *
- * // Pick a model by slot
+ * // Pick a model by tier
  * await generateText({ model: ai.model("fast"), prompt: "..." });
  *
- * // Override a slot for this project
+ * // Override a tier variant for this project
  * const ai = createAI({
- *   models: { standard: "anthropic/claude-sonnet-4.6" },
+ *   models: { standard: { text: "anthropic/claude-sonnet-4.6" } },
  * });
  *
  * // Embed text
- * const { embedding } = await embed({ model: ai.embedModel(), value: "hello" });
+ * const { embedding } = await embed({
+ *   model: ai.embeddingModel(),
+ *   value: "hello",
+ * });
  * ```
  */
 
@@ -33,7 +36,6 @@ export {
   createUIMessageStreamResponse,
   embed,
   embedMany,
-  generateObject,
   generateText,
   Output,
   rerank,
@@ -54,9 +56,12 @@ export {
   GOOGLE_EMBED_MODELS,
   GOOGLE_MODELS,
   inferProvider,
+  LANGUAGE_MODEL_CAPABILITIES,
   OPENAI_MODELS,
+  PROVIDER_CONFIG_CAPABILITIES,
   QWEN_MODELS,
   resolveModels,
+  resolveLanguageModelVariant,
   resolveProviderModelId,
   toDirectModelId,
   VOYAGE_MODELS,
@@ -68,13 +73,19 @@ export type {
   AIConfig,
   AppConfig,
   EmbeddingInputKind,
+  EmbeddingModelSlot,
   EmbeddingModelOptions,
   EmbeddingProviderRoute,
-  LanguageModelSlot,
+  EmbeddingProviderModels,
+  LanguageModelCapabilities,
+  LanguageModelVariant,
   ModelMatrix,
   ModelOptions,
+  ModelOverrides,
   ModelSlot,
-  OpenRouterModelConfig,
-  OpenRouterRequestConfig,
+  ModelTier,
+  ProviderConfigCapabilities,
+  ProviderModelConfig,
   ProviderRoute,
+  TierModelMatrix,
 } from "./types";

@@ -1,17 +1,27 @@
 /**
- * Default model matrix — the "best 10" for each slot.
+ * Default model matrix for canonical tiers, capabilities, and retrieval models.
  *
  * These defaults are static and opinionated, chosen from actual usage
- * across 40+ projects. Override any slot via createAI({ models: {...} }).
+ * across 40+ projects. Override any tier variant via createAI({ models: {...} }).
  */
 
-import type { ModelMatrix, ProviderRoute } from "./types";
+import type {
+  EmbeddingProviderModels,
+  LanguageModelCapabilities,
+  LanguageModelVariant,
+  ModelMatrix,
+  ModelOverrides,
+  ModelTier,
+  ProviderConfigCapabilities,
+  ProviderRoute,
+  TierModelMatrix,
+} from "./types";
 
 // ── Language model constants ─────────────────────────────────────────
 // These use canonical Routerbase/OpenRouter "provider/model" IDs. Some
 // providers use different IDs at runtime; resolveProviderModelId() maps them.
 
-/** Supported Anthropic model IDs for language model slots. */
+/** Supported Anthropic model IDs for language model tiers. */
 export const ANTHROPIC_MODELS = {
   /** Frontier reasoning model for the reasoning slot. */
   CLAUDE_OPUS_4_6: "anthropic/claude-opus-4.6",
@@ -19,35 +29,35 @@ export const ANTHROPIC_MODELS = {
   CLAUDE_SONNET_4_6: "anthropic/claude-sonnet-4.6",
 } as const;
 
-/** Supported DeepSeek model IDs for language model slots. */
+/** Supported DeepSeek model IDs for language model tiers. */
 export const DEEPSEEK_MODELS = {
   /** Fast, low-cost model with strong tool-calling value. */
   DEEPSEEK_V3_2: "deepseek/deepseek-v3.2",
 } as const;
 
-/** Supported Google model IDs for language model slots. */
+/** Supported Google model IDs for language model tiers. */
 export const GOOGLE_MODELS = {
-  /** Gemini 3 Flash for fast multimodal/vision workloads. */
-  GEMINI_3_FLASH: "google/gemini-3-flash-preview",
+  /** Gemini 3 Flash normalized package ID. */
+  GEMINI_3_FLASH: "google/gemini-3-flash",
   /** Ultra-cheap Gemini model for bulk/simple work. */
   GEMINI_2_5_FLASH_LITE: "google/gemini-2.5-flash-lite",
   /** General-purpose Gemini model for standard work. */
   GEMINI_2_5_FLASH: "google/gemini-2.5-flash",
 } as const;
 
-/** Supported OpenAI model IDs for language model slot overrides. */
+/** Supported OpenAI model IDs for language model tier overrides. */
 export const OPENAI_MODELS = {
   /** Low-cost OpenAI model option for nano-style overrides. */
   GPT_5_NANO: "openai/gpt-5-nano",
 } as const;
 
-/** Supported xAI model IDs for language model slots. */
+/** Supported xAI model IDs for language model tier variants. */
 export const XAI_MODELS = {
   /** Cheap frontier-quality tool-calling model. */
   GROK_4_1_FAST: "x-ai/grok-4.1-fast",
 } as const;
 
-/** Supported Qwen model IDs for language model slots. */
+/** Supported Qwen model IDs for language model tier overrides. */
 export const QWEN_MODELS = {
   /** Vision model with strong grounding and bounding-box support. */
   QWEN_2_5_VL_72B_INSTRUCT: "qwen/qwen2.5-vl-72b-instruct",
@@ -78,7 +88,7 @@ export const VOYAGE_MODELS = {
 
 // ── Google embedding model constants ──────────────────────────────────
 
-/** Supported Google embedding model IDs for the googleEmbed and googleImageEmbed slots. */
+/** Supported Google embedding model IDs for the embed and multimodalEmbed slots. */
 export const GOOGLE_EMBED_MODELS = {
   /** Gemini Embedding 2 preview — Google's latest embedding model. */
   GEMINI_EMBEDDING_2: "gemini-embedding-2-preview",
@@ -88,34 +98,124 @@ export const GOOGLE_EMBED_MODELS = {
 
 // ── Default matrix ────────────────────────────────────────────────────
 
-/** Default slot-to-model mapping used by `createAI()` when no override exists. */
+/** Default tier/capability model mapping used by `createAI()` when no override exists. */
 export const DEFAULT_MODELS: ModelMatrix = {
   // ── Cost tiers ──────────────────────────────────────────────────────
-  nano: GOOGLE_MODELS.GEMINI_2_5_FLASH_LITE, // $0.10/$0.40 — reliable JSON, 1M context
-  fast: DEEPSEEK_MODELS.DEEPSEEK_V3_2, // $0.252/$0.378 — excellent tool calling, strong value
-  standard: GOOGLE_MODELS.GEMINI_2_5_FLASH, // $0.30/$2.50 — built-in thinking, 1M context
-  powerful: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6, // $3/$15 — complex reasoning, coding
-  reasoning: ANTHROPIC_MODELS.CLAUDE_OPUS_4_6, // $5/$25 — frontier quality
-
-  // ── Specialties ─────────────────────────────────────────────────────
-  tools: XAI_MODELS.GROK_4_1_FAST, // $0.20/$0.50 — cheap frontier tool calling
-  vision: GOOGLE_MODELS.GEMINI_3_FLASH, // fast multimodal vision model
+  nano: {
+    text: GOOGLE_MODELS.GEMINI_2_5_FLASH_LITE, // reliable JSON, 1M context
+    tools: GOOGLE_MODELS.GEMINI_2_5_FLASH_LITE,
+    vision: GOOGLE_MODELS.GEMINI_2_5_FLASH_LITE,
+    visionTools: GOOGLE_MODELS.GEMINI_2_5_FLASH_LITE,
+  },
+  fast: {
+    text: DEEPSEEK_MODELS.DEEPSEEK_V3_2, // strong value for low-latency text
+    tools: XAI_MODELS.GROK_4_1_FAST, // cheap frontier tool calling
+    vision: GOOGLE_MODELS.GEMINI_3_FLASH,
+    visionTools: GOOGLE_MODELS.GEMINI_3_FLASH,
+  },
+  standard: {
+    text: GOOGLE_MODELS.GEMINI_2_5_FLASH, // general workhorse, 1M context
+    tools: GOOGLE_MODELS.GEMINI_2_5_FLASH,
+    vision: GOOGLE_MODELS.GEMINI_3_FLASH,
+    visionTools: GOOGLE_MODELS.GEMINI_3_FLASH,
+  },
+  powerful: {
+    text: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6, // complex reasoning, coding
+    tools: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,
+    vision: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,
+    visionTools: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,
+  },
+  reasoning: {
+    text: ANTHROPIC_MODELS.CLAUDE_OPUS_4_6, // frontier quality
+    tools: ANTHROPIC_MODELS.CLAUDE_OPUS_4_6,
+    vision: ANTHROPIC_MODELS.CLAUDE_OPUS_4_6,
+    visionTools: ANTHROPIC_MODELS.CLAUDE_OPUS_4_6,
+  },
 
   // ── Retrieval ────────────────────────────────────────────────────────
-  embed: VOYAGE_MODELS.VOYAGE_3, // 1024d text embeddings (Voyage AI)
-  multimodalEmbed: VOYAGE_MODELS.MULTIMODAL_3_5, // 1024d text + images in same space (Voyage AI)
-  googleEmbed: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2, // Gemini Embedding 2 (Google)
-  googleImageEmbed: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2, // Gemini image embeddings (Google)
+  embed: {
+    voyage: VOYAGE_MODELS.VOYAGE_3, // 1024d text embeddings
+    gemini: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2,
+  },
+  multimodalEmbed: {
+    voyage: VOYAGE_MODELS.MULTIMODAL_3_5, // 1024d text + images in same space
+    gemini: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2,
+  },
   rerank: VOYAGE_MODELS.RERANK_2_5, // standard reranker (Voyage AI)
 } as const;
 
+export const LANGUAGE_MODEL_CAPABILITIES: Record<
+  LanguageModelVariant,
+  LanguageModelCapabilities
+> = {
+  text: {
+    structured: true,
+    tools: false,
+    vision: false,
+  },
+  tools: {
+    structured: true,
+    tools: true,
+    vision: false,
+  },
+  vision: {
+    structured: true,
+    tools: false,
+    vision: true,
+  },
+  visionTools: {
+    structured: true,
+    tools: true,
+    vision: true,
+  },
+};
+
+export function resolveLanguageModelVariant(options?: {
+  tools?: boolean;
+  vision?: boolean;
+}): LanguageModelVariant {
+  if (options?.tools && options?.vision) return "visionTools";
+  if (options?.tools) return "tools";
+  if (options?.vision) return "vision";
+  return "text";
+}
+
+function resolveEmbeddingSlot(
+  defaults: Readonly<EmbeddingProviderModels>,
+  override: ModelOverrides["embed"],
+): EmbeddingProviderModels {
+  if (!override) return { ...defaults };
+  return { ...defaults, ...override };
+}
+
+function resolveTierModels(
+  tier: ModelTier,
+  overrides?: Partial<TierModelMatrix>,
+): TierModelMatrix {
+  return {
+    ...DEFAULT_MODELS[tier],
+    ...overrides,
+  };
+}
+
 /**
  * Merge user overrides with defaults.
- * Only overrides the slots the user specifies — everything else keeps defaults.
+ * Only overrides the tier variants and retrieval models the user specifies.
  */
-export function resolveModels(overrides?: Partial<ModelMatrix>): ModelMatrix {
-  if (!overrides) return { ...DEFAULT_MODELS };
-  return { ...DEFAULT_MODELS, ...overrides };
+export function resolveModels(overrides?: ModelOverrides): ModelMatrix {
+  return {
+    nano: resolveTierModels("nano", overrides?.nano),
+    fast: resolveTierModels("fast", overrides?.fast),
+    standard: resolveTierModels("standard", overrides?.standard),
+    powerful: resolveTierModels("powerful", overrides?.powerful),
+    reasoning: resolveTierModels("reasoning", overrides?.reasoning),
+    embed: resolveEmbeddingSlot(DEFAULT_MODELS.embed, overrides?.embed),
+    multimodalEmbed: resolveEmbeddingSlot(
+      DEFAULT_MODELS.multimodalEmbed,
+      overrides?.multimodalEmbed,
+    ),
+    rerank: overrides?.rerank ?? DEFAULT_MODELS.rerank,
+  };
 }
 
 // ── Provider routing helpers ─────────────────────────────────────────
@@ -163,6 +263,52 @@ const PROVIDER_MODEL_IDS: Record<
   },
   "x-ai/grok-4.1-fast": {
     gateway: "xai/grok-4.1-fast-non-reasoning",
+  },
+};
+
+export const PROVIDER_CONFIG_CAPABILITIES: Record<
+  ProviderRoute,
+  ProviderConfigCapabilities
+> = {
+  gateway: {
+    modelId: true,
+    apiKey: true,
+    baseURL: false,
+    headers: false,
+    appAttribution: false,
+    agentAttribution: false,
+  },
+  openrouter: {
+    modelId: true,
+    apiKey: true,
+    baseURL: true,
+    headers: true,
+    appAttribution: true,
+    agentAttribution: true,
+  },
+  anthropic: {
+    modelId: true,
+    apiKey: true,
+    baseURL: false,
+    headers: false,
+    appAttribution: false,
+    agentAttribution: false,
+  },
+  openai: {
+    modelId: true,
+    apiKey: true,
+    baseURL: false,
+    headers: false,
+    appAttribution: false,
+    agentAttribution: false,
+  },
+  google: {
+    modelId: true,
+    apiKey: true,
+    baseURL: false,
+    headers: false,
+    appAttribution: false,
+    agentAttribution: false,
   },
 };
 

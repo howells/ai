@@ -7,14 +7,23 @@
 
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { LanguageModel } from "ai";
-import type {
-  AppConfig,
-  ModelOptions,
-  OpenRouterModelConfig,
-  OpenRouterRequestConfig,
-} from "../types";
+import type { AppConfig, ModelOptions } from "../types";
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
+
+interface OpenRouterRequestConfig {
+  baseURL: string;
+  apiKey: string;
+  headers: Record<string, string>;
+  user?: string;
+}
+
+interface OpenRouterModelConfig {
+  id: `${string}/${string}`;
+  url: string;
+  apiKey: string;
+  headers?: Record<string, string>;
+}
 
 /** Minimal OpenRouter provider adapter used by the AI client. */
 export interface OpenRouterProvider {

@@ -3,48 +3,62 @@
  */
 
 /**
- * The 12 configurable model slots.
+ * Language model tiers.
  *
- * Cost tiers (generalist ladder):
- *   nano      — Free/ultra-cheap bulk processing ($0-0.10/M)
- *   fast      — Low-latency, cheap ($0.10-0.50/M)
- *   standard  — General purpose workhorse ($0.30-1.00/M)
- *   powerful  — Complex reasoning ($3-10/M)
- *   reasoning — Frontier quality ($10+/M)
- *
- * Specialties:
- *   tools     — Best tool-calling cost/quality ratio
- *   vision    — Image understanding
- *
- * Retrieval:
- *   embed           — Text embeddings (Voyage)
- *   multimodalEmbed — Text + image embeddings in same vector space (Voyage)
- *   googleEmbed     — Text embeddings (Gemini Embedding 2)
- *   googleImageEmbed — Image embeddings (Gemini Embedding 2 multimodal content)
- *   rerank          — Search result reranking (Voyage)
+ * Every default language model must support structured input/output. Capabilities
+ * such as tool calling and vision are selected per tier with ModelOptions.
  */
-export type ModelSlot =
+export type ModelTier =
   | "nano"
   | "fast"
   | "standard"
   | "powerful"
-  | "reasoning"
-  | "tools"
-  | "vision"
-  | "embed"
-  | "multimodalEmbed"
-  | "googleEmbed"
-  | "googleImageEmbed"
-  | "rerank";
+  | "reasoning";
 
-/** Slots that return a LanguageModel (everything except retrieval slots). */
-export type LanguageModelSlot = Exclude<
-  ModelSlot,
-  "embed" | "multimodalEmbed" | "googleEmbed" | "googleImageEmbed" | "rerank"
->;
+/** Capability variants available inside each language model tier. */
+export type LanguageModelVariant = "text" | "tools" | "vision" | "visionTools";
 
-/** The full model matrix — one provider model ID per slot. */
-export type ModelMatrix = Record<ModelSlot, string>;
+/** Capabilities exposed by a selected language model variant. */
+export interface LanguageModelCapabilities {
+  /** Structured input/output is required for every default language model. */
+  structured: true;
+  /** Model variant is intended for AI SDK tool calling. */
+  tools: boolean;
+  /** Model variant accepts image inputs. */
+  vision: boolean;
+}
+
+/** Provider routes for embedding models. */
+export type EmbeddingProviderRoute = "voyage" | "gemini";
+
+/** Slots that return embedding models. */
+export type EmbeddingModelSlot = "embed" | "multimodalEmbed";
+
+/** Slots that return retrieval support models. */
+export type RetrievalModelSlot = EmbeddingModelSlot | "rerank";
+
+export type ModelSlot = ModelTier | RetrievalModelSlot;
+
+/** Provider-specific model IDs for one embedding slot. */
+export type EmbeddingProviderModels = Record<EmbeddingProviderRoute, string>;
+
+/** Provider-specific language model IDs for one cost/quality tier. */
+export type TierModelMatrix = Record<LanguageModelVariant, string>;
+
+/** The resolved model matrix. */
+export type ModelMatrix = Record<ModelTier, TierModelMatrix> &
+  Record<EmbeddingModelSlot, EmbeddingProviderModels> & {
+    rerank: string;
+  };
+
+/** Model overrides accepted by createAI(). */
+export type ModelOverrides = Partial<
+  Record<ModelTier, Partial<TierModelMatrix>>
+> & {
+  embed?: Partial<EmbeddingProviderModels>;
+  multimodalEmbed?: Partial<EmbeddingProviderModels>;
+  rerank?: string;
+};
 
 /** App-level configuration for OpenRouter attribution headers. */
 export interface AppConfig {
@@ -68,8 +82,8 @@ export interface AIConfig {
   googleKey?: string;
   /** Vercel AI Gateway API key. Defaults to process.env.AI_GATEWAY_API_KEY. Auto-authenticates on Vercel. */
   gatewayKey?: string;
-  /** Override default models for any slot. */
-  models?: Partial<ModelMatrix>;
+  /** Override default language tier variants and retrieval models. */
+  models?: ModelOverrides;
   /** App attribution for OpenRouter. */
   app?: AppConfig;
 }
@@ -89,9 +103,6 @@ export type ProviderRoute =
   | "anthropic"
   | "openai"
   | "google";
-
-/** Provider routes for embedding models. */
-export type EmbeddingProviderRoute = "voyage" | "gemini";
 
 /** Input family for provider-neutral embedding model selection. */
 export type EmbeddingInputKind = "text" | "image";
@@ -114,6 +125,10 @@ export interface EmbeddingModelOptions {
 export interface ModelOptions {
   /** Agent identifier for usage attribution (e.g. "search", "enrichment"). */
   agent?: string;
+  /** Select the tool-capable variant for the requested tier. */
+  tools?: boolean;
+  /** Select the vision-capable variant for the requested tier. */
+  vision?: boolean;
   /**
    * Override the provider route for this call.
    * Defaults to "gateway" (Vercel AI Gateway). Use "openrouter" for
@@ -126,19 +141,30 @@ export interface ModelOptions {
   provider?: ProviderRoute;
 }
 
-/** OpenRouter request configuration for code paths that need direct HTTP access. */
-export interface OpenRouterRequestConfig {
-  baseURL: string;
-  apiKey: string;
-  headers: Record<string, string>;
-  /** Body-level OpenRouter user attribution value, when an agent is provided. */
-  user?: string;
+/** Provider config fields that a route can consume. */
+export interface ProviderConfigCapabilities {
+  /** Provider accepts a model ID at model construction time. */
+  modelId: boolean;
+  /** Provider can consume an API key from config/env. */
+  apiKey: boolean;
+  /** Provider supports a custom base URL for direct HTTP calls. */
+  baseURL: boolean;
+  /** Provider supports request headers in this package. */
+  headers: boolean;
+  /** Provider supports app attribution headers. */
+  appAttribution: boolean;
+  /** Provider supports per-agent/user attribution from ModelOptions.agent. */
+  agentAttribution: boolean;
 }
 
-/** OpenRouter-compatible model config for runtimes that do not accept AI SDK models. */
-export interface OpenRouterModelConfig {
-  id: `${string}/${string}`;
-  url: string;
-  apiKey: string;
+/** Provider-neutral model config for runtimes that do not accept AI SDK models. */
+export interface ProviderModelConfig {
+  provider: ProviderRoute;
+  id: string;
+  capabilities: ProviderConfigCapabilities;
+  apiKey?: string;
+  baseURL?: string;
+  url?: string;
   headers?: Record<string, string>;
+  user?: string;
 }
