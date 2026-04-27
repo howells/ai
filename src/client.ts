@@ -39,9 +39,11 @@ import {
   PROVIDER_CONFIG_CAPABILITIES,
   resolveModels,
   resolveLanguageModelVariant,
+  resolveProviderLanguageModelId,
   resolveProviderModelId,
   validateProviderMatch,
 } from "./models";
+import { resolveGenerationOptions } from "./generation";
 import { createAnthropicProvider } from "./providers/anthropic";
 import { createGatewayProvider } from "./providers/gateway";
 import type { GoogleProvider } from "./providers/google";
@@ -53,12 +55,14 @@ import { createVoyageProvider } from "./providers/voyage";
 import type {
   AIConfig,
   EmbeddingModelOptions,
+  GenerationOptions,
   LanguageModelCapabilities,
   ModelMatrix,
   ModelOptions,
   ModelTier,
   ProviderModelConfig,
   ProviderRoute,
+  ResolvedGenerationOptions,
 } from "./types";
 
 /**
@@ -103,6 +107,14 @@ export interface AIClient {
   modelCapabilities: (
     options?: Pick<ModelOptions, "tools" | "vision">,
   ) => LanguageModelCapabilities;
+
+  /**
+   * Resolve provider-neutral generation settings into AI SDK call options.
+   *
+   * Spread the result into generateText/streamText alongside model, prompt,
+   * output schemas, and tools.
+   */
+  generationOptions: (options?: GenerationOptions) => ResolvedGenerationOptions;
 
   /** Which providers appear configured for use in this process. */
   readonly availableProviders: readonly ProviderRoute[];
@@ -280,11 +292,13 @@ export function createAI(config?: AIConfig): AIClient {
   return {
     model(tier, options) {
       const variant = resolveLanguageModelVariant(options);
-      const modelId = matrix[tier][variant];
-      const provider = options?.provider;
-      if (provider && !canRouteModelToProvider(modelId, provider)) {
-        validateProviderMatch(modelId, provider);
-      }
+      const provider = options?.provider ?? "gateway";
+      const modelId = resolveProviderLanguageModelId(
+        matrix,
+        tier,
+        variant,
+        provider,
+      );
       return resolveModel(modelId, options);
     },
 
@@ -308,6 +322,10 @@ export function createAI(config?: AIConfig): AIClient {
 
     modelCapabilities(options) {
       return LANGUAGE_MODEL_CAPABILITIES[resolveLanguageModelVariant(options)];
+    },
+
+    generationOptions(options) {
+      return resolveGenerationOptions(options);
     },
 
     embeddingModel(options) {

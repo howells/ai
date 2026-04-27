@@ -8,11 +8,16 @@ import {
   GOOGLE_EMBED_MODELS,
   GOOGLE_MODELS,
   inferProvider,
+  LANGUAGE_MODEL_CATALOG,
   LANGUAGE_MODEL_CAPABILITIES,
+  LANGUAGE_MODEL_VARIANTS,
+  MODEL_TIERS,
   OPENAI_MODELS,
+  PROVIDER_DEFAULT_MODELS,
   QWEN_MODELS,
   resolveModels,
   resolveLanguageModelVariant,
+  resolveProviderLanguageModelId,
   resolveProviderModelId,
   toDirectModelId,
   VOYAGE_MODELS,
@@ -29,6 +34,14 @@ const MODEL_SLOTS = [
   "multimodalEmbed",
   "rerank",
 ] as const satisfies readonly ModelSlot[];
+
+const PROVIDERS = [
+  "gateway",
+  "openrouter",
+  "anthropic",
+  "openai",
+  "google",
+] as const;
 
 describe("model matrix", () => {
   test("defines every public model tier and retrieval slot", () => {
@@ -61,7 +74,13 @@ describe("model matrix", () => {
     expect(ANTHROPIC_MODELS.CLAUDE_SONNET_4_6).toBe(
       "anthropic/claude-sonnet-4.6",
     );
+    expect(ANTHROPIC_MODELS.CLAUDE_HAIKU_4_5).toBe(
+      "anthropic/claude-haiku-4.5",
+    );
     expect(GOOGLE_MODELS.GEMINI_3_FLASH).toBe("google/gemini-3-flash");
+    expect(GOOGLE_MODELS.GEMINI_3_1_PRO).toBe("google/gemini-3.1-pro");
+    expect(OPENAI_MODELS.GPT_5_4).toBe("openai/gpt-5.4");
+    expect(OPENAI_MODELS.GPT_5_5).toBe("openai/gpt-5.5");
     expect(DEFAULT_MODELS.embed).toEqual({
       voyage: "voyage-3",
       gemini: "gemini-embedding-2-preview",
@@ -75,6 +94,52 @@ describe("model matrix", () => {
     expect(QWEN_MODELS.QWEN_2_5_VL_72B_INSTRUCT).toBe(
       "qwen/qwen2.5-vl-72b-instruct",
     );
+  });
+
+  test("catalogues every public language model constant and default", () => {
+    const catalogIds = new Set(LANGUAGE_MODEL_CATALOG.map((model) => model.id));
+    const publicLanguageModelIds = [
+      ...Object.values(ANTHROPIC_MODELS),
+      ...Object.values(DEEPSEEK_MODELS),
+      ...Object.values(GOOGLE_MODELS),
+      ...Object.values(OPENAI_MODELS),
+      ...Object.values(QWEN_MODELS),
+      ...Object.values(XAI_MODELS),
+    ];
+
+    expect(new Set(publicLanguageModelIds).size).toBe(
+      publicLanguageModelIds.length,
+    );
+
+    for (const modelId of publicLanguageModelIds) {
+      expect(catalogIds.has(modelId)).toBe(true);
+    }
+
+    for (const tier of MODEL_TIERS) {
+      for (const variant of LANGUAGE_MODEL_VARIANTS) {
+        expect(catalogIds.has(DEFAULT_MODELS[tier][variant])).toBe(true);
+      }
+    }
+  });
+
+  test("defines provider defaults for every tier and capability surface", () => {
+    for (const provider of PROVIDERS) {
+      for (const tier of MODEL_TIERS) {
+        for (const variant of LANGUAGE_MODEL_VARIANTS) {
+          const modelId = PROVIDER_DEFAULT_MODELS[provider][tier][variant];
+          expect(modelId).toBeTruthy();
+          expect(canRouteModelToProvider(modelId, provider)).toBe(true);
+          expect(
+            resolveProviderLanguageModelId(
+              DEFAULT_MODELS,
+              tier,
+              variant,
+              provider,
+            ),
+          ).toBe(modelId);
+        }
+      }
+    }
   });
 
   test("returns a fresh default matrix", () => {
@@ -157,6 +222,9 @@ describe("provider helpers", () => {
     expect(
       resolveProviderModelId(ANTHROPIC_MODELS.CLAUDE_SONNET_4_6, "anthropic"),
     ).toBe("claude-sonnet-4-6");
+    expect(
+      resolveProviderModelId(ANTHROPIC_MODELS.CLAUDE_HAIKU_4_5, "anthropic"),
+    ).toBe("claude-haiku-4-5-20251001");
 
     expect(
       resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_FLASH, "openrouter"),
@@ -167,6 +235,12 @@ describe("provider helpers", () => {
     expect(resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_FLASH, "google")).toBe(
       "gemini-3-flash-preview",
     );
+    expect(
+      resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_1_PRO, "google"),
+    ).toBe("gemini-3.1-pro-preview");
+    expect(
+      resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE, "gateway"),
+    ).toBe("google/gemini-3.1-flash-lite-preview");
 
     expect(resolveProviderModelId(XAI_MODELS.GROK_4_1_FAST, "openrouter")).toBe(
       "x-ai/grok-4.1-fast",
@@ -201,5 +275,17 @@ describe("provider helpers", () => {
     expect(canRouteModelToProvider(XAI_MODELS.GROK_4_1_FAST, "gateway")).toBe(
       true,
     );
+    expect(
+      canRouteModelToProvider(
+        QWEN_MODELS.QWEN_2_5_VL_72B_INSTRUCT,
+        "openrouter",
+      ),
+    ).toBe(true);
+    expect(
+      canRouteModelToProvider(
+        QWEN_MODELS.QWEN_2_5_VL_72B_INSTRUCT,
+        "gateway",
+      ),
+    ).toBe(false);
   });
 });

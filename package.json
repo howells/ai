@@ -1,6 +1,6 @@
 {
   "name": "@howells/ai",
-  "version": "0.1.10",
+  "version": "0.1.11",
   "type": "module",
   "description": "Unified AI client for all projects — Gateway, OpenRouter, direct providers, tiered language models, and retrieval models.",
   "license": "MIT",
@@ -21,12 +21,19 @@
     "./react": {
       "types": "./dist/react.d.mts",
       "default": "./dist/react.mjs"
+    },
+    "./models": {
+      "types": "./dist/models.d.mts",
+      "default": "./dist/models.mjs"
     }
   },
   "scripts": {
     "build": "tsdown",
+    "benchmark:build": "pnpm --filter @howells/ai-benchmark build",
+    "benchmark:dev": "pnpm --filter @howells/ai-benchmark dev",
     "check-types": "tsc --noEmit",
-    "test": "bun test"
+    "test": "bun test",
+    "test:live": "LIVE_AI_TESTS=1 bun test test/live.test.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^3.0.71",

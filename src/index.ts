@@ -47,6 +47,9 @@ export {
 // Client factory
 export { createAI } from "./client";
 
+// Generation config resolver
+export { resolveGenerationOptions } from "./generation";
+
 // Default model matrix and provider constants
 export {
   ANTHROPIC_MODELS,
@@ -56,12 +59,17 @@ export {
   GOOGLE_EMBED_MODELS,
   GOOGLE_MODELS,
   inferProvider,
+  LANGUAGE_MODEL_CATALOG,
   LANGUAGE_MODEL_CAPABILITIES,
+  LANGUAGE_MODEL_VARIANTS,
+  MODEL_TIERS,
   OPENAI_MODELS,
   PROVIDER_CONFIG_CAPABILITIES,
+  PROVIDER_DEFAULT_MODELS,
   QWEN_MODELS,
   resolveModels,
   resolveLanguageModelVariant,
+  resolveProviderLanguageModelId,
   resolveProviderModelId,
   toDirectModelId,
   VOYAGE_MODELS,
@@ -77,15 +85,28 @@ export type {
   EmbeddingModelOptions,
   EmbeddingProviderRoute,
   EmbeddingProviderModels,
+  Creativity,
+  GenerationOptions,
+  GenerationProviderOptions,
   LanguageModelCapabilities,
+  LanguageModelCatalogEntry,
   LanguageModelVariant,
   ModelMatrix,
   ModelOptions,
   ModelOverrides,
   ModelSlot,
   ModelTier,
+  OutputLength,
+  OutputVerbosity,
+  PromptCachePolicy,
   ProviderConfigCapabilities,
+  ProviderLanguageModelMatrix,
   ProviderModelConfig,
   ProviderRoute,
+  ReasoningEffort,
+  ResolvedGenerationOptions,
+  ServiceTier,
+  StructuredOutputMode,
   TierModelMatrix,
+  ToolPolicy,
 } from "./types";

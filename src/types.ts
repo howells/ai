@@ -2,6 +2,8 @@
  * @howells/ai — Shared types
  */
 
+import type { CallSettings, StopCondition, ToolChoice, ToolSet } from "ai";
+
 /**
  * Language model tiers.
  *
@@ -28,6 +30,14 @@ export interface LanguageModelCapabilities {
   vision: boolean;
 }
 
+/** Public metadata for a language model exposed by the package catalogue. */
+export interface LanguageModelCatalogEntry {
+  /** Canonical package model ID, usually the OpenRouter-style provider/model ID. */
+  id: string;
+  /** Human-readable model name for UI and logs. */
+  name: string;
+}
+
 /** Provider routes for embedding models. */
 export type EmbeddingProviderRoute = "voyage" | "gemini";
 
@@ -44,6 +54,12 @@ export type EmbeddingProviderModels = Record<EmbeddingProviderRoute, string>;
 
 /** Provider-specific language model IDs for one cost/quality tier. */
 export type TierModelMatrix = Record<LanguageModelVariant, string>;
+
+/** Provider-specific language defaults for every tier and capability surface. */
+export type ProviderLanguageModelMatrix = Record<
+  ProviderRoute,
+  Record<ModelTier, TierModelMatrix>
+>;
 
 /** The resolved model matrix. */
 export type ModelMatrix = Record<ModelTier, TierModelMatrix> &
@@ -139,6 +155,115 @@ export interface ModelOptions {
    * provider "anthropic" for a DeepSeek model will throw.
    */
   provider?: ProviderRoute;
+}
+
+/** Normalized reasoning budget for generation calls. */
+export type ReasoningEffort =
+  | "off"
+  | "minimal"
+  | "low"
+  | "medium"
+  | "high"
+  | "max";
+
+/** Normalized output detail hint. Currently maps to OpenAI verbosity. */
+export type OutputVerbosity = "low" | "medium" | "high";
+
+/** Normalized sampling preset. Explicit temperature/topP still win. */
+export type Creativity = "deterministic" | "focused" | "balanced" | "creative";
+
+/** Normalized response length preset or explicit output-token limit. */
+export type OutputLength = "short" | "medium" | "long" | "max" | number;
+
+/** Normalized tool-use policy for AI SDK generation calls. */
+export type ToolPolicy = "none" | "auto" | "required";
+
+/** Normalized structured-output provider behavior. */
+export type StructuredOutputMode = "auto" | "strict" | "tool";
+
+/** Normalized prompt-cache policy where providers expose one. */
+export type PromptCachePolicy = "off" | "ephemeral";
+
+/** Normalized latency/cost priority where providers expose one. */
+export type ServiceTier = "auto" | "standard" | "flex" | "priority";
+
+/** Provider-specific options object accepted by AI SDK generation calls. */
+export type GenerationProviderOptions = Record<
+  string,
+  Record<string, unknown>
+>;
+
+/** Provider-neutral generation settings resolved into AI SDK call options. */
+export interface GenerationOptions {
+  /**
+   * Provider route for the request.
+   * Defaults to "gateway". Pass the same provider used for ai.model(...).
+   */
+  provider?: ProviderRoute;
+  /**
+   * Optional canonical or resolved model ID. Used to infer the underlying
+   * provider when provider is "gateway".
+   */
+  modelId?: string;
+  /** Reasoning budget/capability hint. Defaults to provider default behavior. */
+  reasoning?: ReasoningEffort;
+  /** Output detail hint for providers that expose verbosity. */
+  verbosity?: OutputVerbosity;
+  /** Sampling preset. Ignored when temperature is explicitly provided. */
+  creativity?: Creativity;
+  /** Output-token preset or explicit output-token limit. */
+  outputLength?: OutputLength;
+  /** Explicit AI SDK maxOutputTokens override. */
+  maxOutputTokens?: number;
+  /** Explicit AI SDK temperature override. Use null to omit temperature. */
+  temperature?: number | null;
+  /** AI SDK nucleus sampling. */
+  topP?: number;
+  /** AI SDK top-k sampling. */
+  topK?: number;
+  /** AI SDK presence penalty. */
+  presencePenalty?: number;
+  /** AI SDK frequency penalty. */
+  frequencyPenalty?: number;
+  /** AI SDK stop sequences. */
+  stopSequences?: string[];
+  /** AI SDK deterministic seed where supported. */
+  seed?: number;
+  /** AI SDK max retries. */
+  maxRetries?: number;
+  /** AI SDK timeout. */
+  timeout?: CallSettings["timeout"];
+  /** Tool-use policy. */
+  tools?: ToolPolicy;
+  /** Maximum tool loop steps. Sets stopWhen to stepCountIs(maxToolSteps). */
+  maxToolSteps?: number;
+  /** Whether providers should allow parallel tool calls when configurable. */
+  parallelTools?: boolean;
+  /** Structured-output provider behavior. Use AI SDK output schemas as usual. */
+  structured?: StructuredOutputMode;
+  /** Prompt caching hint where supported. */
+  cache?: PromptCachePolicy;
+  /** End-user or agent identifier for providers that accept one. */
+  user?: string;
+  /** Latency/cost priority for providers that expose one. */
+  serviceTier?: ServiceTier;
+}
+
+/** AI SDK call settings produced by resolveGenerationOptions(). */
+export interface ResolvedGenerationOptions {
+  maxOutputTokens?: number;
+  temperature?: number;
+  topP?: number;
+  topK?: number;
+  presencePenalty?: number;
+  frequencyPenalty?: number;
+  stopSequences?: string[];
+  seed?: number;
+  maxRetries?: number;
+  timeout?: CallSettings["timeout"];
+  toolChoice?: ToolChoice<ToolSet>;
+  stopWhen?: StopCondition<ToolSet>;
+  providerOptions?: GenerationProviderOptions;
 }
 
 /** Provider config fields that a route can consume. */

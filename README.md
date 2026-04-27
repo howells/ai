@@ -1,7 +1,8 @@
 # @howells/ai
 
 Unified AI client for all projects. One package, Vercel AI Gateway by default,
-direct provider escape hatches, and provider-aware model tiers.
+direct provider escape hatches, provider-aware model tiers, and normalized
+generation settings.
 
 ## Quick Start
 
@@ -35,6 +36,83 @@ const { output } = await generateText({
   output: Output.object({ schema: myZodSchema }),
   prompt: "Extract entities from this text",
 });
+```
+
+## Generation Options
+
+Use `ai.generationOptions(...)` for the settings that vary across providers:
+reasoning budget, verbosity, structured-output provider behavior, tool policy,
+response length, sampling, prompt cache, user attribution, and service tier.
+
+```typescript
+const provider = "openai";
+
+const { text } = await generateText({
+  model: ai.model("powerful", { provider, tools: true }),
+  prompt: "Plan the migration",
+  tools: migrationTools,
+  ...ai.generationOptions({
+    provider,
+    reasoning: "high",
+    verbosity: "medium",
+    structured: "strict",
+    tools: "auto",
+    maxToolSteps: 5,
+    outputLength: "long",
+    creativity: "focused",
+    user: "migration-agent",
+  }),
+});
+```
+
+For Gateway calls, pass the canonical model ID when you want provider-specific
+options inferred as well as Gateway attribution:
+
+```typescript
+const modelId = "openai/gpt-5.4";
+
+await streamText({
+  model: ai.modelById(modelId),
+  prompt: "...",
+  ...ai.generationOptions({
+    provider: "gateway",
+    modelId,
+    reasoning: "medium",
+    verbosity: "high",
+  }),
+});
+```
+
+| Normalized Option | AI SDK / Provider Mapping |
+|-------------------|---------------------------|
+| `reasoning` | OpenAI `reasoningEffort`, Anthropic `thinking`, Google `thinkingConfig`, OpenRouter `reasoning` |
+| `verbosity` | OpenAI `textVerbosity` |
+| `structured` | OpenAI strict JSON schema, Anthropic structured output mode, Google structured outputs |
+| `tools` | AI SDK `toolChoice` |
+| `maxToolSteps` | AI SDK `stopWhen: stepCountIs(n)` |
+| `parallelTools` | OpenAI/OpenRouter parallel tool calls, Anthropic inverse disable flag |
+| `outputLength` | AI SDK `maxOutputTokens` preset |
+| `creativity` | AI SDK `temperature` preset |
+| `cache` | Anthropic `cacheControl`, OpenRouter `cache_control` |
+| `serviceTier` | OpenAI/Google service tier where supported |
+
+## Testing
+
+Normal tests are deterministic and do not call providers:
+
+```bash
+pnpm test
+pnpm check-types
+pnpm build
+```
+
+Live tests are opt-in because they use real API keys and spend provider quota.
+They load keys from `.env`, `.env.local`, or `apps/benchmark/.env.local`, then
+verify every configured provider/model route plus the normalized config option
+matrix:
+
+```bash
+pnpm test:live
 ```
 
 ## Model Matrix
