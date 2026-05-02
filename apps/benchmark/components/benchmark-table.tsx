@@ -213,7 +213,7 @@ export function BenchmarkTable({
                 <th
                   key={header.id}
                   scope="col"
-                  className={`group/th sticky top-0 z-20 border-[var(--color-border)] border-b bg-[var(--color-canvas)] px-4 py-2 text-left align-bottom text-[var(--color-text-subtle)] ${
+                  className={`group/th sticky top-0 z-20 h-9 border-[var(--color-border)] border-b bg-[var(--color-canvas)] px-4 text-left align-middle text-[var(--color-text-subtle)] ${
                     isSticky ? "z-30" : ""
                   }`}
                   style={{
@@ -258,7 +258,7 @@ export function BenchmarkTable({
                 <tr>
                   <td
                     colSpan={columns.length}
-                    className="sticky top-[44px] z-10 border-b border-[var(--color-border)] bg-[var(--color-canvas)]/95 pt-5 pr-4 pb-2 pl-[60px] backdrop-blur"
+                    className="sticky top-9 z-10 border-b border-[var(--color-border)] bg-[var(--color-canvas)] pt-5 pr-4 pb-2 pl-[60px]"
                   >
                     <div className="flex items-baseline gap-2">
                       <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
