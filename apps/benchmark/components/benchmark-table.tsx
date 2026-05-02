@@ -12,7 +12,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { formatMs, formatTpsWithUnit, METRIC_META, type MetricKey } from "../lib/format";
 import {
   GROUP_LABELS,
@@ -249,28 +249,27 @@ export function BenchmarkTable({
           </tr>
         </thead>
 
-        <tbody>
-          {GROUPS.map((groupKey) => {
-            const groupRows = grouped[groupKey];
-            if (groupRows.length === 0) return null;
-            return (
-              <Fragment key={groupKey}>
-                <tr>
-                  <td
-                    colSpan={columns.length}
-                    className="sticky top-9 z-10 border-b border-[var(--color-border)] bg-[var(--color-canvas)] pt-5 pr-4 pb-2 pl-[60px]"
-                  >
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
-                        {GROUP_LABELS[groupKey]}
-                      </span>
-                      <span className="text-[11px] text-[var(--color-text-faint)]">
-                        {groupRows.length}
-                      </span>
-                    </div>
-                  </td>
-                </tr>
-                {groupRows.map((row) => {
+        {GROUPS.map((groupKey) => {
+          const groupRows = grouped[groupKey];
+          if (groupRows.length === 0) return null;
+          return (
+            <tbody key={groupKey}>
+              <tr>
+                <td
+                  colSpan={columns.length}
+                  className="sticky top-9 z-20 border-b border-[var(--color-border)] bg-[var(--color-canvas)] pt-5 pr-4 pb-2 pl-[60px]"
+                >
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
+                      {GROUP_LABELS[groupKey]}
+                    </span>
+                    <span className="text-[11px] text-[var(--color-text-faint)]">
+                      {groupRows.length}
+                    </span>
+                  </div>
+                </td>
+              </tr>
+              {groupRows.map((row) => {
                   const isSelected = row.getIsSelected();
                   const rowBg = isSelected
                     ? "bg-[var(--color-row-selected)]"
@@ -307,11 +306,12 @@ export function BenchmarkTable({
                     </tr>
                   );
                 })}
-              </Fragment>
-            );
-          })}
+            </tbody>
+          );
+        })}
 
-          {table.getRowModel().rows.length === 0 && (
+        {table.getRowModel().rows.length === 0 && (
+          <tbody>
             <tr>
               <td
                 colSpan={columns.length}
@@ -320,8 +320,8 @@ export function BenchmarkTable({
                 No models match the current filters.
               </td>
             </tr>
-          )}
-        </tbody>
+          </tbody>
+        )}
       </table>
     </div>
   );
