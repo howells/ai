@@ -26,6 +26,29 @@ export type ModelTier =
 /** Capability variants available inside each language model tier. */
 export type LanguageModelVariant = "text" | "tools" | "vision" | "visionTools";
 
+/** Workload hint used to choose task-optimized models within a tier. */
+export type ModelTask =
+  | "general"
+  | "coding"
+  | "agentic"
+  | "chat"
+  | "bulk"
+  | "vision"
+  | "reasoning"
+  | "longContext"
+  | "creative";
+
+/** Underlying model service or author behind a provider-routed model ID. */
+export type ModelService =
+  | "anthropic"
+  | "openai"
+  | "google"
+  | "deepseek"
+  | "xai"
+  | "qwen"
+  | "zai"
+  | "moonshotai";
+
 /** Capabilities exposed by a selected language model variant. */
 export interface LanguageModelCapabilities {
   /** Structured input/output is required for every default language model. */
@@ -42,6 +65,10 @@ export interface LanguageModelCatalogEntry {
   id: string;
   /** Human-readable model name for UI and logs. */
   name: string;
+  /** Underlying model service/author, useful for key management and filtering. */
+  service?: ModelService;
+  /** Workloads this model is a good override/default candidate for. */
+  tasks?: readonly ModelTask[];
 }
 
 /** Provider routes for embedding models. */
@@ -61,6 +88,12 @@ export type EmbeddingProviderModels = Record<EmbeddingProviderRoute, string>;
 /** Provider-specific language model IDs for one cost/quality tier. */
 export type TierModelMatrix = Record<LanguageModelVariant, string>;
 
+/** Task-specific model overrides layered over the general tier matrix. */
+export type TaskModelMatrix = Record<
+  ModelTask,
+  Partial<Record<ModelTier, Partial<TierModelMatrix>>>
+>;
+
 /** Provider-specific language defaults for every tier and capability surface. */
 export type ProviderLanguageModelMatrix = Record<
   ProviderRoute,
@@ -77,6 +110,9 @@ export type ModelMatrix = Record<ModelTier, TierModelMatrix> &
 export type ModelOverrides = Partial<
   Record<ModelTier, Partial<TierModelMatrix>>
 > & {
+  tasks?: Partial<
+    Record<ModelTask, Partial<Record<ModelTier, Partial<TierModelMatrix>>>>
+  >;
   embed?: Partial<EmbeddingProviderModels>;
   multimodalEmbed?: Partial<EmbeddingProviderModels>;
   rerank?: string;
@@ -102,6 +138,18 @@ export interface AIConfig {
   voyageKey?: string;
   /** Google Gemini API key. Defaults to process.env.GOOGLE_GEMINI_API_KEY. */
   googleKey?: string;
+  /** DeepSeek API key. Defaults to process.env.DEEPSEEK_API_KEY. */
+  deepseekKey?: string;
+  /** xAI API key. Defaults to process.env.XAI_API_KEY. */
+  xaiKey?: string;
+  /** Qwen API key. Defaults to process.env.QWEN_API_KEY. */
+  qwenKey?: string;
+  /** Z.ai API key. Defaults to process.env.ZAI_API_KEY. */
+  zaiKey?: string;
+  /** Moonshot/Kimi API key. Defaults to process.env.MOONSHOT_API_KEY. */
+  moonshotKey?: string;
+  /** Underlying service API keys for provider-routed model authors. */
+  serviceKeys?: Partial<Record<ModelService, string>>;
   /** Vercel AI Gateway API key. Defaults to process.env.AI_GATEWAY_API_KEY. Auto-authenticates on Vercel. */
   gatewayKey?: string;
   /** Override default language tier variants and retrieval models. */
@@ -118,13 +166,23 @@ export interface AIConfig {
  * - "anthropic"  — direct Anthropic API (Anthropic models only)
  * - "openai"     — direct OpenAI API (OpenAI models only)
  * - "google"     — direct Google API (Google models only)
+ * - "deepseek"   — direct DeepSeek OpenAI-compatible API
+ * - "xai"        — direct xAI OpenAI-compatible API
+ * - "qwen"       — direct Qwen OpenAI-compatible API
+ * - "zai"        — direct Z.ai OpenAI-compatible API
+ * - "moonshotai" — direct Moonshot/Kimi OpenAI-compatible API
  */
 export type ProviderRoute =
   | "openrouter"
   | "gateway"
   | "anthropic"
   | "openai"
-  | "google";
+  | "google"
+  | "deepseek"
+  | "xai"
+  | "qwen"
+  | "zai"
+  | "moonshotai";
 
 /** Input family for provider-neutral embedding model selection. */
 export type EmbeddingInputKind = "text" | "image";
@@ -151,6 +209,11 @@ export interface ModelOptions {
   tools?: boolean;
   /** Select the vision-capable variant for the requested tier. */
   vision?: boolean;
+  /**
+   * Select a workload-optimized model within the requested tier.
+   * Defaults to "general", preserving the base tier matrix.
+   */
+  task?: ModelTask;
   /**
    * Override the provider route for this call.
    * Defaults to "gateway" (Vercel AI Gateway). Use "openrouter" for
@@ -293,7 +356,10 @@ export interface ProviderModelConfig {
   provider: ProviderRoute;
   id: string;
   capabilities: ProviderConfigCapabilities;
+  service?: ModelService;
   apiKey?: string;
+  serviceApiKey?: string;
+  serviceApiKeyEnv?: string;
   baseURL?: string;
   url?: string;
   headers?: Record<string, string>;

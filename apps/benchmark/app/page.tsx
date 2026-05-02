@@ -1,215 +1,55 @@
 "use client";
 
-import {
-  canRouteModelToProvider,
-  DEFAULT_MODELS,
-  LANGUAGE_MODEL_CATALOG,
-  LANGUAGE_MODEL_VARIANTS,
-  MODEL_TIERS,
-  resolveProviderModelId,
-} from "@howells/ai/models";
+import { canRouteModelToProvider, resolveProviderModelId } from "@howells/ai/models";
 import type {
-  LanguageModelVariant,
+  ModelService,
+  ModelTask,
   ModelTier,
   ProviderRoute,
 } from "@howells/ai";
+import type { RowSelectionState } from "@tanstack/react-table";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Fragment,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-
-// -- Types ------------------------------------------------------------
+  type BenchmarkResult,
+  BenchmarkTable,
+  type MetricKey,
+} from "../components/benchmark-table";
+import {
+  BenchmarkToolbar,
+  type ToolbarFilters,
+} from "../components/benchmark-toolbar";
+import { LegendBar } from "../components/legend-bar";
+import { RunQueueStrip } from "../components/run-queue-strip";
+import { InfoIcon } from "../components/tooltip";
+import { METRIC_META, pluralize } from "../lib/format";
+import {
+  ALL_PROVIDERS,
+  ALL_SERVICES,
+  ALL_TASKS,
+  ALL_TIERS,
+  MODEL_ROWS,
+  type ModelRow,
+  tiersForRow,
+} from "../lib/models";
 
 interface Run {
   id: string;
   model: string;
   provider: ProviderRoute;
-  label?: string;
-}
-
-interface BenchmarkResult {
-  model: string;
-  provider: ProviderRoute;
   label: string;
-  ttft: number;
-  totalTime: number;
-  outputTokens: number;
-  inputTokens: number;
-  tokensPerSecond: number;
-  output: string;
-  error?: string;
-  region: string;
-  round?: number;
-  averaged?: boolean;
 }
 
 interface BenchmarkConfig {
   availableProviders: ProviderRoute[];
+  availableServices?: ModelService[];
 }
 
-// -- Model catalogue --------------------------------------------------
-
-interface ModelDef {
-  /** Canonical package model ID */
-  id: string;
-  /** Display name */
-  name: string;
-  /** Default tier/capability slots that use this model. */
-  defaultSlots: string[];
-  /** First default tier, used for stable sorting. */
-  defaultTier?: ModelTier;
-}
-
-const ALL_PROVIDERS: ProviderRoute[] = [
-  "openrouter",
-  "gateway",
-  "anthropic",
-  "openai",
-  "google",
-];
-
-const DIRECT_PROVIDERS: ProviderRoute[] = ["anthropic", "openai", "google"];
-
-function formatVariant(variant: LanguageModelVariant): string {
-  switch (variant) {
-    case "text":
-      return "text";
-    case "tools":
-      return "tools";
-    case "vision":
-      return "vision";
-    case "visionTools":
-      return "vision+tools";
-  }
-}
-
-function defaultSlotsFor(modelId: string): string[] {
-  const slots: string[] = [];
-
-  for (const tier of MODEL_TIERS) {
-    for (const variant of LANGUAGE_MODEL_VARIANTS) {
-      if (DEFAULT_MODELS[tier][variant] === modelId) {
-        slots.push(`${tier} ${formatVariant(variant)}`);
-      }
-    }
-  }
-
-  return slots;
-}
-
-function defaultTierFor(modelId: string): ModelTier | undefined {
-  return MODEL_TIERS.find((tier) =>
-    LANGUAGE_MODEL_VARIANTS.some(
-      (variant) => DEFAULT_MODELS[tier][variant] === modelId,
-    ),
-  );
-}
-
-const MODELS: ModelDef[] = LANGUAGE_MODEL_CATALOG.map((model) => ({
-  id: model.id,
-  name: model.name,
-  defaultSlots: defaultSlotsFor(model.id),
-  defaultTier: defaultTierFor(model.id),
-})).sort((a, b) => {
-  const aTier = a.defaultTier ? MODEL_TIERS.indexOf(a.defaultTier) : 99;
-  const bTier = b.defaultTier ? MODEL_TIERS.indexOf(b.defaultTier) : 99;
-  if (aTier !== bTier) return aTier - bTier;
-  if (a.defaultSlots.length !== b.defaultSlots.length) {
-    return b.defaultSlots.length - a.defaultSlots.length;
-  }
-  return a.name.localeCompare(b.name);
-});
-
-const MODEL_GROUPS = [
-  {
-    key: "defaults",
-    label: "DEFAULT TIER MODELS",
-    models: MODELS.filter((model) => model.defaultSlots.length > 0),
-  },
-  {
-    key: "overrides",
-    label: "SUPPORTED OVERRIDE MODELS",
-    models: MODELS.filter((model) => model.defaultSlots.length === 0),
-  },
-] as const;
-
-function buildMatrixRuns(
-  models: readonly ModelDef[] = MODELS,
-  providers: readonly ProviderRoute[] = ALL_PROVIDERS,
-): Run[] {
-  const runs: Run[] = [];
-  for (const model of models) {
-    for (const p of providers) {
-      if (!canRouteModelToProvider(model.id, p)) continue;
-      const providerModelId = resolveProviderModelId(model.id, p);
-      runs.push({
-        id: `${p}:${providerModelId}`,
-        model: providerModelId,
-        provider: p,
-        label: model.name,
-      });
-    }
-  }
-  return runs;
-}
-
-// -- Presets -----------------------------------------------------------
-
-const DEFAULT_MODELS_ONLY = MODELS.filter(
-  (model) => model.defaultSlots.length,
-);
-
-const DIRECT_CAPABLE_MODELS = MODELS.filter((model) =>
-  DIRECT_PROVIDERS.some((provider) =>
-    canRouteModelToProvider(model.id, provider),
-  ),
-);
-
-const PROXY_ONLY_MODELS = MODELS.filter((model) =>
-  DIRECT_PROVIDERS.every(
-    (provider) => !canRouteModelToProvider(model.id, provider),
-  ),
-);
-
-function buildPresets(
-  providers: readonly ProviderRoute[],
-): Record<string, { label: string; runs: Run[] }> {
-  return {
-    matrix: {
-      label: "Full Matrix: Configured Routes",
-      runs: buildMatrixRuns(MODELS, providers),
-    },
-    defaults: {
-      label: "Defaults: Configured Routes",
-      runs: buildMatrixRuns(DEFAULT_MODELS_ONLY, providers),
-    },
-    "direct-capable": {
-      label: "Direct-capable Models: Configured Routes",
-      runs: buildMatrixRuns(DIRECT_CAPABLE_MODELS, providers),
-    },
-    "proxy-only": {
-      label: "Proxy-only Models: Configured Routes",
-      runs: buildMatrixRuns(PROXY_ONLY_MODELS, providers),
-    },
-  };
-}
-
-const CONFIGURED_DEFAULT_PRESETS = buildPresets([]);
-
-function providerListLabel(providers: readonly ProviderRoute[]): string {
-  if (providers.length === 0) return "No providers configured";
-  return providers.map(providerLabel).join(", ");
-}
-
-function isProviderConfigured(
-  provider: ProviderRoute,
-  providers: readonly ProviderRoute[],
-): boolean {
-  return providers.includes(provider);
+interface RunSnapshot {
+  prompt: string;
+  rounds: number;
+  maxTokens: number;
+  selectionKey: string;
+  providerKey: string;
 }
 
 const DEFAULT_PROMPTS = [
@@ -220,133 +60,233 @@ const DEFAULT_PROMPTS = [
 
 const DEFAULT_PROMPT = DEFAULT_PROMPTS[0] ?? "";
 
-// -- Helpers ----------------------------------------------------------
+const INITIAL_FILTERS: ToolbarFilters = {
+  search: "",
+  tiers: new Set(),
+  tasks: new Set(),
+  services: new Set(),
+  providers: new Set(),
+  configuredOnly: true,
+};
 
-function providerBadgeClasses(provider: ProviderRoute): string {
-  switch (provider) {
-    case "openrouter":
-      return "bg-purple-500/10 text-purple-400";
-    case "gateway":
-      return "bg-zinc-500/10 text-zinc-300";
-    case "anthropic":
-      return "bg-amber-500/10 text-amber-400";
-    case "openai":
-      return "bg-emerald-500/10 text-emerald-400";
-    case "google":
-      return "bg-blue-500/10 text-blue-400";
+const INITIAL_SELECTION: RowSelectionState = (() => {
+  const next: RowSelectionState = {};
+  for (const row of MODEL_ROWS) {
+    if (row.group === "defaults") next[row.id] = true;
   }
-}
+  return next;
+})();
 
-function providerLabel(p: ProviderRoute): string {
-  switch (p) {
-    case "openrouter":
-      return "OpenRouter";
-    case "gateway":
-      return "Gateway";
-    case "anthropic":
-      return "Anthropic";
-    case "openai":
-      return "OpenAI";
-    case "google":
-      return "Google";
-  }
-}
-
-function formatMs(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(2)}s`;
-}
-
-// -- Matrix cell lookup -----------------------------------------------
-
-type MetricKey = "ttft" | "tokensPerSecond" | "totalTime";
-
-function getCell(
-  results: BenchmarkResult[],
-  modelName: string,
-  provider: ProviderRoute,
-): BenchmarkResult | undefined {
-  return results.find((r) => r.label === modelName && r.provider === provider);
-}
-
-function isBestInRow(
-  results: BenchmarkResult[],
-  modelName: string,
-  provider: ProviderRoute,
-  metric: MetricKey,
-): boolean {
-  const cell = getCell(results, modelName, provider);
-  if (!cell || cell.error) return false;
-
-  const rowResults = results.filter((r) => r.label === modelName && !r.error);
-  if (rowResults.length < 2) return false;
-
-  const val = cell[metric];
-  if (metric === "tokensPerSecond") {
-    return val >= Math.max(...rowResults.map((r) => r[metric]));
-  }
-  return val <= Math.min(...rowResults.map((r) => r[metric]));
-}
-
-// -- Component --------------------------------------------------------
-
-/** Interactive benchmark runner for comparing provider/model latency. */
 export default function BenchmarkPage() {
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
-  const [rounds, setRounds] = useState(3);
+  const [rounds, setRounds] = useState(1);
   const [maxTokens, setMaxTokens] = useState(200);
-  const [selectedPreset, setSelectedPreset] = useState("matrix");
-  const [customRuns, setCustomRuns] = useState<Run[]>([]);
-  const [results, setResults] = useState<BenchmarkResult[]>([]);
-  const [running, setRunning] = useState(false);
   const [metric, setMetric] = useState<MetricKey>("ttft");
-  const [availableProviders, setAvailableProviders] = useState<
-    ProviderRoute[]
-  >([]);
-  const [configLoaded, setConfigLoaded] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
-
-  const presets = useMemo(
-    () =>
-      configLoaded ? buildPresets(availableProviders) : CONFIGURED_DEFAULT_PRESETS,
-    [availableProviders, configLoaded],
+  const [density, setDensity] = useState<"comfortable" | "compact">(
+    "comfortable",
   );
-  const activeRuns =
-    customRuns.length > 0 ? customRuns : (presets[selectedPreset]?.runs ?? []);
-  const isMatrix = selectedPreset === "matrix" && customRuns.length === 0;
-
-  // For display, only show averaged results when multi-round
-  const displayResults =
-    rounds > 1 ? results.filter((r) => r.averaged) : results;
-  const totalExpected = activeRuns.length * rounds;
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem("benchmark.settingsOpen");
+    if (saved === "1") setSettingsOpen(true);
+  }, []);
 
-    async function loadConfig() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(
+      "benchmark.settingsOpen",
+      settingsOpen ? "1" : "0",
+    );
+  }, [settingsOpen]);
+
+  const [filters, setFilters] = useState<ToolbarFilters>(INITIAL_FILTERS);
+  const [rowSelection, setRowSelection] =
+    useState<RowSelectionState>(INITIAL_SELECTION);
+
+  const [availableProviders, setAvailableProviders] = useState<ProviderRoute[]>(
+    [],
+  );
+  const [configLoaded, setConfigLoaded] = useState(false);
+  const [region, setRegion] = useState<string | null>(null);
+
+  const [results, setResults] = useState<BenchmarkResult[]>([]);
+  const [running, setRunning] = useState(false);
+  const [lastSnapshot, setLastSnapshot] = useState<RunSnapshot | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // ── Load config ────────────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
       try {
         const response = await fetch("/api/benchmark");
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const config = (await response.json()) as BenchmarkConfig;
-        if (!cancelled) {
-          setAvailableProviders(config.availableProviders);
-        }
+        if (cancelled) return;
+        setAvailableProviders(config.availableProviders);
       } catch (err) {
         console.error("Failed to load benchmark config:", err);
       } finally {
-        if (!cancelled) {
-          setConfigLoaded(true);
-        }
+        if (!cancelled) setConfigLoaded(true);
       }
-    }
-
-    void loadConfig();
-
+    })();
     return () => {
       cancelled = true;
     };
   }, []);
 
+  // ── Filtered rows (page-level filtering, search, tier/task/family) ─
+  const filteredRows = useMemo(() => {
+    const search = filters.search.trim().toLowerCase();
+    return MODEL_ROWS.filter((row) => {
+      if (search) {
+        const haystack = `${row.name} ${row.id} ${row.service}`.toLowerCase();
+        if (!haystack.includes(search)) return false;
+      }
+      if (filters.services.size > 0 && !filters.services.has(row.service)) {
+        return false;
+      }
+      if (filters.tiers.size > 0) {
+        const rowTiers = tiersForRow(row);
+        if (!rowTiers.some((tier) => filters.tiers.has(tier))) return false;
+      }
+      if (filters.tasks.size > 0) {
+        if (!row.tasks.some((task) => filters.tasks.has(task))) return false;
+      }
+      return true;
+    });
+  }, [filters]);
+
+  const visibleProviders = useMemo<ProviderRoute[]>(() => {
+    return ALL_PROVIDERS.filter((provider) => {
+      if (filters.providers.size > 0 && !filters.providers.has(provider)) {
+        return false;
+      }
+      if (filters.configuredOnly && !availableProviders.includes(provider)) {
+        return false;
+      }
+      return true;
+    });
+  }, [filters.providers, filters.configuredOnly, availableProviders]);
+
+  // ── Facet counts ───────────────────────────────────────────────────
+  const tierCounts = useMemo(() => {
+    const counts = Object.fromEntries(
+      ALL_TIERS.map((t) => [t, 0]),
+    ) as Record<ModelTier, number>;
+    for (const row of MODEL_ROWS) {
+      for (const tier of tiersForRow(row)) counts[tier]++;
+    }
+    return counts;
+  }, []);
+
+  const taskCounts = useMemo(() => {
+    const counts = Object.fromEntries(
+      ALL_TASKS.map((t) => [t, 0]),
+    ) as Record<ModelTask, number>;
+    for (const row of MODEL_ROWS) {
+      for (const task of row.tasks) counts[task]++;
+    }
+    return counts;
+  }, []);
+
+  const serviceCounts = useMemo(() => {
+    const counts = Object.fromEntries(
+      ALL_SERVICES.map((s) => [s, 0]),
+    ) as Record<ModelService, number>;
+    for (const row of MODEL_ROWS) counts[row.service]++;
+    return counts;
+  }, []);
+
+  // ── Runs derived from selection × visible providers ────────────────
+  const runs = useMemo<Run[]>(() => {
+    const out: Run[] = [];
+    for (const row of filteredRows) {
+      if (!rowSelection[row.id]) continue;
+      for (const provider of visibleProviders) {
+        if (!canRouteModelToProvider(row.id, provider)) continue;
+        if (!availableProviders.includes(provider)) continue;
+        out.push({
+          id: `${provider}:${row.id}`,
+          model: resolveProviderModelId(row.id, provider),
+          provider,
+          label: row.name,
+        });
+      }
+    }
+    return out;
+  }, [filteredRows, rowSelection, visibleProviders, availableProviders]);
+
+  const selectedModelCount = useMemo(
+    () => filteredRows.filter((row) => rowSelection[row.id]).length,
+    [filteredRows, rowSelection],
+  );
+
+  const eligibleProviderCount = useMemo(
+    () =>
+      visibleProviders.filter((p) => availableProviders.includes(p)).length,
+    [visibleProviders, availableProviders],
+  );
+
+  const totalRequests = runs.length * rounds;
+  const completed = useMemo(
+    () => results.filter((r) => !r.averaged).length,
+    [results],
+  );
+  const displayResults =
+    rounds > 1 ? results.filter((r) => r.averaged) : results;
+
+  const errorCount = useMemo(
+    () => results.filter((r) => !r.averaged && r.error).length,
+    [results],
+  );
+  const fastestTtft = useMemo<number | null>(() => {
+    const ttfts = results
+      .filter((r) => !r.error && (rounds > 1 ? r.averaged : !r.averaged))
+      .map((r) => r.ttft)
+      .filter((n) => Number.isFinite(n) && n > 0);
+    if (ttfts.length === 0) return null;
+    return Math.min(...ttfts);
+  }, [results, rounds]);
+
+  // ── Stale detection ─────────────────────────────────────────────────
+  const currentSnapshot = useMemo<RunSnapshot>(
+    () => ({
+      prompt,
+      rounds,
+      maxTokens,
+      selectionKey: Object.keys(rowSelection)
+        .filter((k) => rowSelection[k])
+        .sort()
+        .join("|"),
+      providerKey: visibleProviders.join("|"),
+    }),
+    [prompt, rounds, maxTokens, rowSelection, visibleProviders],
+  );
+
+  const isStale = useMemo(() => {
+    if (!lastSnapshot) return false;
+    if (results.length === 0) return false;
+    return (
+      lastSnapshot.prompt !== currentSnapshot.prompt ||
+      lastSnapshot.rounds !== currentSnapshot.rounds ||
+      lastSnapshot.maxTokens !== currentSnapshot.maxTokens
+    );
+  }, [lastSnapshot, currentSnapshot, results.length]);
+
+  // ── Disabled-Run reason ─────────────────────────────────────────────
+  let disabledReason: string | undefined;
+  if (!configLoaded) disabledReason = "Loading configuration…";
+  else if (selectedModelCount === 0)
+    disabledReason = "Select at least one model";
+  else if (eligibleProviderCount === 0)
+    disabledReason = "No configured provider matches the selection";
+  else if (runs.length === 0)
+    disabledReason = "Selected models have no compatible provider routes";
+
+  // ── Run benchmark ──────────────────────────────────────────────────
   const runBenchmark = useCallback(async () => {
     if (running) {
       abortRef.current?.abort();
@@ -354,8 +294,11 @@ export default function BenchmarkPage() {
       return;
     }
 
+    if (runs.length === 0) return;
+
     setResults([]);
     setRunning(true);
+    setLastSnapshot(currentSnapshot);
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -366,7 +309,7 @@ export default function BenchmarkPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: rounds > 1 ? DEFAULT_PROMPTS.slice(0, rounds) : prompt,
-          runs: activeRuns,
+          runs,
           maxTokens,
         }),
         signal: controller.signal,
@@ -392,10 +335,10 @@ export default function BenchmarkPage() {
           if (!line.startsWith("data: ")) continue;
           const data = line.slice(6);
           if (data === "[DONE]") continue;
-
           try {
             const result = JSON.parse(data) as BenchmarkResult;
             setResults((prev) => [...prev, result]);
+            if (!region && result.region) setRegion(result.region);
           } catch {
             // skip
           }
@@ -409,499 +352,415 @@ export default function BenchmarkPage() {
       setRunning(false);
       abortRef.current = null;
     }
-  }, [prompt, rounds, activeRuns, maxTokens, running]);
+  }, [running, runs, prompt, rounds, maxTokens, region, currentSnapshot]);
 
-  // -- Custom run management ------------------------------------------
-
-  const addCustomRun = () => {
-    setCustomRuns((prev) => [
-      ...prev,
-      {
-        id: crypto.randomUUID(),
-        model: "",
-        provider: "openrouter",
-        label: "",
-      },
-    ]);
-  };
-
-  const updateCustomRun = (index: number, updates: Partial<Run>) => {
-    setCustomRuns((prev) =>
-      prev.map((r, i) => (i === index ? { ...r, ...updates } : r)),
-    );
-  };
-
-  const removeCustomRun = (index: number) => {
-    setCustomRuns((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // -- Determine which providers have results -------------------------
-
-  const displayProviders = ALL_PROVIDERS;
-
-  // -- Render ---------------------------------------------------------
+  // ── Bulk selection helpers ─────────────────────────────────────────
+  function selectAllFiltered() {
+    setRowSelection((prev) => {
+      const next: RowSelectionState = { ...prev };
+      for (const row of filteredRows) next[row.id] = true;
+      return next;
+    });
+  }
+  function clearSelection() {
+    setRowSelection({});
+  }
 
   return (
-    <div className="min-h-svh bg-zinc-950">
-      {/* Header */}
-      <header className="border-zinc-800 border-b">
-        <div className="mx-auto flex h-12 max-w-5xl items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-3">
-            <a
-              href="https://github.com/howells/ai"
-              className="font-semibold text-sm text-zinc-100 transition-colors hover:text-white"
-            >
-              Howells AI
-            </a>
-            <span className="text-zinc-700">/</span>
-            <span className="label text-zinc-400">Benchmark</span>
-          </div>
-          {displayResults.length > 0 && displayResults[0] && (
-            <span className="label-sm text-zinc-600">{results[0].region}</span>
-          )}
+    <div className="flex h-svh flex-col bg-[var(--color-canvas)] text-[var(--color-text)]">
+      {/* App header — V7 dot-bullet eyebrow, sentence-case throughout. */}
+      <header className="flex h-14 shrink-0 items-center justify-between border-[var(--color-border)] border-b bg-[var(--color-surface)] px-6">
+        <div className="flex items-center gap-3">
+          <span
+            aria-hidden="true"
+            className="h-1.5 w-1.5 rounded-full bg-[var(--color-text)]"
+          />
+          <a
+            href="https://github.com/howells/ai"
+            target="_blank"
+            rel="noreferrer"
+            className="font-medium text-sm text-[var(--color-text)] transition-colors hover:text-[var(--color-text-muted)]"
+          >
+            Howells AI
+          </a>
+          <span className="text-[var(--color-text-faint)]">·</span>
+          <span className="text-sm text-[var(--color-text-muted)]">
+            Benchmark
+          </span>
+          <span className="ml-2 hidden text-[12px] text-[var(--color-text-subtle)] md:inline">
+            Compare provider routes for{" "}
+            <span className="data text-[var(--color-text-muted)]">
+              @howells/ai
+            </span>
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="data text-[11px] text-[var(--color-text-faint)]">
+            {availableProviders.length}/{ALL_PROVIDERS.length}{" "}
+            {pluralize(availableProviders.length, "key")} configured
+          </span>
+          <a
+            href="https://github.com/howells/ai#readme"
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-[12px] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
+          >
+            Docs
+          </a>
         </div>
       </header>
 
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-        {/* Config */}
-        <div className="space-y-4">
-          <textarea
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            rows={2}
-            className="w-full resize-none rounded-lg border border-zinc-800 bg-zinc-900/50 px-3 py-2.5 text-sm text-zinc-200 placeholder:text-zinc-600 focus:border-zinc-600 focus:outline-none"
-            placeholder="Enter your test prompt..."
+      {/* Settings panel — collapsible */}
+      <section
+        className={`shrink-0 border-[var(--color-border)] border-b bg-[var(--color-surface)] transition-[max-height,padding] duration-200 ease-out ${
+          settingsOpen
+            ? "max-h-72 px-6 py-3"
+            : "max-h-9 overflow-hidden px-6 py-1.5"
+        }`}
+      >
+        {settingsOpen ? (
+          <SettingsPanelOpen
+            prompt={prompt}
+            onPromptChange={setPrompt}
+            rounds={rounds}
+            onRoundsChange={setRounds}
+            maxTokens={maxTokens}
+            onMaxTokensChange={setMaxTokens}
+            metric={metric}
+            onMetricChange={setMetric}
+            density={density}
+            onDensityChange={setDensity}
+            onCollapse={() => setSettingsOpen(false)}
           />
+        ) : (
+          <SettingsPanelCollapsed
+            prompt={prompt}
+            rounds={rounds}
+            maxTokens={maxTokens}
+            metric={metric}
+            density={density}
+            onExpand={() => setSettingsOpen(true)}
+          />
+        )}
+      </section>
 
-          <div className="flex flex-wrap items-end gap-3">
-            <div className="flex-1">
-              <div className="mb-1.5 flex items-center justify-between gap-3">
-                <span className="label block text-zinc-500">Preset</span>
-                <span className="label-sm truncate text-zinc-600">
-                  {configLoaded
-                    ? providerListLabel(availableProviders)
-                    : "Loading providers"}
-                </span>
-              </div>
-              <select
-                value={customRuns.length > 0 ? "__custom" : selectedPreset}
-                onChange={(e) => {
-                  if (e.target.value === "__custom") return;
-                  setSelectedPreset(e.target.value);
-                  setCustomRuns([]);
-                }}
-                className="h-9 w-full cursor-pointer rounded-md border border-zinc-800 bg-zinc-900/50 px-2.5 text-sm text-zinc-200 focus:border-zinc-600 focus:outline-none"
-              >
-                {Object.entries(presets).map(([key, preset]) => (
-                  <option key={key} value={key}>
-                    {preset.label} ({preset.runs.length} runs)
-                  </option>
-                ))}
-                {customRuns.length > 0 && (
-                  <option value="__custom">Custom</option>
-                )}
-              </select>
-            </div>
+      {/* Filter toolbar */}
+      <BenchmarkToolbar
+        filters={filters}
+        onFiltersChange={setFilters}
+        availableProviders={availableProviders}
+        allProviders={ALL_PROVIDERS}
+        allServices={ALL_SERVICES}
+        tierCounts={tierCounts}
+        taskCounts={taskCounts}
+        serviceCounts={serviceCounts}
+        modelCount={MODEL_ROWS.length}
+        filteredCount={filteredRows.length}
+        selectedModelCount={selectedModelCount}
+        onSelectAll={selectAllFiltered}
+        onClearSelection={clearSelection}
+      />
 
-            <div className="w-20">
-              <span className="label mb-1.5 block text-zinc-500">Rounds</span>
-              <input
-                type="number"
-                value={rounds}
-                onChange={(e) =>
-                  setRounds(Math.max(1, Math.min(5, Number(e.target.value))))
-                }
-                min={1}
-                max={5}
-                className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-900/50 px-2.5 text-sm tabular-nums text-zinc-200 focus:border-zinc-600 focus:outline-none"
-              />
-            </div>
+      {/* Run-queue strip */}
+      <RunQueueStrip
+        runs={runs.length}
+        models={selectedModelCount}
+        providers={eligibleProviderCount}
+        rounds={rounds}
+        totalRequests={totalRequests}
+        completed={completed}
+        running={running}
+        disabled={!configLoaded || runs.length === 0}
+        disabledReason={disabledReason}
+        errors={errorCount}
+        fastestTtft={fastestTtft}
+        hasResults={displayResults.length > 0}
+        onRun={runBenchmark}
+      />
 
-            <div className="w-24">
-              <span className="label mb-1.5 block text-zinc-500">Tokens</span>
-              <input
-                type="number"
-                value={maxTokens}
-                onChange={(e) => setMaxTokens(Number(e.target.value))}
-                min={50}
-                max={4000}
-                className="h-9 w-full rounded-md border border-zinc-800 bg-zinc-900/50 px-2.5 text-sm tabular-nums text-zinc-200 focus:border-zinc-600 focus:outline-none"
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={runBenchmark}
-              disabled={!configLoaded || activeRuns.length === 0}
-              className={`h-9 cursor-pointer rounded-md px-5 text-sm font-medium transition-colors ${
-                running
-                  ? "border border-zinc-700 bg-zinc-900 text-zinc-400 hover:bg-zinc-800"
-                  : "bg-zinc-100 text-zinc-900 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40"
-              }`}
-            >
-              {running
-                ? `${results.filter((r) => !r.averaged).length}/${totalExpected}`
-                : rounds > 1
-                  ? `Run x${rounds}`
-                  : "Run"}
-            </button>
+      {/* Table fills remaining viewport */}
+      <main className="min-h-0 flex-1">
+        {configLoaded ? (
+          <BenchmarkTable
+            rows={filteredRows}
+            visibleProviders={visibleProviders}
+            configuredProviders={availableProviders}
+            results={displayResults}
+            metric={metric}
+            rowSelection={rowSelection}
+            onRowSelectionChange={setRowSelection}
+            density={density}
+            rounds={rounds}
+            runningKey={null}
+            stale={isStale}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-sm text-[var(--color-text-faint)]">
+            Loading benchmark configuration…
           </div>
+        )}
+      </main>
 
-          {/* Custom runs editor */}
-          {customRuns.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2">
-              {customRuns.map((r, i) => (
-                <div key={r.id} className="flex items-center gap-1.5">
-                  <input
-                    type="text"
-                    value={r.model}
-                    onChange={(e) =>
-                      updateCustomRun(i, { model: e.target.value })
-                    }
-                    placeholder="model ID"
-                    className="h-7 w-44 rounded border border-zinc-800 bg-zinc-900/50 px-2 font-mono text-[11px] text-zinc-200 focus:border-zinc-600 focus:outline-none"
-                  />
-                  <select
-                    value={r.provider}
-                    onChange={(e) =>
-                      updateCustomRun(i, {
-                        provider: e.target.value as ProviderRoute,
-                      })
-                    }
-                    className="h-7 cursor-pointer rounded border border-zinc-800 bg-zinc-900/50 px-1.5 font-mono text-[11px] text-zinc-200 focus:border-zinc-600 focus:outline-none"
-                  >
-                    <option value="openrouter">openrouter</option>
-                    <option value="gateway">gateway</option>
-                    <option value="anthropic">anthropic</option>
-                    <option value="openai">openai</option>
-                    <option value="google">google</option>
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() => removeCustomRun(i)}
-                    className="cursor-pointer text-zinc-700 transition-colors hover:text-zinc-400"
-                  >
-                    <svg
-                      className="h-3.5 w-3.5"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                    >
-                      <title>Remove</title>
-                      <path d="M18 6L6 18M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-              <button
-                type="button"
-                onClick={addCustomRun}
-                className="cursor-pointer rounded-md border border-dashed border-zinc-800 px-2 py-1 font-mono text-[10px] text-zinc-600 transition-colors hover:border-zinc-600 hover:text-zinc-400"
-              >
-                + add
-              </button>
-            </div>
-          )}
+      {/* Status bar */}
+      <LegendBar
+        metric={metric}
+        configuredCount={availableProviders.length}
+        totalProviders={ALL_PROVIDERS.length}
+        region={region}
+        stale={isStale}
+      />
+    </div>
+  );
+}
+
+// ── Settings panel ──────────────────────────────────────────────────
+
+interface SettingsOpenProps {
+  prompt: string;
+  onPromptChange: (next: string) => void;
+  rounds: number;
+  onRoundsChange: (next: number) => void;
+  maxTokens: number;
+  onMaxTokensChange: (next: number) => void;
+  metric: MetricKey;
+  onMetricChange: (next: MetricKey) => void;
+  density: "comfortable" | "compact";
+  onDensityChange: (next: "comfortable" | "compact") => void;
+  onCollapse: () => void;
+}
+
+function SettingsPanelOpen({
+  prompt,
+  onPromptChange,
+  rounds,
+  onRoundsChange,
+  maxTokens,
+  onMaxTokensChange,
+  metric,
+  onMetricChange,
+  density,
+  onDensityChange,
+  onCollapse,
+}: SettingsOpenProps) {
+  const meta = METRIC_META[metric];
+
+  return (
+    <div className="flex flex-col gap-2.5">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="h-1.5 w-1.5 rounded-full bg-[var(--color-text-muted)]"
+          />
+          <span className="text-[13px] font-medium text-[var(--color-text)]">
+            Prompt
+          </span>
+          <span className="text-[11px] text-[var(--color-text-faint)]">
+            {rounds > 1
+              ? `cycles through ${rounds} prompts`
+              : `${prompt.length} characters`}
+          </span>
         </div>
-
-        {/* Results - Matrix View */}
-        {(displayResults.length > 0 || running) && isMatrix && (
-          <div className="mt-8">
-            {/* Metric toggle */}
-            <div className="mb-4 flex items-center gap-1">
-              {(
-                [
-                  ["ttft", "TTFT"],
-                  ["tokensPerSecond", "TOK/S"],
-                  ["totalTime", "TOTAL"],
-                ] as const
-              ).map(([key, lbl]) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => setMetric(key)}
-                  className={`cursor-pointer rounded-md px-2.5 py-1 label-sm transition-colors ${
-                    metric === key
-                      ? "bg-zinc-800 text-zinc-100"
-                      : "text-zinc-500 hover:text-zinc-300"
-                  }`}
-                >
-                  {lbl}
-                </button>
-              ))}
-            </div>
-
-            {/* Matrix table */}
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-zinc-700 border-b-2">
-                    <th className="label pb-2 pr-4 text-left text-zinc-500">
-                      MODEL
-                    </th>
-                    {displayProviders.map((p) => (
-                      <th
-                        key={p}
-                        className="label pb-2 text-right text-zinc-500"
-                        style={{ minWidth: 90 }}
-                      >
-                        <span className={providerBadgeClasses(p)}>
-                          {providerLabel(p)}
-                        </span>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {MODEL_GROUPS.map((group) => {
-                    if (group.models.length === 0) return null;
-
-                    return (
-                      <Fragment key={group.key}>
-                        {/* Model group separator */}
-                        <tr>
-                          <td
-                            colSpan={displayProviders.length + 1}
-                            className="label-sm pt-4 pb-1 text-zinc-600"
-                          >
-                            {group.label}
-                          </td>
-                        </tr>
-                        {group.models.map((model) => (
-                          <tr
-                            key={model.id}
-                            className="border-zinc-800/50 border-b transition-colors hover:bg-zinc-900/30"
-                          >
-                            <td className="py-2.5 pr-4 text-xs text-zinc-200">
-                              <div>{model.name}</div>
-                              <div className="mt-1 truncate font-mono text-[10px] text-zinc-600">
-                                {model.id}
-                              </div>
-                              {model.defaultSlots.length > 0 && (
-                                <div className="mt-1 flex max-w-md flex-wrap gap-1">
-                                  {model.defaultSlots.map((slot) => (
-                                    <span
-                                      key={slot}
-                                      className="rounded bg-zinc-900 px-1.5 py-0.5 font-mono text-[10px] text-zinc-500"
-                                    >
-                                      {slot}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </td>
-                            {displayProviders.map((p) => {
-                              const canServe = canRouteModelToProvider(
-                                model.id,
-                                p,
-                              );
-                              const configured = isProviderConfigured(
-                                p,
-                                availableProviders,
-                              );
-
-                              if (!canServe) {
-                                return (
-                                  <td key={p} className="py-2.5 text-right">
-                                    <span className="text-zinc-800">-</span>
-                                  </td>
-                                );
-                              }
-
-                              if (!configured) {
-                                return (
-                                  <td
-                                    key={p}
-                                    className="py-2.5 text-right"
-                                    title={`${providerLabel(p)} is not configured in this process`}
-                                  >
-                                    <span className="data text-[10px] text-zinc-800">
-                                      key
-                                    </span>
-                                  </td>
-                                );
-                              }
-
-                              const cell = getCell(
-                                displayResults,
-                                model.name,
-                                p,
-                              );
-                              const isBest = isBestInRow(
-                                displayResults,
-                                model.name,
-                                p,
-                                metric,
-                              );
-
-                              if (!cell) {
-                                return (
-                                  <td key={p} className="py-2.5 text-right">
-                                    {running ? (
-                                      <span className="inline-block h-3 w-3 animate-spin rounded-full border border-zinc-700 border-t-zinc-500" />
-                                    ) : (
-                                      <span className="text-zinc-800">.</span>
-                                    )}
-                                  </td>
-                                );
-                              }
-
-                              if (cell.error) {
-                                return (
-                                  <td
-                                    key={p}
-                                    className="py-2.5 text-right"
-                                    title={cell.error}
-                                  >
-                                    <span className="data text-[11px] text-red-500/60">
-                                      err
-                                    </span>
-                                  </td>
-                                );
-                              }
-
-                              let displayVal: string;
-                              if (metric === "ttft")
-                                displayVal = formatMs(cell.ttft);
-                              else if (metric === "tokensPerSecond")
-                                displayVal = `${cell.tokensPerSecond}`;
-                              else displayVal = formatMs(cell.totalTime);
-
-                              return (
-                                <td key={p} className="py-2.5 text-right">
-                                  <span
-                                    className={`data text-[11px] ${
-                                      isBest
-                                        ? "font-bold text-emerald-400"
-                                        : "text-zinc-400"
-                                    }`}
-                                  >
-                                    {displayVal}
-                                  </span>
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        ))}
-                      </Fragment>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Progress */}
-            {running && (
-              <div className="mt-4 flex items-center gap-2">
-                <div className="h-3 w-3 animate-spin rounded-full border-2 border-zinc-700 border-t-zinc-400" />
-                <span className="data text-[11px] text-zinc-500">
-                  {results.filter((r) => !r.averaged).length} / {totalExpected}{" "}
-                  complete
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Results - List View (non-matrix presets) */}
-        {(displayResults.length > 0 || running) && !isMatrix && (
-          <div className="mt-8">
-            <div
-              className="grid gap-2 border-zinc-700 border-b-2 pb-2"
-              style={{
-                gridTemplateColumns: "1fr 80px 80px 64px 72px",
-              }}
-            >
-              <span className="label text-zinc-500">MODEL</span>
-              <span className="label text-right text-zinc-500">TTFT</span>
-              <span className="label text-right text-zinc-500">TOTAL</span>
-              <span className="label text-right text-zinc-500">TOK/S</span>
-              <span className="label text-right text-zinc-500">TOKENS</span>
-            </div>
-
-            {running && displayResults.length === 0 && (
-              <div className="flex items-center gap-2 border-zinc-800/50 border-b py-3">
-                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-700 border-t-zinc-400" />
-                <span className="text-sm text-zinc-500">
-                  Firing requests...
-                </span>
-              </div>
-            )}
-
-            {[...displayResults]
-              .sort((a, b) => {
-                if (a.error && !b.error) return 1;
-                if (!a.error && b.error) return -1;
-                return a.ttft - b.ttft;
-              })
-              .map((r) => {
-                const allValid = displayResults.filter((x) => !x.error);
-                const bestTtft = allValid.length
-                  ? Math.min(...allValid.map((x) => x.ttft))
-                  : 0;
-                const bestTps = allValid.length
-                  ? Math.max(...allValid.map((x) => x.tokensPerSecond))
-                  : 0;
-
-                return (
-                  <div
-                    key={`${r.provider}-${r.model}`}
-                    className={`grid gap-2 border-zinc-800/50 border-b py-3 ${r.error ? "opacity-40" : ""}`}
-                    style={{
-                      gridTemplateColumns: "1fr 80px 80px 64px 72px",
-                    }}
-                  >
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <span
-                        className={`label-sm shrink-0 rounded px-1.5 py-0.5 ${providerBadgeClasses(r.provider)}`}
-                      >
-                        {r.provider}
-                      </span>
-                      <span className="truncate text-xs text-zinc-100">
-                        {r.label}
-                      </span>
-                    </div>
-                    <span
-                      className={`data text-right text-[11px] ${
-                        !r.error && r.ttft === bestTtft
-                          ? "font-bold text-emerald-400"
-                          : "text-zinc-300"
-                      }`}
-                    >
-                      {r.error ? "-" : formatMs(r.ttft)}
-                    </span>
-                    <span className="data text-right text-[11px] text-zinc-400">
-                      {r.error ? "-" : formatMs(r.totalTime)}
-                    </span>
-                    <span
-                      className={`data text-right text-[11px] ${
-                        !r.error && r.tokensPerSecond === bestTps
-                          ? "font-bold text-emerald-400"
-                          : "text-zinc-400"
-                      }`}
-                    >
-                      {r.error ? "-" : r.tokensPerSecond}
-                    </span>
-                    <span className="data text-right text-[11px] text-zinc-600">
-                      {r.error ? "-" : `${r.inputTokens}->${r.outputTokens}`}
-                    </span>
-                  </div>
-                );
-              })}
-
-            {running && displayResults.length > 0 && (
-              <div className="flex items-center gap-2 py-3">
-                <div className="h-3 w-3 animate-spin rounded-full border-2 border-zinc-700 border-t-zinc-400" />
-                <span className="data text-[11px] text-zinc-500">
-                  {results.filter((r) => !r.averaged).length} / {totalExpected}{" "}
-                  complete
-                </span>
-              </div>
-            )}
-          </div>
-        )}
+        <button
+          type="button"
+          onClick={onCollapse}
+          className="cursor-pointer rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-[12px] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
+        >
+          Collapse
+        </button>
       </div>
+      <textarea
+        value={prompt}
+        onChange={(e) => onPromptChange(e.target.value)}
+        rows={2}
+        className="w-full resize-none rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-faint)] transition-colors focus:border-[var(--color-border-strong)]"
+        placeholder="Enter your test prompt…"
+      />
+
+      <div className="flex flex-wrap items-end gap-3">
+        <FieldNumber
+          label="Rounds"
+          tooltip="Number of independent prompts/runs per cell. With rounds > 1 the table shows the average of the rounds."
+          value={rounds}
+          min={1}
+          max={5}
+          onChange={onRoundsChange}
+          width={72}
+        />
+        <FieldNumber
+          label="Tokens"
+          tooltip="Max output tokens per request. Lower caps speed up benchmarks and reduce cost."
+          value={maxTokens}
+          min={50}
+          max={4000}
+          step={50}
+          onChange={onMaxTokensChange}
+          width={88}
+        />
+
+        <FieldGroup
+          label="Metric"
+          tooltip={
+            <>
+              <strong className="block pb-1 text-[var(--color-text)]">
+                {meta.full}
+              </strong>
+              {meta.description}
+            </>
+          }
+        >
+          <SegmentedControl
+            value={metric}
+            onChange={(value) => onMetricChange(value as MetricKey)}
+            options={[
+              { value: "ttft", label: "TTFT" },
+              { value: "tokensPerSecond", label: "TPS" },
+              { value: "totalTime", label: "TOTAL" },
+            ]}
+          />
+        </FieldGroup>
+
+        <FieldGroup label="Density">
+          <SegmentedControl
+            value={density}
+            onChange={(v) => onDensityChange(v as "comfortable" | "compact")}
+            options={[
+              { value: "comfortable", label: "Cozy" },
+              { value: "compact", label: "Compact" },
+            ]}
+          />
+        </FieldGroup>
+      </div>
+    </div>
+  );
+}
+
+interface SettingsCollapsedProps {
+  prompt: string;
+  rounds: number;
+  maxTokens: number;
+  metric: MetricKey;
+  density: "comfortable" | "compact";
+  onExpand: () => void;
+}
+
+function SettingsPanelCollapsed({
+  prompt,
+  rounds,
+  maxTokens,
+  metric,
+  density,
+  onExpand,
+}: SettingsCollapsedProps) {
+  const meta = METRIC_META[metric];
+  return (
+    <div className="flex h-6 items-center gap-2.5 text-[12px] text-[var(--color-text-muted)]">
+      <span
+        aria-hidden="true"
+        className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-text-muted)]"
+      />
+      <span className="font-medium text-[var(--color-text)]">Prompt</span>
+      <span className="truncate text-[var(--color-text-muted)]">
+        {prompt}
+      </span>
+      <span className="data ml-2 shrink-0 tabular-nums text-[11px] text-[var(--color-text-faint)]">
+        {rounds}r · {maxTokens}t · {meta.short} · {density}
+      </span>
+      <button
+        type="button"
+        onClick={onExpand}
+        className="ml-auto cursor-pointer rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-0.5 text-[12px] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
+      >
+        Expand
+      </button>
+    </div>
+  );
+}
+
+// ── Form primitives ──────────────────────────────────────────────────
+
+function FieldGroup({
+  label,
+  tooltip,
+  children,
+}: {
+  label: string;
+  tooltip?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="flex items-center gap-1 text-[12px] font-medium text-[var(--color-text-muted)]">
+        {label}
+        {tooltip && <InfoIcon content={tooltip} width={240} />}
+      </span>
+      {children}
+    </div>
+  );
+}
+
+function FieldNumber({
+  label,
+  tooltip,
+  value,
+  onChange,
+  min,
+  max,
+  step,
+  width,
+}: {
+  label: string;
+  tooltip?: React.ReactNode;
+  value: number;
+  onChange: (next: number) => void;
+  min: number;
+  max: number;
+  step?: number;
+  width: number;
+}) {
+  return (
+    <FieldGroup label={label} tooltip={tooltip}>
+      <input
+        type="number"
+        value={value}
+        onChange={(e) =>
+          onChange(Math.max(min, Math.min(max, Number(e.target.value))))
+        }
+        min={min}
+        max={max}
+        step={step}
+        style={{ width }}
+        className="data h-8 rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-xs text-[var(--color-text)] transition-colors focus:border-[var(--color-border-strong)]"
+      />
+    </FieldGroup>
+  );
+}
+
+function SegmentedControl<T extends string>({
+  value,
+  onChange,
+  options,
+}: {
+  value: T;
+  onChange: (next: T) => void;
+  options: readonly { value: T; label: string }[];
+}) {
+  return (
+    <div className="flex h-8 rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-canvas)] p-0.5">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          onClick={() => onChange(option.value)}
+          className={`cursor-pointer rounded-[var(--radius-pill)] px-3 text-[12px] font-medium transition-colors ${
+            value === option.value
+              ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+              : "text-[var(--color-text-muted)] hover:text-[var(--color-text)]"
+          }`}
+        >
+          {option.label}
+        </button>
+      ))}
     </div>
   );
 }

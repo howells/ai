@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { createAI } from "../src";
+import { createAI, GLM_MODELS, KIMI_MODELS } from "../src";
 import type { ModelTier, ProviderRoute } from "../src";
 
 const ENV_KEYS = [
@@ -11,6 +11,11 @@ const ENV_KEYS = [
   "OPENAI_API_KEY",
   "GOOGLE_GEMINI_API_KEY",
   "VOYAGE_API_KEY",
+  "DEEPSEEK_API_KEY",
+  "XAI_API_KEY",
+  "QWEN_API_KEY",
+  "ZAI_API_KEY",
+  "MOONSHOT_API_KEY",
 ] as const;
 
 const originalEnv = new Map<string, string | undefined>();
@@ -49,17 +54,61 @@ describe("createAI", () => {
     expect(() => ai.model("fast")).not.toThrow();
   });
 
+  test("requires provider keys when a provider is explicitly selected", () => {
+    const cases = [
+      ["gateway", "AI_GATEWAY_API_KEY"],
+      ["openrouter", "OPENROUTER_API_KEY"],
+      ["anthropic", "ANTHROPIC_API_KEY"],
+      ["openai", "OPENAI_API_KEY"],
+      ["google", "GOOGLE_GEMINI_API_KEY"],
+      ["deepseek", "DEEPSEEK_API_KEY"],
+      ["xai", "XAI_API_KEY"],
+      ["qwen", "QWEN_API_KEY"],
+      ["zai", "ZAI_API_KEY"],
+      ["moonshotai", "MOONSHOT_API_KEY"],
+    ] as const satisfies readonly [ProviderRoute, string][];
+
+    for (const [provider, envVar] of cases) {
+      const ai = createAI();
+
+      expect(() => ai.model("fast", { provider })).toThrow(
+        `Provider "${provider}" was explicitly requested but ${envVar} is not configured.`,
+      );
+      expect(() =>
+        ai.modelById("google/gemini-2.5-flash", { provider }),
+      ).toThrow(
+        `Provider "${provider}" was explicitly requested but ${envVar} is not configured.`,
+      );
+      expect(() =>
+        ai.modelConfig("google/gemini-2.5-flash", { provider }),
+      ).toThrow(
+        `Provider "${provider}" was explicitly requested but ${envVar} is not configured.`,
+      );
+    }
+  });
+
+  test("allows explicit Gateway provider selection on Vercel without a local key", () => {
+    process.env.VERCEL_ENV = "production";
+    const ai = createAI();
+
+    expect(() => ai.model("fast", { provider: "gateway" })).not.toThrow();
+  });
+
   test("reports only providers that are configured in the current process", () => {
     expect(createAI().availableProviders).toEqual([]);
 
     process.env.OPENROUTER_API_KEY = "openrouter-key";
     process.env.AI_GATEWAY_API_KEY = "gateway-key";
     process.env.ANTHROPIC_API_KEY = "anthropic-key";
+    process.env.XAI_API_KEY = "xai-key";
+    process.env.MOONSHOT_API_KEY = "moonshot-key";
 
     expect(createAI().availableProviders).toEqual([
       "gateway",
       "openrouter",
       "anthropic",
+      "xai",
+      "moonshotai",
     ]);
   });
 
@@ -81,6 +130,11 @@ describe("createAI", () => {
       openRouterKey: "openrouter-key",
       openaiKey: "openai-key",
       googleKey: "google-key",
+      deepseekKey: "deepseek-key",
+      xaiKey: "xai-key",
+      qwenKey: "qwen-key",
+      zaiKey: "zai-key",
+      moonshotKey: "moonshot-key",
     });
 
     expect(ai.availableProviders).toEqual([
@@ -88,7 +142,31 @@ describe("createAI", () => {
       "openrouter",
       "openai",
       "google",
+      "deepseek",
+      "xai",
+      "qwen",
+      "zai",
+      "moonshotai",
     ]);
+  });
+
+  test("reports configured underlying model services separately from provider routes", () => {
+    expect(createAI().availableServices).toEqual([]);
+
+    process.env.MOONSHOT_API_KEY = "moonshot-key";
+    process.env.ZAI_API_KEY = "zai-key";
+
+    expect(createAI().availableServices).toEqual(["zai", "moonshotai"]);
+
+    delete process.env.MOONSHOT_API_KEY;
+    delete process.env.ZAI_API_KEY;
+
+    expect(
+      createAI({
+        xaiKey: "xai-key",
+        serviceKeys: { qwen: "qwen-key" },
+      }).availableServices,
+    ).toEqual(["xai", "qwen"]);
   });
 
   test("rejects modelById calls with mismatched prefixed direct providers", () => {
@@ -105,9 +183,11 @@ describe("createAI", () => {
     const ai = createAI({ anthropicKey: "anthropic-key" });
 
     expect(() =>
-      ai.modelById("deepseek/deepseek-v3.2", { provider: "anthropic" }),
+      ai.modelById("meta-llama/llama-3.3-70b-instruct", {
+        provider: "anthropic",
+      }),
     ).toThrow(
-      'Model "deepseek/deepseek-v3.2" cannot be used with provider "anthropic". Only OpenRouter can route this model.',
+      'Model "meta-llama/llama-3.3-70b-instruct" cannot be used with provider "anthropic". Only OpenRouter can route this model.',
     );
   });
 
@@ -126,6 +206,11 @@ describe("createAI", () => {
       anthropicKey: "anthropic-key",
       openaiKey: "openai-key",
       googleKey: "google-key",
+      deepseekKey: "deepseek-key",
+      xaiKey: "xai-key",
+      qwenKey: "qwen-key",
+      zaiKey: "zai-key",
+      moonshotKey: "moonshot-key",
     });
 
     const cases = [
@@ -154,6 +239,11 @@ describe("createAI", () => {
       ["reasoning", "anthropic", "claude-opus-4-6"],
       ["reasoning", "openai", "gpt-5.5"],
       ["reasoning", "google", "gemini-3.1-pro-preview"],
+      ["fast", "deepseek", "deepseek-v3.2"],
+      ["standard", "xai", "grok-4.20"],
+      ["standard", "qwen", "qwen3-vl-8b-instruct"],
+      ["standard", "zai", "glm-5-turbo"],
+      ["standard", "moonshotai", "kimi-k2.6"],
     ] as const satisfies readonly [
       ModelTier,
       ProviderRoute,
@@ -195,6 +285,50 @@ describe("createAI", () => {
     ).toBe("gemini-3-flash-preview");
   });
 
+  test("selects task-specific tier models and falls back per provider", () => {
+    const ai = createAI({
+      gatewayKey: "gateway-key",
+      openRouterKey: "openrouter-key",
+      anthropicKey: "anthropic-key",
+      models: {
+        tasks: {
+          coding: {
+            standard: {
+              text: GLM_MODELS.GLM_5_1,
+            },
+          },
+        },
+      },
+    });
+
+    expect(
+      modelIdOf(
+        ai.model("standard", {
+          provider: "openrouter",
+          task: "coding",
+        }),
+      ),
+    ).toBe(GLM_MODELS.GLM_5_1);
+    expect(
+      modelIdOf(
+        ai.model("standard", {
+          provider: "openrouter",
+          tools: true,
+          task: "coding",
+        }),
+      ),
+    ).toBe(KIMI_MODELS.KIMI_K2_6);
+    expect(
+      modelIdOf(
+        ai.model("standard", {
+          provider: "anthropic",
+          tools: true,
+          task: "coding",
+        }),
+      ),
+    ).toBe("claude-sonnet-4-6");
+  });
+
   test("reports language model capabilities for selected variants", () => {
     const ai = createAI();
 
@@ -215,6 +349,7 @@ describe("createAI", () => {
       gatewayKey: "gateway-key",
       openRouterKey: "openrouter-key",
       anthropicKey: "anthropic-key",
+      xaiKey: "xai-key",
     });
 
     expect(
@@ -298,12 +433,16 @@ describe("createAI", () => {
       gatewayKey: "gateway-key",
       openRouterKey: "openrouter-key",
       anthropicKey: "anthropic-key",
+      xaiKey: "xai-key",
     });
 
     expect(ai.modelConfig("anthropic/claude-sonnet-4.6")).toMatchObject({
       provider: "gateway",
       id: "anthropic/claude-sonnet-4.6",
       apiKey: "gateway-key",
+      service: "anthropic",
+      serviceApiKey: "anthropic-key",
+      serviceApiKeyEnv: "ANTHROPIC_API_KEY",
       capabilities: {
         modelId: true,
         apiKey: true,
@@ -311,6 +450,38 @@ describe("createAI", () => {
         headers: false,
         appAttribution: false,
         agentAttribution: false,
+      },
+    });
+    expect(
+      createAI({
+        openRouterKey: "openrouter-key",
+        moonshotKey: "moonshot-key",
+      }).modelConfig(KIMI_MODELS.KIMI_K2_6, { provider: "openrouter" }),
+    ).toMatchObject({
+      provider: "openrouter",
+      id: "moonshotai/kimi-k2.6",
+      apiKey: "openrouter-key",
+      service: "moonshotai",
+      serviceApiKey: "moonshot-key",
+      serviceApiKeyEnv: "MOONSHOT_API_KEY",
+    });
+    expect(
+      ai.modelConfig("x-ai/grok-4.20", {
+        provider: "xai",
+      }),
+    ).toMatchObject({
+      provider: "xai",
+      id: "grok-4.20",
+      apiKey: "xai-key",
+      service: "xai",
+      serviceApiKey: "xai-key",
+      serviceApiKeyEnv: "XAI_API_KEY",
+      baseURL: "https://api.x.ai/v1",
+      url: "https://api.x.ai/v1",
+      capabilities: {
+        modelId: true,
+        apiKey: true,
+        baseURL: true,
       },
     });
     expect(

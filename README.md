@@ -125,7 +125,8 @@ ai providers
 ai doctor
 ai doctor --live
 ai test --provider openai
-ai bench --provider gateway --tier fast --prompt "Reply in one sentence."
+ai models --task coding
+ai bench --provider gateway --task coding --tier fast --prompt "Reply in one sentence."
 ```
 
 Use `--json` on `models`, `providers`, `doctor`, `test`, and `bench` for
@@ -154,6 +155,23 @@ ai.model("fast", { vision: true }); // fast image understanding
 ai.model("fast", { tools: true, vision: true }); // fast image + tools
 ```
 
+### Workload Tasks
+
+Pass `task` when the best model depends on the job more than the generic tier.
+`general` preserves the base matrix; other tasks layer RouterBase-informed picks
+over the same tier/capability shape.
+
+```typescript
+ai.model("fast", { task: "coding", tools: true }); // Grok Code Fast
+ai.model("standard", { task: "coding" }); // Kimi K2.6
+ai.model("fast", { task: "agentic", tools: true }); // GLM 5 Turbo
+ai.model("standard", { task: "vision", vision: true }); // Qwen3 VL
+ai.model("standard", { task: "longContext" }); // Grok 4.20
+```
+
+Available tasks: `general`, `coding`, `agentic`, `chat`, `bulk`, `vision`,
+`reasoning`, `longContext`, and `creative`.
+
 ### Retrieval Models
 
 | Slot | Voyage Default | Gemini Default | Use When |
@@ -180,6 +198,13 @@ const ai = createAI({
     standard: {
       text: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,
       tools: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,
+    },
+    tasks: {
+      coding: {
+        standard: {
+          text: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,
+        },
+      },
     },
     embed: { voyage: VOYAGE_MODELS.VOYAGE_3_LITE },
     rerank: VOYAGE_MODELS.RERANK_2_5_LITE,
@@ -261,7 +286,7 @@ const model = ai.modelConfig("deepseek/deepseek-v3.2", {
   provider: "openrouter",
   agent: "materials-agent",
 });
-// { provider, id, capabilities, apiKey, baseURL, headers, user }
+// { provider, id, service, capabilities, apiKey, serviceApiKey, baseURL, headers, user }
 ```
 
 The `capabilities` field describes which config fields the selected provider
@@ -275,6 +300,11 @@ one provider-specific helper.
 | `anthropic` | yes | no | no | no | no |
 | `openai` | yes | no | no | no | no |
 | `google` | yes | no | no | no | no |
+| `deepseek` | yes | yes | no | no | no |
+| `xai` | yes | yes | no | no | no |
+| `qwen` | yes | yes | no | no | no |
+| `zai` | yes | yes | no | no | no |
+| `moonshotai` | yes | yes | no | no | no |
 
 For OpenRouter direct HTTP clients, request an OpenRouter model config and pass
 `user` in the request body:
@@ -315,12 +345,15 @@ Route through OpenRouter or direct providers when needed:
 ```typescript
 ai.model("standard", { provider: "openrouter" });
 ai.modelById("claude-sonnet-4-6", { provider: "anthropic" });
+ai.modelById("x-ai/grok-4.20", { provider: "xai" });
+ai.modelById("moonshotai/kimi-k2.6", { provider: "moonshotai" });
 ```
 
 Constants use normalized package IDs. `createAI()` translates known provider
 mismatches at runtime, such as Anthropic's direct `4-6` IDs, OpenRouter and
 Google direct `google/gemini-3-flash-preview` IDs for Gemini 3 Flash, and
-Gateway's `xai/grok-4.1-fast-non-reasoning`.
+Gateway's `xai/grok-4.1-fast-non-reasoning`. DeepSeek, xAI, Qwen, Z.ai, and
+Moonshot/Kimi are direct OpenAI-compatible routes when their keys are configured.
 
 ## Agent Attribution
 
@@ -337,8 +370,10 @@ ai.model("fast", { agent: "search", provider: "openrouter" });
 import {
   ANTHROPIC_MODELS,
   DEEPSEEK_MODELS,
+  GLM_MODELS,
   GOOGLE_EMBED_MODELS,
   GOOGLE_MODELS,
+  KIMI_MODELS,
   OPENAI_MODELS,
   QWEN_MODELS,
   VOYAGE_MODELS,
@@ -352,6 +387,16 @@ ANTHROPIC_MODELS.CLAUDE_SONNET_4_6      // "anthropic/claude-sonnet-4.6"
 // DeepSeek
 DEEPSEEK_MODELS.DEEPSEEK_V3_2           // "deepseek/deepseek-v3.2"
 
+// GLM / Z.ai
+GLM_MODELS.GLM_5_1                      // "z-ai/glm-5.1"
+GLM_MODELS.GLM_5_TURBO                  // "z-ai/glm-5-turbo"
+GLM_MODELS.GLM_4_7_FLASH                // "z-ai/glm-4.7-flash"
+GLM_MODELS.GLM_4_6V                     // "z-ai/glm-4.6v"
+
+// Kimi / Moonshot
+KIMI_MODELS.KIMI_K2_6                   // "moonshotai/kimi-k2.6"
+KIMI_MODELS.KIMI_K2_THINKING            // "moonshotai/kimi-k2-thinking"
+
 // Google language models
 GOOGLE_MODELS.GEMINI_3_FLASH            // "google/gemini-3-flash"
 GOOGLE_MODELS.GEMINI_2_5_FLASH_LITE     // "google/gemini-2.5-flash-lite"
@@ -362,9 +407,12 @@ OPENAI_MODELS.GPT_5_NANO                // "openai/gpt-5-nano"
 
 // Qwen
 QWEN_MODELS.QWEN_2_5_VL_72B_INSTRUCT    // "qwen/qwen2.5-vl-72b-instruct"
+QWEN_MODELS.QWEN_3_VL_8B_INSTRUCT       // "qwen/qwen3-vl-8b-instruct"
 
 // xAI
 XAI_MODELS.GROK_4_1_FAST                // "x-ai/grok-4.1-fast"
+XAI_MODELS.GROK_4_20                    // "x-ai/grok-4.20"
+XAI_MODELS.GROK_CODE_FAST_1             // "x-ai/grok-code-fast-1"
 
 // Voyage
 VOYAGE_MODELS.VOYAGE_3            // "voyage-3"
@@ -391,6 +439,11 @@ GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_1  // "gemini-embedding-001"
 | `OPENAI_API_KEY` | Only if using `provider: "openai"` | OpenAI provider |
 | `VOYAGE_API_KEY` | Yes (for embed/rerank) | Voyage provider |
 | `GOOGLE_GEMINI_API_KEY` | Only if using Gemini embeddings or `provider: "google"` | Google provider |
+| `DEEPSEEK_API_KEY` | Only if using `provider: "deepseek"` | DeepSeek direct provider |
+| `XAI_API_KEY` | Only if using `provider: "xai"` | xAI direct provider |
+| `QWEN_API_KEY` | Only if using `provider: "qwen"` | Qwen direct provider |
+| `ZAI_API_KEY` | Only if using `provider: "zai"` | Z.ai / GLM direct provider |
+| `MOONSHOT_API_KEY` | Only if using `provider: "moonshotai"` | Moonshot / Kimi direct provider |
 
 Keys can also be passed directly to `createAI()`:
 
@@ -400,8 +453,19 @@ const ai = createAI({
   openRouterKey: "sk-or-...",
   voyageKey: "pa-...",
   googleKey: "...",
+  xaiKey: "...",
+  moonshotKey: "...",
+  serviceKeys: {
+    zai: "...",
+    qwen: "...",
+  },
 });
 ```
+
+Service keys are exposed through `ai.availableServices` and `ai.modelConfig()`
+for runtimes that can use provider-specific credentials. The same keys also
+enable direct OpenAI-compatible AI SDK routes for DeepSeek, xAI, Qwen, Z.ai, and
+Moonshot/Kimi.
 
 ## Architecture
 
@@ -409,5 +473,5 @@ const ai = createAI({
 - Providers are lazy-initialized on first use
 - Safe for tests and multi-config scenarios
 - Language models route through Vercel AI Gateway by default
-- OpenRouter and direct Anthropic/OpenAI/Google routes are available per call
+- OpenRouter and direct provider routes are available per call
 - Embeddings/reranking through Voyage AI or Google

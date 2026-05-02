@@ -5,6 +5,9 @@
   "description": "Unified AI client for all projects — Gateway, OpenRouter, direct providers, tiered language models, and retrieval models.",
   "license": "MIT",
   "packageManager": "pnpm@10.23.0",
+  "engines": {
+    "node": ">=22.18.0"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/howells/ai.git"
@@ -45,7 +48,7 @@
     "@ai-sdk/google": "^3.0.64",
     "@ai-sdk/openai": "^3.0.53",
     "@ai-sdk/react": "3.0.118",
-    "@openrouter/ai-sdk-provider": "^2.6.0",
+    "@openrouter/ai-sdk-provider": "^2.9.0",
     "ai": "6.0.116",
     "voyage-ai-provider": "^3.0.0"
   },
@@ -58,6 +61,6 @@
   "devDependencies": {
     "@types/node": "^25.6.0",
     "tsdown": "^0.21.9",
-    "typescript": "^5.9.3"
+    "typescript": "^6.0.3"
   }
 }

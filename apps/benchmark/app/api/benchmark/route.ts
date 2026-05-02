@@ -1,4 +1,9 @@
-import { createAI, streamText, type ProviderRoute } from "@howells/ai";
+import {
+  createAI,
+  streamText,
+  type ModelService,
+  type ProviderRoute,
+} from "@howells/ai";
 import { type NextRequest, NextResponse } from "next/server";
 
 /** Allow benchmark streams to run for up to five minutes. */
@@ -42,6 +47,7 @@ export function GET() {
 
   return NextResponse.json({
     availableProviders: ai.availableProviders,
+    availableServices: ai.availableServices satisfies readonly ModelService[],
   });
 }
 

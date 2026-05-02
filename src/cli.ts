@@ -5,13 +5,17 @@ import { createAI, generateText, streamText } from "./index";
 import {
   canRouteModelToProvider,
   LANGUAGE_MODEL_CATALOG,
+  LANGUAGE_MODEL_TASKS,
   LANGUAGE_MODEL_VARIANTS,
+  MODEL_SERVICE_ENV_VARS,
   MODEL_TIERS,
   resolveProviderLanguageModelId,
   resolveProviderModelId,
 } from "./models";
 import type {
   LanguageModelVariant,
+  ModelService,
+  ModelTask,
   ModelTier,
   ProviderRoute,
 } from "./types";
@@ -24,6 +28,7 @@ interface CliOptions {
   schema: boolean;
   live: boolean;
   provider?: ProviderRoute;
+  task?: ModelTask;
   tier?: ModelTier;
   variant?: LanguageModelVariant;
   model?: string;
@@ -33,6 +38,12 @@ interface CliOptions {
 
 interface ProviderStatus {
   provider: ProviderRoute | "voyage";
+  configured: boolean;
+  source: string;
+}
+
+interface ServiceStatus {
+  service: ModelService;
   configured: boolean;
   source: string;
 }
@@ -58,6 +69,11 @@ const LANGUAGE_PROVIDERS = [
   "anthropic",
   "openai",
   "google",
+  "deepseek",
+  "xai",
+  "qwen",
+  "zai",
+  "moonshotai",
 ] as const satisfies readonly ProviderRoute[];
 
 const DEFAULT_PROMPT = "Reply with exactly OK.";
@@ -135,6 +151,14 @@ function parseTier(value: string | undefined): ModelTier | undefined {
   throw new Error(`Unknown tier "${value}".`);
 }
 
+function parseTask(value: string | undefined): ModelTask | undefined {
+  if (!value) return undefined;
+  if ((LANGUAGE_MODEL_TASKS as readonly string[]).includes(value)) {
+    return value as ModelTask;
+  }
+  throw new Error(`Unknown task "${value}".`);
+}
+
 function parseVariant(
   value: string | undefined,
 ): LanguageModelVariant | undefined {
@@ -172,6 +196,7 @@ function parseCliOptions(argv: readonly string[]): CliOptions {
     schema: hasFlag(argv, "--schema"),
     live: hasFlag(argv, "--live"),
     provider: parseProvider(readFlag(argv, "--provider")),
+    task: parseTask(readFlag(argv, "--task")),
     tier: parseTier(readFlag(argv, "--tier")),
     variant: parseVariant(readFlag(argv, "--variant")),
     model: readFlag(argv, "--model"),
@@ -247,11 +272,11 @@ function help(): void {
   print(`@howells/ai CLI
 
 Usage:
-  ai models [--provider gateway|openrouter|anthropic|openai|google] [--json]
+  ai models [--provider gateway|openrouter|anthropic|openai|google] [--task general|coding|agentic|chat|bulk|vision|reasoning|longContext|creative] [--json]
   ai providers [--json]
   ai doctor [--live] [--json]
   ai test [--provider <provider>] [--model <id>] [--json]
-  ai bench [--provider <provider>] [--model <id>] [--prompt "..."] [--json]
+  ai bench [--provider <provider>] [--task <task>] [--model <id>] [--prompt "..."] [--json]
   ai <command> --schema
 
 Commands:
@@ -286,6 +311,7 @@ function commandSchema(command: Command): object {
       properties: {
         ...sharedFlags,
         provider: { enum: providerEnum },
+        task: { enum: [...LANGUAGE_MODEL_TASKS] },
         tier: { enum: [...MODEL_TIERS] },
         variant: { enum: [...LANGUAGE_MODEL_VARIANTS] },
         model: { type: "string" },
@@ -347,11 +373,49 @@ function providerStatuses(): ProviderStatus[] {
       source: process.env.GOOGLE_GEMINI_API_KEY ? "GOOGLE_GEMINI_API_KEY" : "-",
     },
     {
+      provider: "deepseek",
+      configured: Boolean(process.env.DEEPSEEK_API_KEY),
+      source: process.env.DEEPSEEK_API_KEY ? "DEEPSEEK_API_KEY" : "-",
+    },
+    {
+      provider: "xai",
+      configured: Boolean(process.env.XAI_API_KEY),
+      source: process.env.XAI_API_KEY ? "XAI_API_KEY" : "-",
+    },
+    {
+      provider: "qwen",
+      configured: Boolean(process.env.QWEN_API_KEY),
+      source: process.env.QWEN_API_KEY ? "QWEN_API_KEY" : "-",
+    },
+    {
+      provider: "zai",
+      configured: Boolean(process.env.ZAI_API_KEY),
+      source: process.env.ZAI_API_KEY ? "ZAI_API_KEY" : "-",
+    },
+    {
+      provider: "moonshotai",
+      configured: Boolean(process.env.MOONSHOT_API_KEY),
+      source: process.env.MOONSHOT_API_KEY ? "MOONSHOT_API_KEY" : "-",
+    },
+    {
       provider: "voyage",
       configured: Boolean(process.env.VOYAGE_API_KEY),
       source: process.env.VOYAGE_API_KEY ? "VOYAGE_API_KEY" : "-",
     },
   ];
+}
+
+function serviceStatuses(): ServiceStatus[] {
+  return (Object.keys(MODEL_SERVICE_ENV_VARS) as ModelService[]).map(
+    (service) => {
+      const envVar = MODEL_SERVICE_ENV_VARS[service];
+      return {
+        service,
+        configured: Boolean(process.env[envVar]),
+        source: process.env[envVar] ? envVar : "-",
+      };
+    },
+  );
 }
 
 function configuredLanguageProviders(): ProviderRoute[] {
@@ -361,9 +425,14 @@ function configuredLanguageProviders(): ProviderRoute[] {
   );
 }
 
+function configuredModelServices(): ModelService[] {
+  return createAI().availableServices as ModelService[];
+}
+
 function modelRows(options: CliOptions) {
   const ai = createAI();
   const providers = options.provider ? [options.provider] : LANGUAGE_PROVIDERS;
+  const task = options.task ?? "general";
   const tiers = options.tier ? [options.tier] : MODEL_TIERS;
   const variants = options.variant ? [options.variant] : LANGUAGE_MODEL_VARIANTS;
 
@@ -371,15 +440,22 @@ function modelRows(options: CliOptions) {
     tiers.flatMap((tier) =>
       variants.map((variant) => {
         const canonical = ai.matrix[tier][variant];
+        const selected = resolveProviderLanguageModelId(
+          ai.matrix,
+          tier,
+          variant,
+          provider,
+          task,
+          ai.taskMatrix,
+        );
         return {
           provider,
+          task,
           tier,
           variant,
           canonical,
-          resolved: resolveProviderModelId(
-            resolveProviderLanguageModelId(ai.matrix, tier, variant, provider),
-            provider,
-          ),
+          selected,
+          resolved: resolveProviderModelId(selected, provider),
         };
       }),
     ),
@@ -510,16 +586,30 @@ async function commandModels(options: CliOptions): Promise<number> {
 
 async function commandProviders(options: CliOptions): Promise<number> {
   const statuses = providerStatuses();
+  const services = serviceStatuses();
   const availableProviders = configuredLanguageProviders();
+  const availableModelServices = configuredModelServices();
   if (options.json) {
-    json({ providers: statuses, availableLanguageProviders: availableProviders });
+    json({
+      providers: statuses,
+      services,
+      availableLanguageProviders: availableProviders,
+      availableModelServices,
+    });
     return 0;
   }
   print(table(statuses));
   print();
+  print(table(services));
+  print();
   print(
     `available language providers: ${
       availableProviders.length ? availableProviders.join(", ") : "none"
+    }`,
+  );
+  print(
+    `available model services: ${
+      availableModelServices.length ? availableModelServices.join(", ") : "none"
     }`,
   );
   return 0;
@@ -599,6 +689,8 @@ async function commandBench(options: CliOptions): Promise<number> {
       options.tier ?? "fast",
       options.variant ?? "text",
       provider,
+      options.task ?? "general",
+      ai.taskMatrix,
     );
   const providerModelId = resolveProviderModelId(canonicalModelId, provider);
   const start = performance.now();
