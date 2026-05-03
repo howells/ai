@@ -192,7 +192,7 @@ export function BenchmarkTable({
     const map: Record<ModelGroup, typeof sortedRows> = {
       defaults: [],
       "task-optimized": [],
-      catalog: [],
+      "provider-optimized": [],
     };
     for (const row of sortedRows) {
       map[row.original.group].push(row);

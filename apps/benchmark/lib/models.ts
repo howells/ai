@@ -7,6 +7,8 @@ import {
   LANGUAGE_MODEL_TASKS,
   LANGUAGE_MODEL_VARIANTS,
   MODEL_TIERS,
+  PROVIDER_DEFAULT_MODELS,
+  PROVIDER_TASK_DEFAULT_MODELS,
   resolveProviderModelId,
 } from "@howells/ai/models";
 import type {
@@ -17,7 +19,7 @@ import type {
   ProviderRoute,
 } from "@howells/ai";
 
-export type ModelGroup = "defaults" | "task-optimized" | "catalog";
+export type ModelGroup = "defaults" | "task-optimized" | "provider-optimized";
 
 export interface ModelRow {
   id: string;
@@ -79,7 +81,53 @@ function defaultTierFor(modelId: string): ModelTier | undefined {
   );
 }
 
-function taskSlotsFor(modelId: string): string[] {
+function collectTierMatrixIds(
+  ids: Set<string>,
+  matrix: Partial<
+    Record<ModelTier, Partial<Record<LanguageModelVariant, string>>>
+  >,
+): void {
+  for (const tier of MODEL_TIERS) {
+    for (const variant of LANGUAGE_MODEL_VARIANTS) {
+      const modelId = matrix[tier]?.[variant];
+      if (modelId) ids.add(modelId);
+    }
+  }
+}
+
+function collectTaskMatrixIds(
+  ids: Set<string>,
+  matrix: Partial<
+    Record<
+      ModelTask,
+      Partial<Record<ModelTier, Partial<Record<LanguageModelVariant, string>>>>
+    >
+  >,
+): void {
+  for (const task of LANGUAGE_MODEL_TASKS) {
+    for (const tier of MODEL_TIERS) {
+      for (const variant of LANGUAGE_MODEL_VARIANTS) {
+        const modelId = matrix[task]?.[tier]?.[variant];
+        if (modelId) ids.add(modelId);
+      }
+    }
+  }
+}
+
+function buildOfferedModelIds(): Set<string> {
+  const ids = new Set<string>();
+  collectTierMatrixIds(ids, DEFAULT_MODELS);
+  collectTaskMatrixIds(ids, DEFAULT_TASK_MODELS);
+  for (const provider of ALL_PROVIDERS) {
+    collectTierMatrixIds(ids, PROVIDER_DEFAULT_MODELS[provider]);
+    collectTaskMatrixIds(ids, PROVIDER_TASK_DEFAULT_MODELS[provider] ?? {});
+  }
+  return ids;
+}
+
+const OFFERED_MODEL_IDS = buildOfferedModelIds();
+
+function globalTaskSlotsFor(modelId: string): string[] {
   const slots: string[] = [];
   for (const task of LANGUAGE_MODEL_TASKS) {
     if (task === "general") continue;
@@ -94,26 +142,69 @@ function taskSlotsFor(modelId: string): string[] {
   return slots;
 }
 
-function groupFor(modelId: string, defaultSlots: string[]): ModelGroup {
+function providerSlotsFor(modelId: string): string[] {
+  const slots: string[] = [];
+  for (const provider of ALL_PROVIDERS) {
+    for (const tier of MODEL_TIERS) {
+      for (const variant of LANGUAGE_MODEL_VARIANTS) {
+        if (PROVIDER_DEFAULT_MODELS[provider][tier][variant] === modelId) {
+          slots.push(
+            `provider ${tier} ${formatVariant(variant)} via ${provider}`,
+          );
+        }
+      }
+    }
+
+    for (const task of LANGUAGE_MODEL_TASKS) {
+      if (task === "general") continue;
+      for (const tier of MODEL_TIERS) {
+        for (const variant of LANGUAGE_MODEL_VARIANTS) {
+          if (
+            PROVIDER_TASK_DEFAULT_MODELS[provider]?.[task]?.[tier]?.[variant] ===
+            modelId
+          ) {
+            slots.push(
+              `${task} ${tier} ${formatVariant(variant)} via ${provider}`,
+            );
+          }
+        }
+      }
+    }
+  }
+  return Array.from(new Set(slots));
+}
+
+function taskSlotsFor(modelId: string): string[] {
+  return [...globalTaskSlotsFor(modelId), ...providerSlotsFor(modelId)];
+}
+
+function groupFor(
+  defaultSlots: string[],
+  globalTaskSlots: string[],
+): ModelGroup {
   if (defaultSlots.length > 0) return "defaults";
-  if (taskSlotsFor(modelId).length > 0) return "task-optimized";
-  return "catalog";
+  if (globalTaskSlots.length > 0) return "task-optimized";
+  return "provider-optimized";
 }
 
 function inferServiceForRow(modelId: string): ModelService {
   return inferModelService(modelId) ?? "anthropic";
 }
 
-export const MODEL_ROWS: ModelRow[] = LANGUAGE_MODEL_CATALOG.map((entry) => {
+export const MODEL_ROWS: ModelRow[] = LANGUAGE_MODEL_CATALOG.filter((entry) =>
+  OFFERED_MODEL_IDS.has(entry.id),
+).map((entry) => {
   const defaultSlots = defaultSlotsFor(entry.id);
+  const globalTaskSlots = globalTaskSlotsFor(entry.id);
+  const taskSlots = taskSlotsFor(entry.id);
   return {
     id: entry.id,
     name: entry.name,
     service: (entry.service as ModelService | undefined) ??
       inferServiceForRow(entry.id),
-    group: groupFor(entry.id, defaultSlots),
+    group: groupFor(defaultSlots, globalTaskSlots),
     defaultSlots,
-    taskSlots: taskSlotsFor(entry.id),
+    taskSlots,
     tasks: entry.tasks ?? [],
     defaultTier: defaultTierFor(entry.id),
   } satisfies ModelRow;
@@ -122,7 +213,7 @@ export const MODEL_ROWS: ModelRow[] = LANGUAGE_MODEL_CATALOG.map((entry) => {
   const groupOrder: Record<ModelGroup, number> = {
     defaults: 0,
     "task-optimized": 1,
-    catalog: 2,
+    "provider-optimized": 2,
   };
   if (groupOrder[a.group] !== groupOrder[b.group]) {
     return groupOrder[a.group] - groupOrder[b.group];
@@ -140,16 +231,20 @@ export const ALL_SERVICES: ModelService[] = Array.from(
 export const GROUP_LABELS: Record<ModelGroup, string> = {
   defaults: "Defaults",
   "task-optimized": "Task-optimized",
-  catalog: "Catalog",
+  "provider-optimized": "Provider-optimized",
 };
 
 export const GROUP_DESCRIPTIONS: Record<ModelGroup, string> = {
   defaults: "Models wired into a default tier slot.",
   "task-optimized": "Models chosen for a specific workload.",
-  catalog: "Available overrides without a default slot.",
+  "provider-optimized": "Models reached by pinning a provider.",
 };
 
-export const GROUPS: ModelGroup[] = ["defaults", "task-optimized", "catalog"];
+export const GROUPS: ModelGroup[] = [
+  "defaults",
+  "task-optimized",
+  "provider-optimized",
+];
 
 export function tiersForRow(row: ModelRow): ModelTier[] {
   const tiers = new Set<ModelTier>();
