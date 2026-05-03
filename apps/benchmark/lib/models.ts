@@ -73,6 +73,16 @@ function defaultSlotsFor(modelId: string): string[] {
   return slots;
 }
 
+function providerDefaultSlotsFor(modelId: string): string[] {
+  const slots: string[] = [];
+  for (const provider of ALL_PROVIDERS) {
+    if (PROVIDER_DEFAULT_MODELS[provider].standard.text === modelId) {
+      slots.push(`standard text via ${provider}`);
+    }
+  }
+  return Array.from(new Set(slots));
+}
+
 function defaultTierFor(modelId: string): ModelTier | undefined {
   return MODEL_TIERS.find((tier) =>
     LANGUAGE_MODEL_VARIANTS.some(
@@ -142,19 +152,9 @@ function globalTaskSlotsFor(modelId: string): string[] {
   return slots;
 }
 
-function providerSlotsFor(modelId: string): string[] {
+function providerTaskSlotsFor(modelId: string): string[] {
   const slots: string[] = [];
   for (const provider of ALL_PROVIDERS) {
-    for (const tier of MODEL_TIERS) {
-      for (const variant of LANGUAGE_MODEL_VARIANTS) {
-        if (PROVIDER_DEFAULT_MODELS[provider][tier][variant] === modelId) {
-          slots.push(
-            `provider ${tier} ${formatVariant(variant)} via ${provider}`,
-          );
-        }
-      }
-    }
-
     for (const task of LANGUAGE_MODEL_TASKS) {
       if (task === "general") continue;
       for (const tier of MODEL_TIERS) {
@@ -175,7 +175,7 @@ function providerSlotsFor(modelId: string): string[] {
 }
 
 function taskSlotsFor(modelId: string): string[] {
-  return [...globalTaskSlotsFor(modelId), ...providerSlotsFor(modelId)];
+  return [...globalTaskSlotsFor(modelId), ...providerTaskSlotsFor(modelId)];
 }
 
 function groupFor(
@@ -194,7 +194,10 @@ function inferServiceForRow(modelId: string): ModelService {
 export const MODEL_ROWS: ModelRow[] = LANGUAGE_MODEL_CATALOG.filter((entry) =>
   OFFERED_MODEL_IDS.has(entry.id),
 ).map((entry) => {
-  const defaultSlots = defaultSlotsFor(entry.id);
+  const defaultSlots = [
+    ...defaultSlotsFor(entry.id),
+    ...providerDefaultSlotsFor(entry.id),
+  ];
   const globalTaskSlots = globalTaskSlotsFor(entry.id);
   const taskSlots = taskSlotsFor(entry.id);
   return {
@@ -235,7 +238,7 @@ export const GROUP_LABELS: Record<ModelGroup, string> = {
 };
 
 export const GROUP_DESCRIPTIONS: Record<ModelGroup, string> = {
-  defaults: "Models wired into a default tier slot.",
+  defaults: "Models wired into a global or provider default slot.",
   "task-optimized": "Models chosen for a specific workload.",
   "provider-optimized": "Models reached by pinning a provider.",
 };
