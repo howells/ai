@@ -50,7 +50,7 @@ export function createOpenAICompatibleProvider(
 
   return {
     model(modelId, _options) {
-      return getClient()(modelId);
+      return getClient().chat(modelId);
     },
     requestConfig() {
       return {
