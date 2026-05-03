@@ -8,16 +8,47 @@
 import { stepCountIs } from "ai";
 import { inferProvider } from "./models";
 import type {
+  CacheTTL,
   GenerationOptions,
   GenerationProviderOptions,
   OutputLength,
+  PromptCachePolicy,
   ProviderRoute,
   ReasoningEffort,
+  ReasoningSpec,
   ResolvedGenerationOptions,
+  RoutingMaxCost,
+  RoutingOptions,
   ServiceTier,
+  WebSearchOptions,
 } from "./types";
 
 type ProviderOptionValue = GenerationProviderOptions[string][string];
+
+interface NormalizedCache {
+  enabled: boolean;
+  ttl?: CacheTTL;
+}
+
+function normalizeCache(
+  cache: PromptCachePolicy | undefined,
+): NormalizedCache | undefined {
+  if (cache === undefined) return undefined;
+  if (cache === "off") return { enabled: false };
+  if (cache === "ephemeral") return { enabled: true };
+  if (typeof cache === "object") {
+    return { enabled: true, ttl: cache.ttl };
+  }
+  return undefined;
+}
+
+function normalizeReasoning(
+  reasoning: ReasoningEffort | ReasoningSpec | undefined,
+): ReasoningSpec | undefined {
+  if (reasoning === undefined) return undefined;
+  if (typeof reasoning === "string") return { effort: reasoning };
+  return reasoning;
+}
 
 const OUTPUT_TOKENS: Record<Exclude<OutputLength, number>, number> = {
   short: 512,
@@ -145,6 +176,147 @@ function resolveOpenAIReasoningEffort(
   return OPENAI_REASONING[reasoning];
 }
 
+const PRICE_FIELDS: Array<keyof RoutingMaxCost> = [
+  "promptPerMillion",
+  "completionPerMillion",
+  "imagePerMillion",
+  "audioPerMillion",
+];
+
+const PRICE_FIELD_TO_OR: Partial<
+  Record<keyof RoutingMaxCost, "prompt" | "completion" | "image" | "audio">
+> = {
+  promptPerMillion: "prompt",
+  completionPerMillion: "completion",
+  imagePerMillion: "image",
+  audioPerMillion: "audio",
+};
+
+/**
+ * Convert normalized USD-per-million-tokens prices into OpenRouter's
+ * `provider.max_price` shape (USD per million tokens, as numbers).
+ *
+ * @see https://openrouter.ai/docs/features/provider-routing#max-price
+ */
+function toOpenRouterMaxPrice(
+  cost: RoutingMaxCost | undefined,
+): Record<string, number> | undefined {
+  if (!cost) return undefined;
+
+  const out: Record<string, number> = {};
+  for (const field of PRICE_FIELDS) {
+    const value = cost[field];
+    if (value === undefined) continue;
+    const target = PRICE_FIELD_TO_OR[field];
+    if (target) out[target] = value;
+  }
+  if (cost.requestUsd !== undefined) out.request = cost.requestUsd;
+
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+const PREFER_TO_GATEWAY: Record<
+  Exclude<RoutingOptions["prefer"], "auto" | undefined>,
+  "cost" | "ttft" | "tps"
+> = {
+  cheapest: "cost",
+  fastest: "ttft",
+  "highest-throughput": "tps",
+};
+
+const PREFER_TO_OPENROUTER: Record<
+  Exclude<RoutingOptions["prefer"], "auto" | undefined>,
+  "price" | "latency" | "throughput"
+> = {
+  cheapest: "price",
+  fastest: "latency",
+  "highest-throughput": "throughput",
+};
+
+function gatewayPrivacyFlags(routing: RoutingOptions | undefined): {
+  zeroDataRetention?: true;
+  disallowPromptTraining?: true;
+  hipaaCompliant?: true;
+} {
+  if (!routing?.privacy?.length) return {};
+  const flags: {
+    zeroDataRetention?: true;
+    disallowPromptTraining?: true;
+    hipaaCompliant?: true;
+  } = {};
+  for (const constraint of routing.privacy) {
+    if (constraint === "no-retention") flags.zeroDataRetention = true;
+    if (constraint === "no-training") flags.disallowPromptTraining = true;
+    if (constraint === "hipaa") flags.hipaaCompliant = true;
+  }
+  return flags;
+}
+
+/**
+ * Build the `provider` object passed to OpenRouter's chat completions API.
+ *
+ * @see https://openrouter.ai/docs/features/provider-routing
+ */
+function buildOpenRouterProviderRouting(
+  routing: RoutingOptions | undefined,
+): { [key: string]: ProviderOptionValue } | undefined {
+  if (!routing) return undefined;
+  const out: { [key: string]: ProviderOptionValue } = {};
+
+  if (routing.prefer && routing.prefer !== "auto") {
+    out.sort = PREFER_TO_OPENROUTER[routing.prefer];
+  }
+  if (routing.allow?.length) out.only = routing.allow;
+  if (routing.deny?.length) out.ignore = routing.deny;
+  if (routing.order?.length) out.order = routing.order;
+  if (routing.fallbacks !== undefined) out.allow_fallbacks = routing.fallbacks;
+  if (routing.quantizations?.length) {
+    out.quantizations = routing.quantizations as string[];
+  }
+
+  const maxPrice = toOpenRouterMaxPrice(routing.maxCost);
+  if (maxPrice) out.max_price = maxPrice;
+
+  if (routing.privacy?.length) {
+    if (routing.privacy.includes("no-retention")) out.zdr = true;
+    if (
+      routing.privacy.includes("no-training") ||
+      routing.privacy.includes("no-retention")
+    ) {
+      out.data_collection = "deny";
+    }
+  }
+
+  return Object.keys(out).length > 0 ? out : undefined;
+}
+
+interface OpenRouterPlugin {
+  id: string;
+  [key: string]: ProviderOptionValue;
+}
+
+function buildOpenRouterPlugins(
+  options: GenerationOptions,
+): OpenRouterPlugin[] | undefined {
+  const plugins: OpenRouterPlugin[] = [];
+
+  if (options.webSearch) {
+    const ws: WebSearchOptions =
+      options.webSearch === true ? {} : options.webSearch;
+    const plugin: OpenRouterPlugin = { id: "web" };
+    if (ws.maxResults !== undefined) plugin.max_results = ws.maxResults;
+    if (ws.searchPrompt !== undefined) plugin.search_prompt = ws.searchPrompt;
+    if (ws.engine && ws.engine !== "auto") plugin.engine = ws.engine;
+    plugins.push(plugin);
+  }
+
+  if (options.responseHealing) {
+    plugins.push({ id: "response-healing" });
+  }
+
+  return plugins.length > 0 ? plugins : undefined;
+}
+
 function mapGoogleServiceTier(
   serviceTier: ServiceTier | undefined,
 ): string | undefined {
@@ -156,9 +328,10 @@ function applyOpenAIOptions(
   providerOptions: GenerationProviderOptions,
   options: GenerationOptions,
 ): void {
+  const reasoning = normalizeReasoning(options.reasoning);
   setProviderOptions(providerOptions, "openai", {
     reasoningEffort: resolveOpenAIReasoningEffort(
-      options.reasoning,
+      reasoning?.effort,
       options.modelId,
     ),
     textVerbosity: options.verbosity,
@@ -173,20 +346,33 @@ function applyAnthropicOptions(
   providerOptions: GenerationProviderOptions,
   options: GenerationOptions,
 ): void {
+  const reasoning = normalizeReasoning(options.reasoning);
+  const cache = normalizeCache(options.cache);
+
   const thinking =
-    options.reasoning === undefined
+    reasoning === undefined
       ? undefined
-      : options.reasoning === "off"
+      : reasoning.effort === "off"
         ? { type: "disabled" }
         : {
             type: "enabled",
-            budgetTokens: ANTHROPIC_THINKING_BUDGET[options.reasoning],
+            budgetTokens:
+              reasoning.maxTokens ??
+              (reasoning.effort
+                ? ANTHROPIC_THINKING_BUDGET[reasoning.effort]
+                : ANTHROPIC_THINKING_BUDGET.medium),
           };
+
+  const cacheControl = cache?.enabled
+    ? cache.ttl
+      ? { type: "ephemeral", ttl: cache.ttl }
+      : { type: "ephemeral" }
+    : undefined;
 
   setProviderOptions(providerOptions, "anthropic", {
     thinking,
     sendReasoning:
-      options.reasoning === undefined ? undefined : options.reasoning !== "off",
+      reasoning === undefined ? undefined : reasoning.effort !== "off",
     structuredOutputMode:
       options.structured === "tool"
         ? "jsonTool"
@@ -195,8 +381,7 @@ function applyAnthropicOptions(
           : options.structured,
     disableParallelToolUse:
       options.parallelTools === undefined ? undefined : !options.parallelTools,
-    cacheControl:
-      options.cache === "ephemeral" ? { type: "ephemeral" } : undefined,
+    cacheControl,
     metadata: options.user ? { userId: options.user } : undefined,
   });
 }
@@ -205,18 +390,23 @@ function applyGoogleOptions(
   providerOptions: GenerationProviderOptions,
   options: GenerationOptions,
 ): void {
+  const reasoning = normalizeReasoning(options.reasoning);
   const thinkingConfig =
-    options.reasoning === undefined
+    reasoning === undefined
       ? undefined
-      : options.reasoning === "off"
+      : reasoning.effort === "off"
         ? { thinkingBudget: 0, includeThoughts: false }
-        : {
-            thinkingLevel:
-              options.reasoning === "max"
-                ? "high"
-                : GOOGLE_REASONING[options.reasoning],
-            includeThoughts: true,
-          };
+        : reasoning.maxTokens !== undefined
+          ? { thinkingBudget: reasoning.maxTokens, includeThoughts: true }
+          : reasoning.effort
+            ? {
+                thinkingLevel:
+                  reasoning.effort === "max"
+                    ? "high"
+                    : GOOGLE_REASONING[reasoning.effort],
+                includeThoughts: true,
+              }
+            : undefined;
 
   setProviderOptions(providerOptions, "google", {
     thinkingConfig,
@@ -232,19 +422,54 @@ function applyOpenRouterOptions(
   providerOptions: GenerationProviderOptions,
   options: GenerationOptions,
 ): void {
-  const reasoning =
-    options.reasoning === undefined
+  const reasoning = normalizeReasoning(options.reasoning);
+  const cache = normalizeCache(options.cache);
+
+  // OpenRouter's reasoning shape: { enabled?, exclude?, effort | max_tokens }.
+  // Prefer max_tokens when both are supplied (effort then becomes implicit).
+  const reasoningField =
+    reasoning === undefined
       ? undefined
-      : options.reasoning === "off"
+      : reasoning.effort === "off"
         ? { effort: OPENROUTER_REASONING.off, exclude: true }
-        : { effort: OPENROUTER_REASONING[options.reasoning] };
+        : reasoning.maxTokens !== undefined
+          ? { max_tokens: reasoning.maxTokens }
+          : reasoning.effort
+            ? { effort: OPENROUTER_REASONING[reasoning.effort] }
+            : undefined;
+
+  const cache_control = cache?.enabled
+    ? cache.ttl
+      ? { type: "ephemeral", ttl: cache.ttl }
+      : { type: "ephemeral" }
+    : undefined;
+
+  const provider = buildOpenRouterProviderRouting(options.routing);
+  const plugins = buildOpenRouterPlugins(options);
+  const usage = options.includeCost ? { include: true } : undefined;
+
+  // OpenRouter is OpenAI-compatible; logprobs splits into `logprobs` (bool)
+  // and `top_logprobs` (n) for numeric inputs.
+  const logprobsValues =
+    options.logprobs === undefined
+      ? {}
+      : typeof options.logprobs === "number"
+        ? { logprobs: true, top_logprobs: options.logprobs }
+        : { logprobs: options.logprobs };
 
   setProviderOptions(providerOptions, "openrouter", {
-    reasoning,
-    parallelToolCalls: options.parallelTools,
+    reasoning: reasoningField,
+    // OpenRouter's REST API uses snake_case for OpenAI-compatible fields and
+    // providerOptions are spread directly into the request body.
+    parallel_tool_calls: options.parallelTools,
     user: options.user,
-    cache_control:
-      options.cache === "ephemeral" ? { type: "ephemeral" } : undefined,
+    cache_control,
+    provider,
+    plugins,
+    models: options.fallbackModels?.length ? options.fallbackModels : undefined,
+    usage,
+    logit_bias: options.logitBias,
+    ...logprobsValues,
   });
 }
 
@@ -252,8 +477,23 @@ function applyGatewayOptions(
   providerOptions: GenerationProviderOptions,
   options: GenerationOptions,
 ): void {
+  const routing = options.routing;
+  const sort =
+    routing?.prefer && routing.prefer !== "auto"
+      ? PREFER_TO_GATEWAY[routing.prefer]
+      : undefined;
+  const privacy = gatewayPrivacyFlags(routing);
+
   setProviderOptions(providerOptions, "gateway", {
     user: options.user,
+    sort,
+    only: routing?.allow?.length ? routing.allow : undefined,
+    order: routing?.order?.length ? routing.order : undefined,
+    models: options.fallbackModels?.length ? options.fallbackModels : undefined,
+    tags: options.tags?.length ? options.tags : undefined,
+    zeroDataRetention: privacy.zeroDataRetention,
+    disallowPromptTraining: privacy.disallowPromptTraining,
+    hipaaCompliant: privacy.hipaaCompliant,
   });
 }
 

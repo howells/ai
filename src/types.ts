@@ -250,11 +250,147 @@ export type ToolPolicy = "none" | "auto" | "required";
 /** Normalized structured-output provider behavior. */
 export type StructuredOutputMode = "auto" | "strict" | "tool";
 
-/** Normalized prompt-cache policy where providers expose one. */
-export type PromptCachePolicy = "off" | "ephemeral";
+/** Cache TTL accepted by providers that expose explicit prompt-cache durations. */
+export type CacheTTL = "5m" | "1h";
+
+/**
+ * Normalized prompt-cache policy where providers expose one.
+ *
+ * Accepts the legacy "off"/"ephemeral" strings, plus an object form that
+ * carries an explicit TTL where providers (Anthropic, OpenRouter) expose one.
+ */
+export type PromptCachePolicy =
+  | "off"
+  | "ephemeral"
+  | { type?: "ephemeral"; ttl?: CacheTTL };
 
 /** Normalized latency/cost priority where providers expose one. */
 export type ServiceTier = "auto" | "standard" | "flex" | "priority";
+
+/**
+ * Routing preference for providers (Gateway, OpenRouter) that pick between
+ * multiple upstreams for the same model.
+ */
+export type RoutePreference =
+  | "auto"
+  | "cheapest"
+  | "fastest"
+  | "highest-throughput";
+
+/** Privacy / compliance constraints applied to provider routing. */
+export type PrivacyConstraint = "no-retention" | "no-training" | "hipaa";
+
+/** Quantization levels acceptable for OpenRouter routing. */
+export type Quantization =
+  | "int4"
+  | "int8"
+  | "fp4"
+  | "fp6"
+  | "fp8"
+  | "fp16"
+  | "bf16"
+  | "fp32";
+
+/** Maximum cost ceilings expressed in USD. */
+export interface RoutingMaxCost {
+  /** Max USD per 1M prompt tokens. */
+  promptPerMillion?: number;
+  /** Max USD per 1M completion tokens. */
+  completionPerMillion?: number;
+  /** Max USD per 1M image input tokens. */
+  imagePerMillion?: number;
+  /** Max USD per 1M audio input tokens. */
+  audioPerMillion?: number;
+  /** Max USD per request (covers all token types). */
+  requestUsd?: number;
+}
+
+/**
+ * Provider-routing preferences applied at request time.
+ *
+ * Knobs unsupported by a given provider are silently ignored — see the
+ * field-level docs for the support matrix.
+ */
+export interface RoutingOptions {
+  /**
+   * Sort upstream providers by cost, latency, or throughput.
+   * Maps to Vercel Gateway `sort` and OpenRouter `provider.sort`.
+   */
+  prefer?: RoutePreference;
+  /**
+   * Hard cost ceilings.
+   * Maps to OpenRouter `provider.max_price`. Ignored on other providers.
+   */
+  maxCost?: RoutingMaxCost;
+  /**
+   * Provider allowlist. Only these upstream providers will be considered.
+   * Maps to Gateway `only` and OpenRouter `provider.only`.
+   */
+  allow?: string[];
+  /**
+   * Provider denylist. Maps to OpenRouter `provider.ignore`.
+   * Ignored on Gateway.
+   */
+  deny?: string[];
+  /**
+   * Explicit ordering of upstream providers.
+   * Maps to Gateway `order` and OpenRouter `provider.order`.
+   */
+  order?: string[];
+  /**
+   * Allow backup providers when the primary upstream fails.
+   * Maps to OpenRouter `provider.allow_fallbacks`. Gateway always
+   * attempts fallback.
+   */
+  fallbacks?: boolean;
+  /**
+   * Quantization levels acceptable for the request.
+   * OpenRouter only — maps to `provider.quantizations`.
+   */
+  quantizations?: Quantization[];
+  /**
+   * Privacy / compliance constraints.
+   *
+   * - `no-retention` — Gateway `zeroDataRetention` and OpenRouter `provider.zdr`.
+   * - `no-training` — Gateway `disallowPromptTraining` and OpenRouter `provider.data_collection: deny`.
+   * - `hipaa` — Gateway `hipaaCompliant`. Ignored on OpenRouter.
+   */
+  privacy?: PrivacyConstraint[];
+}
+
+/** Normalized web search engines for built-in provider search. */
+export type WebSearchEngine =
+  | "auto"
+  | "native"
+  | "exa"
+  | "perplexity"
+  | "parallel";
+
+/** Built-in web search options for OpenRouter's `web` plugin. */
+export interface WebSearchOptions {
+  /** Maximum number of search results to fetch. */
+  maxResults?: number;
+  /** Custom search prompt to guide the search query. OpenRouter only. */
+  searchPrompt?: string;
+  /**
+   * Search engine to use.
+   * Currently only OpenRouter respects this (native/exa). Gateway tools
+   * must be wired through AI SDK `tools` separately.
+   */
+  engine?: WebSearchEngine;
+}
+
+/**
+ * Reasoning configuration in object form. Accepts `effort`, an explicit
+ * token budget, or both — providers that accept only one will pick the
+ * relevant field.
+ */
+export interface ReasoningSpec {
+  /** Reasoning effort preset. */
+  effort?: ReasoningEffort;
+  /** Explicit reasoning token budget where the provider exposes one. */
+  maxTokens?: number;
+}
 
 /** Provider-specific options object accepted by AI SDK generation calls. */
 export type GenerationProviderOptions = Record<
@@ -274,8 +410,11 @@ export interface GenerationOptions {
    * provider when provider is "gateway".
    */
   modelId?: string;
-  /** Reasoning budget/capability hint. Defaults to provider default behavior. */
-  reasoning?: ReasoningEffort;
+  /**
+   * Reasoning budget/capability hint. Defaults to provider default behavior.
+   * Accepts a preset string or an object with `effort` and/or `maxTokens`.
+   */
+  reasoning?: ReasoningEffort | ReasoningSpec;
   /** Output detail hint for providers that expose verbosity. */
   verbosity?: OutputVerbosity;
   /** Sampling preset. Ignored when temperature is explicitly provided. */
@@ -316,6 +455,48 @@ export interface GenerationOptions {
   user?: string;
   /** Latency/cost priority for providers that expose one. */
   serviceTier?: ServiceTier;
+  /**
+   * Provider routing preferences (Gateway and OpenRouter).
+   * Knobs unsupported by the active provider are silently ignored.
+   */
+  routing?: RoutingOptions;
+  /**
+   * Fallback model IDs to try if the primary fails or is filtered out.
+   * Maps to Gateway `models` and OpenRouter `models`.
+   */
+  fallbackModels?: string[];
+  /**
+   * Tags attached to the request for spend reporting.
+   * Gateway only. Ignored elsewhere.
+   */
+  tags?: string[];
+  /**
+   * Built-in web search via OpenRouter's `web` plugin. Pass `true` for
+   * defaults, or an object for fine-grained control.
+   *
+   * For Gateway, wire `gateway.tools.parallelSearch()` /
+   * `gateway.tools.perplexitySearch()` through AI SDK `tools` instead.
+   */
+  webSearch?: boolean | WebSearchOptions;
+  /**
+   * Enable OpenRouter's response-healing plugin to auto-repair malformed
+   * JSON for non-streaming structured calls. OpenRouter only.
+   */
+  responseHealing?: boolean;
+  /**
+   * Include detailed cost / cache-token usage in providerMetadata.
+   * Maps to OpenRouter `usage: { include: true }`. Gateway always returns
+   * structured usage and treats this as a no-op.
+   */
+  includeCost?: boolean;
+  /**
+   * Return logprobs in the response. OpenRouter only.
+   */
+  logprobs?: boolean | number;
+  /**
+   * Logit bias map. OpenRouter only.
+   */
+  logitBias?: Record<number, number>;
 }
 
 /** AI SDK call settings produced by resolveGenerationOptions(). */

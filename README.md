@@ -85,7 +85,7 @@ await streamText({
 
 | Normalized Option | AI SDK / Provider Mapping |
 |-------------------|---------------------------|
-| `reasoning` | OpenAI `reasoningEffort`, Anthropic `thinking`, Google `thinkingConfig`, OpenRouter `reasoning` |
+| `reasoning` | OpenAI `reasoningEffort`, Anthropic `thinking`, Google `thinkingConfig`, OpenRouter `reasoning`. Accepts a preset (`"high"`) or `{ effort, maxTokens }`. |
 | `verbosity` | OpenAI `textVerbosity` |
 | `structured` | OpenAI strict JSON schema, Anthropic structured output mode, Google structured outputs |
 | `tools` | AI SDK `toolChoice` |
@@ -93,8 +93,59 @@ await streamText({
 | `parallelTools` | OpenAI/OpenRouter parallel tool calls, Anthropic inverse disable flag |
 | `outputLength` | AI SDK `maxOutputTokens` preset |
 | `creativity` | AI SDK `temperature` preset |
-| `cache` | Anthropic `cacheControl`, OpenRouter `cache_control` |
+| `cache` | Anthropic `cacheControl`, OpenRouter `cache_control`. Pass `"ephemeral"` or `{ ttl: "5m" \| "1h" }`. |
 | `serviceTier` | OpenAI/Google service tier where supported |
+| `routing` | Gateway `sort/only/order/zeroDataRetention/...`, OpenRouter `provider.{sort, only, ignore, order, allow_fallbacks, max_price, quantizations, zdr, data_collection}` |
+| `fallbackModels` | Gateway `models`, OpenRouter `models` (model fallback chain) |
+| `tags` | Gateway `tags` (spend reporting). Ignored elsewhere. |
+| `webSearch` | OpenRouter `plugins: [{ id: "web", ... }]`. For Gateway, wire `gateway.tools.parallelSearch()` / `perplexitySearch()` via AI SDK `tools`. |
+| `responseHealing` | OpenRouter `plugins: [{ id: "response-healing" }]` (auto-repair JSON for `generateObject`). |
+| `includeCost` | OpenRouter `usage: { include: true }`. Gateway returns cost automatically. |
+| `logprobs` / `logitBias` | OpenRouter only (`logprobs` + `top_logprobs`, `logit_bias`). |
+
+### Routing & cost
+
+```typescript
+// Cheapest provider, ZDR-only, with a price ceiling and fallback model
+await generateText({
+  model: ai.modelById("anthropic/claude-sonnet-4.6", { provider: "gateway" }),
+  prompt: "...",
+  ...ai.generationOptions({
+    provider: "gateway",
+    modelId: "anthropic/claude-sonnet-4.6",
+    routing: {
+      prefer: "cheapest",
+      privacy: ["no-retention", "no-training"],
+      allow: ["anthropic", "amazon-bedrock"],
+    },
+    fallbackModels: ["anthropic/claude-haiku-4.5"],
+    tags: ["feature:checkout"],
+  }),
+});
+```
+
+`routing.prefer` accepts `"auto"`, `"cheapest"`, `"fastest"`, or `"highest-throughput"`.
+`routing.privacy` accepts any combination of `"no-retention"`, `"no-training"`, `"hipaa"`.
+`routing.maxCost` (OpenRouter only) takes USD-per-million-token ceilings:
+`{ promptPerMillion, completionPerMillion, requestUsd }`.
+
+### Gateway introspection
+
+When the Gateway provider is configured, `ai.gateway` exposes the control-plane APIs:
+
+```typescript
+const ai = createAI();
+if (ai.gateway) {
+  const { balance } = await ai.gateway.credits();
+  const { models } = await ai.gateway.listModels();
+  const spend = await ai.gateway.spend({
+    startDate: "2026-04-01",
+    endDate: "2026-04-30",
+    groupBy: "model",
+  });
+  const info = await ai.gateway.generationInfo("gen_01H...");
+}
+```
 
 ## Testing
 

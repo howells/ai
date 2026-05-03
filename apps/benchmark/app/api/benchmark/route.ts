@@ -5,6 +5,10 @@ import {
   type ProviderRoute,
 } from "@howells/ai";
 import { type NextRequest, NextResponse } from "next/server";
+import {
+  type BenchmarkAdvancedOptions,
+  buildBenchmarkGenerationOptions,
+} from "../../../lib/benchmark-options";
 
 /** Allow benchmark streams to run for up to five minutes. */
 export const maxDuration = 300;
@@ -20,6 +24,7 @@ interface BenchmarkRequest {
   prompt: string | string[];
   runs: RunDef[];
   maxTokens?: number;
+  options?: BenchmarkAdvancedOptions;
 }
 
 interface BenchmarkResult {
@@ -57,6 +62,7 @@ async function executeRun(
   prompt: string,
   maxTokens: number,
   region: string,
+  options?: BenchmarkAdvancedOptions,
   round?: number,
 ): Promise<BenchmarkResult> {
   const label = run.label ?? `${run.provider}/${run.model}`;
@@ -64,7 +70,18 @@ async function executeRun(
 
   try {
     const model = ai.modelById(run.model, { provider: run.provider });
-    const result = streamText({ model, prompt, maxOutputTokens: maxTokens });
+    const result = streamText({
+      model,
+      prompt,
+      ...ai.generationOptions(
+        buildBenchmarkGenerationOptions({
+          provider: run.provider,
+          modelId: run.model,
+          maxTokens,
+          options,
+        }),
+      ),
+    });
 
     let ttft: number | null = null;
     let output = "";
@@ -164,7 +181,7 @@ function averageResults(results: BenchmarkResult[]): BenchmarkResult {
  */
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as BenchmarkRequest;
-  const { runs, maxTokens = 200 } = body;
+  const { runs, maxTokens = 200, options } = body;
 
   const prompts = Array.isArray(body.prompt) ? body.prompt : [body.prompt];
 
@@ -195,7 +212,9 @@ export async function POST(request: NextRequest) {
         // Single prompt - fire all runs in parallel (original behavior)
         await Promise.all(
           runs.map((run) =>
-            executeRun(ai, run, firstPrompt, maxTokens, region).then(send),
+            executeRun(ai, run, firstPrompt, maxTokens, region, options).then(
+              send,
+            ),
           ),
         );
       } else {
@@ -206,7 +225,15 @@ export async function POST(request: NextRequest) {
           const promptForRound = prompts[round] ?? "";
           const roundResults = await Promise.all(
             runs.map((run) =>
-              executeRun(ai, run, promptForRound, maxTokens, region, round),
+              executeRun(
+                ai,
+                run,
+                promptForRound,
+                maxTokens,
+                region,
+                options,
+                round,
+              ),
             ),
           );
 

@@ -23,6 +23,20 @@ import { RunQueueStrip } from "../components/run-queue-strip";
 import { InfoIcon } from "../components/tooltip";
 import { METRIC_META, pluralize } from "../lib/format";
 import {
+  DEFAULT_ADVANCED_OPTIONS,
+  PRIVACY_OPTIONS,
+  QUANTIZATION_OPTIONS,
+  ROUTE_PREFERENCES,
+  formatList,
+  parseList,
+  setMembership,
+  type BenchmarkAdvancedOptions,
+  type BenchmarkCacheMode,
+  type BenchmarkLogprobsMode,
+  type BenchmarkReasoningMode,
+  type BenchmarkWebSearchMode,
+} from "../lib/benchmark-options";
+import {
   ALL_PROVIDERS,
   ALL_SERVICES,
   ALL_TASKS,
@@ -48,6 +62,7 @@ interface RunSnapshot {
   prompt: string;
   rounds: number;
   maxTokens: number;
+  optionsKey: string;
   selectionKey: string;
   providerKey: string;
 }
@@ -81,6 +96,8 @@ export default function BenchmarkPage() {
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   const [rounds, setRounds] = useState(1);
   const [maxTokens, setMaxTokens] = useState(200);
+  const [advancedOptions, setAdvancedOptions] =
+    useState<BenchmarkAdvancedOptions>(DEFAULT_ADVANCED_OPTIONS);
   const [metric, setMetric] = useState<MetricKey>("ttft");
   const [density, setDensity] = useState<"comfortable" | "compact">(
     "comfortable",
@@ -257,13 +274,14 @@ export default function BenchmarkPage() {
       prompt,
       rounds,
       maxTokens,
+      optionsKey: JSON.stringify(advancedOptions),
       selectionKey: Object.keys(rowSelection)
         .filter((k) => rowSelection[k])
         .sort()
         .join("|"),
       providerKey: visibleProviders.join("|"),
     }),
-    [prompt, rounds, maxTokens, rowSelection, visibleProviders],
+    [prompt, rounds, maxTokens, advancedOptions, rowSelection, visibleProviders],
   );
 
   const isStale = useMemo(() => {
@@ -272,7 +290,8 @@ export default function BenchmarkPage() {
     return (
       lastSnapshot.prompt !== currentSnapshot.prompt ||
       lastSnapshot.rounds !== currentSnapshot.rounds ||
-      lastSnapshot.maxTokens !== currentSnapshot.maxTokens
+      lastSnapshot.maxTokens !== currentSnapshot.maxTokens ||
+      lastSnapshot.optionsKey !== currentSnapshot.optionsKey
     );
   }, [lastSnapshot, currentSnapshot, results.length]);
 
@@ -311,6 +330,7 @@ export default function BenchmarkPage() {
           prompt: rounds > 1 ? DEFAULT_PROMPTS.slice(0, rounds) : prompt,
           runs,
           maxTokens,
+          options: advancedOptions,
         }),
         signal: controller.signal,
       });
@@ -352,7 +372,16 @@ export default function BenchmarkPage() {
       setRunning(false);
       abortRef.current = null;
     }
-  }, [running, runs, prompt, rounds, maxTokens, region, currentSnapshot]);
+  }, [
+    running,
+    runs,
+    prompt,
+    rounds,
+    maxTokens,
+    advancedOptions,
+    region,
+    currentSnapshot,
+  ]);
 
   // ── Bulk selection helpers ─────────────────────────────────────────
   function selectAllFiltered() {
@@ -414,7 +443,7 @@ export default function BenchmarkPage() {
       <section
         className={`shrink-0 border-[var(--color-border)] border-b bg-[var(--color-surface)] transition-[max-height,padding] duration-200 ease-out ${
           settingsOpen
-            ? "max-h-72 px-6 py-3"
+            ? "max-h-[32rem] overflow-auto px-6 py-3"
             : "max-h-9 overflow-hidden px-6 py-1.5"
         }`}
       >
@@ -426,6 +455,8 @@ export default function BenchmarkPage() {
             onRoundsChange={setRounds}
             maxTokens={maxTokens}
             onMaxTokensChange={setMaxTokens}
+            advancedOptions={advancedOptions}
+            onAdvancedOptionsChange={setAdvancedOptions}
             metric={metric}
             onMetricChange={setMetric}
             density={density}
@@ -437,6 +468,7 @@ export default function BenchmarkPage() {
             prompt={prompt}
             rounds={rounds}
             maxTokens={maxTokens}
+            advancedOptions={advancedOptions}
             metric={metric}
             density={density}
             onExpand={() => setSettingsOpen(true)}
@@ -522,6 +554,8 @@ interface SettingsOpenProps {
   onRoundsChange: (next: number) => void;
   maxTokens: number;
   onMaxTokensChange: (next: number) => void;
+  advancedOptions: BenchmarkAdvancedOptions;
+  onAdvancedOptionsChange: (next: BenchmarkAdvancedOptions) => void;
   metric: MetricKey;
   onMetricChange: (next: MetricKey) => void;
   density: "comfortable" | "compact";
@@ -536,6 +570,8 @@ function SettingsPanelOpen({
   onRoundsChange,
   maxTokens,
   onMaxTokensChange,
+  advancedOptions,
+  onAdvancedOptionsChange,
   metric,
   onMetricChange,
   density,
@@ -631,6 +667,11 @@ function SettingsPanelOpen({
           />
         </FieldGroup>
       </div>
+
+      <AdvancedProviderControls
+        options={advancedOptions}
+        onChange={onAdvancedOptionsChange}
+      />
     </div>
   );
 }
@@ -639,6 +680,7 @@ interface SettingsCollapsedProps {
   prompt: string;
   rounds: number;
   maxTokens: number;
+  advancedOptions: BenchmarkAdvancedOptions;
   metric: MetricKey;
   density: "comfortable" | "compact";
   onExpand: () => void;
@@ -648,11 +690,13 @@ function SettingsPanelCollapsed({
   prompt,
   rounds,
   maxTokens,
+  advancedOptions,
   metric,
   density,
   onExpand,
 }: SettingsCollapsedProps) {
   const meta = METRIC_META[metric];
+  const advancedCount = countAdvancedOptions(advancedOptions);
   return (
     <div className="flex h-6 items-center gap-2.5 text-[12px] text-[var(--color-text-muted)]">
       <span
@@ -665,6 +709,7 @@ function SettingsPanelCollapsed({
       </span>
       <span className="data ml-2 shrink-0 tabular-nums text-[11px] text-[var(--color-text-faint)]">
         {rounds}r · {maxTokens}t · {meta.short} · {density}
+        {advancedCount > 0 ? ` · ${advancedCount} provider knobs` : ""}
       </span>
       <button
         type="button"
@@ -673,6 +718,284 @@ function SettingsPanelCollapsed({
       >
         Expand
       </button>
+    </div>
+  );
+}
+
+function countAdvancedOptions(options: BenchmarkAdvancedOptions): number {
+  let count = 0;
+  if (options.routePreference !== "auto") count++;
+  if (options.privacy.length > 0) count++;
+  if (options.allowProviders.length > 0) count++;
+  if (options.denyProviders.length > 0) count++;
+  if (options.providerOrder.length > 0) count++;
+  if (!options.fallbacks) count++;
+  if (options.quantizations.length > 0) count++;
+  if (options.fallbackModels.length > 0) count++;
+  if (options.maxPromptCost !== undefined) count++;
+  if (options.maxCompletionCost !== undefined) count++;
+  if (options.maxRequestCost !== undefined) count++;
+  if (options.cache !== "off") count++;
+  if (options.reasoning !== "default") count++;
+  if (options.reasoningTokens !== undefined) count++;
+  if (options.webSearch !== "off") count++;
+  if (options.responseHealing) count++;
+  if (options.includeCost) count++;
+  if (options.logprobs !== "off") count++;
+  if (options.tags.length > 0) count++;
+  return count;
+}
+
+function AdvancedProviderControls({
+  options,
+  onChange,
+}: {
+  options: BenchmarkAdvancedOptions;
+  onChange: (next: BenchmarkAdvancedOptions) => void;
+}) {
+  function update<K extends keyof BenchmarkAdvancedOptions>(
+    key: K,
+    value: BenchmarkAdvancedOptions[K],
+  ) {
+    onChange({ ...options, [key]: value });
+  }
+
+  function updateNumber(
+    key: "maxPromptCost" | "maxCompletionCost" | "maxRequestCost" | "reasoningTokens",
+    value: string,
+  ) {
+    const trimmed = value.trim();
+    update(key, trimmed === "" ? undefined : Number(trimmed));
+  }
+
+  return (
+    <div className="mt-1 border-[var(--color-border)] border-t pt-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className="h-1.5 w-1.5 rounded-full bg-[var(--color-text-faint)]"
+          />
+          <span className="text-[13px] font-medium text-[var(--color-text)]">
+            Provider behavior
+          </span>
+          <span className="text-[11px] text-[var(--color-text-faint)]">
+            Normalized controls; unsupported providers ignore unsupported fields
+          </span>
+        </div>
+        <button
+          type="button"
+          onClick={() => onChange(DEFAULT_ADVANCED_OPTIONS)}
+          className="cursor-pointer rounded-[var(--radius-pill)] px-2.5 py-1 text-[12px] text-[var(--color-text-faint)] transition-colors hover:bg-[var(--color-raised)] hover:text-[var(--color-text-muted)]"
+        >
+          Reset behavior
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-[1.2fr_1fr_1fr]">
+        <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-canvas)] p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[12px] font-medium text-[var(--color-text-muted)]">
+              Routing
+            </span>
+            <span className="data text-[10px] text-[var(--color-text-faint)]">
+              Gateway + OpenRouter
+            </span>
+          </div>
+          <SegmentedControl
+            value={options.routePreference}
+            onChange={(value) => update("routePreference", value)}
+            options={ROUTE_PREFERENCES}
+          />
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {PRIVACY_OPTIONS.map((option) => (
+              <TogglePill
+                key={option.value}
+                active={options.privacy.includes(option.value)}
+                onToggle={(active) =>
+                  update(
+                    "privacy",
+                    setMembership(options.privacy, option.value, active),
+                  )
+                }
+              >
+                {option.label}
+              </TogglePill>
+            ))}
+            <TogglePill
+              active={!options.fallbacks}
+              onToggle={(active) => update("fallbacks", !active)}
+            >
+              Disable fallback
+            </TogglePill>
+          </div>
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            <TinyTextField
+              label="Allow"
+              value={formatList(options.allowProviders)}
+              placeholder="anthropic"
+              onChange={(value) => update("allowProviders", parseList(value))}
+            />
+            <TinyTextField
+              label="Deny"
+              value={formatList(options.denyProviders)}
+              placeholder="openai"
+              onChange={(value) => update("denyProviders", parseList(value))}
+            />
+            <TinyTextField
+              label="Order"
+              value={formatList(options.providerOrder)}
+              placeholder="anthropic, google"
+              onChange={(value) => update("providerOrder", parseList(value))}
+            />
+          </div>
+        </div>
+
+        <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-canvas)] p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[12px] font-medium text-[var(--color-text-muted)]">
+              Budgets
+            </span>
+            <span className="data text-[10px] text-[var(--color-text-faint)]">
+              Cost + thought
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <TinyNumberField
+              label="Prompt $/M"
+              value={options.maxPromptCost}
+              onChange={(value) => updateNumber("maxPromptCost", value)}
+            />
+            <TinyNumberField
+              label="Output $/M"
+              value={options.maxCompletionCost}
+              onChange={(value) => updateNumber("maxCompletionCost", value)}
+            />
+            <TinyNumberField
+              label="Request $"
+              value={options.maxRequestCost}
+              step="0.01"
+              onChange={(value) => updateNumber("maxRequestCost", value)}
+            />
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <TinySelect
+              label="Reasoning"
+              value={options.reasoning}
+              onChange={(value) =>
+                update("reasoning", value as BenchmarkReasoningMode)
+              }
+              options={[
+                ["default", "Default"],
+                ["off", "Off"],
+                ["minimal", "Minimal"],
+                ["low", "Low"],
+                ["medium", "Medium"],
+                ["high", "High"],
+                ["max", "Max"],
+              ]}
+            />
+            <TinyNumberField
+              label="Reasoning tokens"
+              value={options.reasoningTokens}
+              onChange={(value) => updateNumber("reasoningTokens", value)}
+            />
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {QUANTIZATION_OPTIONS.map((quantization) => (
+              <TogglePill
+                key={quantization}
+                active={options.quantizations.includes(quantization)}
+                onToggle={(active) =>
+                  update(
+                    "quantizations",
+                    setMembership(options.quantizations, quantization, active),
+                  )
+                }
+              >
+                {quantization}
+              </TogglePill>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-canvas)] p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[12px] font-medium text-[var(--color-text-muted)]">
+              Diagnostics
+            </span>
+            <span className="data text-[10px] text-[var(--color-text-faint)]">
+              Mostly OpenRouter
+            </span>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <TinySelect
+              label="Cache"
+              value={options.cache}
+              onChange={(value) => update("cache", value as BenchmarkCacheMode)}
+              options={[
+                ["off", "Off"],
+                ["ephemeral", "Ephemeral"],
+                ["ephemeral-5m", "5m"],
+                ["ephemeral-1h", "1h"],
+              ]}
+            />
+            <TinySelect
+              label="Search"
+              value={options.webSearch}
+              onChange={(value) =>
+                update("webSearch", value as BenchmarkWebSearchMode)
+              }
+              options={[
+                ["off", "Off"],
+                ["auto", "Auto"],
+                ["native", "Native"],
+                ["exa", "Exa"],
+              ]}
+            />
+            <TinySelect
+              label="Logprobs"
+              value={options.logprobs}
+              onChange={(value) =>
+                update("logprobs", value as BenchmarkLogprobsMode)
+              }
+              options={[
+                ["off", "Off"],
+                ["basic", "Basic"],
+                ["top5", "Top 5"],
+              ]}
+            />
+          </div>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            <TogglePill
+              active={options.responseHealing}
+              onToggle={(active) => update("responseHealing", active)}
+            >
+              Response healing
+            </TogglePill>
+            <TogglePill
+              active={options.includeCost}
+              onToggle={(active) => update("includeCost", active)}
+            >
+              Include cost
+            </TogglePill>
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <TinyTextField
+              label="Fallback models"
+              value={formatList(options.fallbackModels)}
+              placeholder="anthropic/claude-haiku-4.5"
+              onChange={(value) => update("fallbackModels", parseList(value))}
+            />
+            <TinyTextField
+              label="Tags"
+              value={formatList(options.tags)}
+              placeholder="bench:routing"
+              onChange={(value) => update("tags", parseList(value))}
+            />
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -762,5 +1085,109 @@ function SegmentedControl<T extends string>({
         </button>
       ))}
     </div>
+  );
+}
+
+function TogglePill({
+  active,
+  onToggle,
+  children,
+}: {
+  active: boolean;
+  onToggle: (active: boolean) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      onClick={() => onToggle(!active)}
+      className={`h-6 cursor-pointer rounded-[var(--radius-pill)] border px-2 text-[11px] transition-colors ${
+        active
+          ? "border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text)]"
+          : "border-[var(--color-border)] bg-transparent text-[var(--color-text-faint)] hover:text-[var(--color-text-muted)]"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+function TinyTextField({
+  label,
+  value,
+  placeholder,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  placeholder?: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="flex min-w-0 flex-col gap-1">
+      <span className="text-[10px] text-[var(--color-text-faint)]">{label}</span>
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="h-7 min-w-0 rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2 data text-[11px] text-[var(--color-text)] placeholder:text-[var(--color-text-faint)] focus:border-[var(--color-border-strong)]"
+      />
+    </label>
+  );
+}
+
+function TinyNumberField({
+  label,
+  value,
+  step,
+  onChange,
+}: {
+  label: string;
+  value: number | undefined;
+  step?: string;
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="flex min-w-0 flex-col gap-1">
+      <span className="text-[10px] text-[var(--color-text-faint)]">{label}</span>
+      <input
+        type="number"
+        min={0}
+        step={step ?? "1"}
+        value={value ?? ""}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-7 min-w-0 rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2 data text-[11px] text-[var(--color-text)] focus:border-[var(--color-border-strong)]"
+      />
+    </label>
+  );
+}
+
+function TinySelect<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: readonly (readonly [T, string])[];
+  onChange: (value: T) => void;
+}) {
+  return (
+    <label className="flex min-w-0 flex-col gap-1">
+      <span className="text-[10px] text-[var(--color-text-faint)]">{label}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value as T)}
+        className="h-7 min-w-0 cursor-pointer rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-[11px] text-[var(--color-text)] focus:border-[var(--color-border-strong)]"
+      >
+        {options.map(([optionValue, labelText]) => (
+          <option key={optionValue} value={optionValue}>
+            {labelText}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }

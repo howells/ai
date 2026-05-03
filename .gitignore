@@ -7,3 +7,4 @@ dist
 .env.*
 *.tgz
 .DS_Store
+.vercel

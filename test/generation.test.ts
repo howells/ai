@@ -150,12 +150,174 @@ describe("resolveGenerationOptions", () => {
       user: "agent-search",
     });
 
+    // OpenRouter's REST API uses snake_case for OpenAI-compatible fields and
+    // the SDK spreads providerOptions directly into the request body.
     expect(providerOptionsFor(result, "openrouter")).toEqual({
       reasoning: { effort: "none", exclude: true },
-      parallelToolCalls: true,
+      parallel_tool_calls: true,
       user: "agent-search",
       cache_control: { type: "ephemeral" },
     });
+  });
+
+  test("supports cache TTL via the object form on Anthropic and OpenRouter", () => {
+    const anthropic = resolveGenerationOptions({
+      provider: "anthropic",
+      cache: { ttl: "1h" },
+    });
+    expect(providerOptionsFor(anthropic, "anthropic")).toMatchObject({
+      cacheControl: { type: "ephemeral", ttl: "1h" },
+    });
+
+    const openrouter = resolveGenerationOptions({
+      provider: "openrouter",
+      cache: { ttl: "5m" },
+    });
+    expect(providerOptionsFor(openrouter, "openrouter")).toMatchObject({
+      cache_control: { type: "ephemeral", ttl: "5m" },
+    });
+  });
+
+  test("supports reasoning by explicit token budget", () => {
+    const anthropic = resolveGenerationOptions({
+      provider: "anthropic",
+      reasoning: { effort: "high", maxTokens: 12_000 },
+    });
+    expect(providerOptionsFor(anthropic, "anthropic")).toMatchObject({
+      thinking: { type: "enabled", budgetTokens: 12_000 },
+    });
+
+    const openrouter = resolveGenerationOptions({
+      provider: "openrouter",
+      reasoning: { maxTokens: 4_000 },
+    });
+    expect(providerOptionsFor(openrouter, "openrouter")?.reasoning).toEqual({
+      max_tokens: 4_000,
+    });
+
+    const google = resolveGenerationOptions({
+      provider: "google",
+      reasoning: { maxTokens: 8_000 },
+    });
+    expect(providerOptionsFor(google, "google")).toMatchObject({
+      thinkingConfig: { thinkingBudget: 8_000, includeThoughts: true },
+    });
+  });
+
+  test("maps gateway routing preferences, fallbacks, tags, and privacy", () => {
+    const result = resolveGenerationOptions({
+      provider: "gateway",
+      modelId: "anthropic/claude-sonnet-4.6",
+      routing: {
+        prefer: "cheapest",
+        allow: ["anthropic", "amazon-bedrock"],
+        order: ["anthropic", "amazon-bedrock"],
+        privacy: ["no-retention", "no-training", "hipaa"],
+      },
+      fallbackModels: ["anthropic/claude-haiku-4.5"],
+      tags: ["feature:checkout"],
+      user: "agent-search",
+    });
+
+    expect(providerOptionsFor(result, "gateway")).toEqual({
+      user: "agent-search",
+      sort: "cost",
+      only: ["anthropic", "amazon-bedrock"],
+      order: ["anthropic", "amazon-bedrock"],
+      models: ["anthropic/claude-haiku-4.5"],
+      tags: ["feature:checkout"],
+      zeroDataRetention: true,
+      disallowPromptTraining: true,
+      hipaaCompliant: true,
+    });
+  });
+
+  test("maps OpenRouter routing including max_price, quantizations, and ZDR", () => {
+    const result = resolveGenerationOptions({
+      provider: "openrouter",
+      routing: {
+        prefer: "fastest",
+        allow: ["anthropic"],
+        deny: ["openai"],
+        order: ["anthropic", "google-vertex"],
+        fallbacks: false,
+        quantizations: ["fp8", "bf16"],
+        privacy: ["no-retention"],
+        maxCost: { promptPerMillion: 3, completionPerMillion: 15, requestUsd: 0.1 },
+      },
+      fallbackModels: ["anthropic/claude-haiku-4.5"],
+    });
+
+    expect(providerOptionsFor(result, "openrouter")).toMatchObject({
+      provider: {
+        sort: "latency",
+        only: ["anthropic"],
+        ignore: ["openai"],
+        order: ["anthropic", "google-vertex"],
+        allow_fallbacks: false,
+        quantizations: ["fp8", "bf16"],
+        zdr: true,
+        data_collection: "deny",
+        max_price: { prompt: 3, completion: 15, request: 0.1 },
+      },
+      models: ["anthropic/claude-haiku-4.5"],
+    });
+  });
+
+  test("maps OpenRouter web search and response-healing plugins", () => {
+    const result = resolveGenerationOptions({
+      provider: "openrouter",
+      webSearch: { engine: "exa", maxResults: 5 },
+      responseHealing: true,
+      includeCost: true,
+    });
+
+    expect(providerOptionsFor(result, "openrouter")).toMatchObject({
+      plugins: [
+        { id: "web", max_results: 5, engine: "exa" },
+        { id: "response-healing" },
+      ],
+      usage: { include: true },
+    });
+  });
+
+  test("maps OpenRouter logprobs into logprobs + top_logprobs", () => {
+    const numericLogprobs = resolveGenerationOptions({
+      provider: "openrouter",
+      logprobs: 5,
+      logitBias: { 50256: -100 },
+    });
+    expect(providerOptionsFor(numericLogprobs, "openrouter")).toMatchObject({
+      logprobs: true,
+      top_logprobs: 5,
+      logit_bias: { 50256: -100 },
+    });
+
+    const boolLogprobs = resolveGenerationOptions({
+      provider: "openrouter",
+      logprobs: true,
+    });
+    expect(providerOptionsFor(boolLogprobs, "openrouter")?.logprobs).toBe(true);
+    expect(
+      providerOptionsFor(boolLogprobs, "openrouter")?.top_logprobs,
+    ).toBeUndefined();
+  });
+
+  test("ignores unsupported routing knobs on direct providers", () => {
+    const result = resolveGenerationOptions({
+      provider: "anthropic",
+      routing: { prefer: "cheapest", privacy: ["no-retention"] },
+      fallbackModels: ["anthropic/claude-haiku-4.5"],
+      tags: ["feature:checkout"],
+      logprobs: true,
+    });
+
+    // Anthropic direct provider should see no routing/tag/logprobs leakage.
+    const anthropic = providerOptionsFor(result, "anthropic");
+    expect(anthropic?.sort).toBeUndefined();
+    expect(anthropic?.tags).toBeUndefined();
+    expect(anthropic?.logprobs).toBeUndefined();
+    expect(anthropic?.models).toBeUndefined();
   });
 
   test("adds gateway options and inferred direct-provider options when modelId is known", () => {

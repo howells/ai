@@ -48,6 +48,7 @@ import {
 } from "./models";
 import { resolveGenerationOptions } from "./generation";
 import { createAnthropicProvider } from "./providers/anthropic";
+import type { GatewayIntrospection } from "./providers/gateway";
 import { createGatewayProvider } from "./providers/gateway";
 import type { GoogleProvider } from "./providers/google";
 import { createGoogleProvider } from "./providers/google";
@@ -162,6 +163,16 @@ export interface AIClient {
 
   /** Which underlying model services have direct keys configured. */
   readonly availableServices: readonly ModelService[];
+
+  /**
+   * Vercel AI Gateway introspection helpers (credits, spend reports,
+   * generation info, model catalog).
+   *
+   * Present only when the gateway provider is configured. Use the
+   * `availableProviders` list or a truthy check on this property to
+   * detect availability.
+   */
+  readonly gateway?: GatewayIntrospection;
 
   /**
    * Get a provider-neutral embedding model.
@@ -517,6 +528,7 @@ export function createAI(config?: AIConfig): AIClient {
 
     availableProviders: available,
     availableServices: services,
+    gateway: available.includes("gateway") ? gateway.introspection : undefined,
 
     modelConfig(modelId, options) {
       return resolveModelConfig(modelId, options);
