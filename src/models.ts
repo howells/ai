@@ -690,14 +690,11 @@ export const PROVIDER_DEFAULT_MODELS: ProviderLanguageModelMatrix = {
     }),
   },
   moonshotai: {
-    nano: everyVariant(KIMI_MODELS.KIMI_K2_5),
-    fast: everyVariant(KIMI_MODELS.KIMI_K2_5),
-    standard: everyVariant(KIMI_MODELS.KIMI_K2_5),
+    nano: everyVariant(KIMI_MODELS.KIMI_K2_6),
+    fast: everyVariant(KIMI_MODELS.KIMI_K2_6),
+    standard: everyVariant(KIMI_MODELS.KIMI_K2_6),
     powerful: everyVariant(KIMI_MODELS.KIMI_K2_6),
-    reasoning: splitVariantModels({
-      text: KIMI_MODELS.KIMI_K2_THINKING,
-      vision: KIMI_MODELS.KIMI_K2_6,
-    }),
+    reasoning: everyVariant(KIMI_MODELS.KIMI_K2_6),
   },
 } as const;
 
@@ -952,21 +949,21 @@ export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
   },
   moonshotai: {
     coding: {
-      standard: everyVariant(KIMI_MODELS.KIMI_K2_5),
+      standard: everyVariant(KIMI_MODELS.KIMI_K2_6),
       powerful: everyVariant(KIMI_MODELS.KIMI_K2_6),
     },
     agentic: {
-      standard: everyVariant(KIMI_MODELS.KIMI_K2_5),
+      standard: everyVariant(KIMI_MODELS.KIMI_K2_6),
       powerful: everyVariant(KIMI_MODELS.KIMI_K2_6),
-      reasoning: everyVariant(KIMI_MODELS.KIMI_K2_THINKING),
+      reasoning: everyVariant(KIMI_MODELS.KIMI_K2_6),
     },
     chat: {
-      fast: everyVariant(KIMI_MODELS.KIMI_K2_THINKING),
-      standard: everyVariant(KIMI_MODELS.KIMI_K2_5),
+      fast: everyVariant(KIMI_MODELS.KIMI_K2_6),
+      standard: everyVariant(KIMI_MODELS.KIMI_K2_6),
     },
     bulk: {
-      fast: everyVariant(KIMI_MODELS.KIMI_K2_THINKING),
-      standard: everyVariant(KIMI_MODELS.KIMI_K2_5),
+      fast: everyVariant(KIMI_MODELS.KIMI_K2_6),
+      standard: everyVariant(KIMI_MODELS.KIMI_K2_6),
     },
     vision: {
       standard: everyVariant(KIMI_MODELS.KIMI_K2_5),
@@ -974,12 +971,12 @@ export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
       reasoning: everyVariant(KIMI_MODELS.KIMI_K2_6),
     },
     reasoning: {
-      standard: everyVariant(KIMI_MODELS.KIMI_K2_THINKING),
-      powerful: everyVariant(KIMI_MODELS.KIMI_K2_THINKING),
-      reasoning: everyVariant(KIMI_MODELS.KIMI_K2_THINKING),
+      standard: everyVariant(KIMI_MODELS.KIMI_K2_6),
+      powerful: everyVariant(KIMI_MODELS.KIMI_K2_6),
+      reasoning: everyVariant(KIMI_MODELS.KIMI_K2_6),
     },
     longContext: {
-      standard: everyVariant(KIMI_MODELS.KIMI_K2_5),
+      standard: everyVariant(KIMI_MODELS.KIMI_K2_6),
       powerful: everyVariant(KIMI_MODELS.KIMI_K2_6),
     },
     creative: {
@@ -1317,7 +1314,7 @@ const PROVIDER_MODEL_IDS: Record<
   },
   "x-ai/grok-4.1-fast": {
     gateway: "xai/grok-4.1-fast-non-reasoning",
-    xai: "grok-4.1-fast",
+    xai: "grok-4-1-fast-non-reasoning",
   },
   "x-ai/grok-4.3": {
     gateway: "xai/grok-4.3",

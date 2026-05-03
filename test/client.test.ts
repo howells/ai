@@ -248,6 +248,7 @@ describe("createAI", () => {
       ["fast", "anthropic", "claude-haiku-4-5-20251001"],
       ["fast", "openai", "gpt-5.4-nano"],
       ["fast", "google", "gemini-3-flash-preview"],
+      ["fast", "xai", "grok-4-1-fast-non-reasoning"],
       ["standard", "gateway", "google/gemini-3-flash"],
       ["standard", "openrouter", "google/gemini-3-flash-preview"],
       ["standard", "anthropic", "claude-sonnet-4-6"],
@@ -267,7 +268,7 @@ describe("createAI", () => {
       ["standard", "xai", "grok-4.3"],
       ["standard", "qwen", "qwen3.6-plus"],
       ["standard", "zai", "glm-4.7"],
-      ["standard", "moonshotai", "kimi-k2.5"],
+      ["standard", "moonshotai", "kimi-k2.6"],
     ] as const satisfies readonly [
       ModelTier,
       ProviderRoute,

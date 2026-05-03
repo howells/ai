@@ -478,6 +478,9 @@ describe("provider helpers", () => {
     expect(resolveProviderModelId(XAI_MODELS.GROK_4_1_FAST, "gateway")).toBe(
       "xai/grok-4.1-fast-non-reasoning",
     );
+    expect(resolveProviderModelId(XAI_MODELS.GROK_4_1_FAST, "xai")).toBe(
+      "grok-4-1-fast-non-reasoning",
+    );
     expect(resolveProviderModelId(XAI_MODELS.GROK_4_3, "gateway")).toBe(
       "xai/grok-4.3",
     );
