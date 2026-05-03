@@ -53,6 +53,7 @@ export { resolveGenerationOptions } from "./generation";
 // Default model matrix and provider constants
 export {
   ANTHROPIC_MODELS,
+  assertLanguageModelCompatible,
   canRouteModelToProvider,
   DEEPSEEK_MODELS,
   DEFAULT_MODELS,
@@ -60,8 +61,10 @@ export {
   GOOGLE_EMBED_MODELS,
   GOOGLE_MODELS,
   GLM_MODELS,
+  getLanguageModelCapabilities,
   inferModelService,
   inferProvider,
+  INCEPTION_MODELS,
   KIMI_MODELS,
   LANGUAGE_MODEL_CATALOG,
   LANGUAGE_MODEL_CAPABILITIES,
@@ -69,18 +72,23 @@ export {
   LANGUAGE_MODEL_VARIANTS,
   MODEL_SERVICE_ENV_VARS,
   MODEL_TIERS,
+  MINIMAX_MODELS,
+  NEX_AGI_MODELS,
   OPENAI_MODELS,
   PROVIDER_CONFIG_CAPABILITIES,
   PROVIDER_DEFAULT_MODELS,
+  PROVIDER_TASK_DEFAULT_MODELS,
   QWEN_MODELS,
   resolveModels,
   resolveLanguageModelVariant,
   resolveProviderLanguageModelId,
   resolveProviderModelId,
   resolveTaskModels,
+  STEPFUN_MODELS,
   toDirectModelId,
   VOYAGE_MODELS,
   XAI_MODELS,
+  XIAOMI_MODELS,
 } from "./models";
 
 // Types

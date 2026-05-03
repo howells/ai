@@ -34,7 +34,9 @@
 
 import type { LanguageModel } from "ai";
 import {
+  assertLanguageModelCompatible,
   canRouteModelToProvider,
+  getLanguageModelCapabilities,
   inferModelService,
   LANGUAGE_MODEL_CAPABILITIES,
   MODEL_SERVICE_ENV_VARS,
@@ -147,7 +149,7 @@ export interface AIClient {
    * Return the structured/tool/vision capability flags for a model selection.
    */
   modelCapabilities: (
-    options?: Pick<ModelOptions, "tools" | "vision">,
+    options?: Pick<ModelOptions, "tools" | "vision"> & { modelId?: string },
   ) => LanguageModelCapabilities;
 
   /**
@@ -429,6 +431,7 @@ export function createAI(config?: AIConfig): AIClient {
     }
 
     const resolvedId = resolveProviderModelId(modelId, provider);
+    assertLanguageModelCompatible(modelId, resolveLanguageModelVariant(options));
     const capabilities = PROVIDER_CONFIG_CAPABILITIES[provider];
     const service = inferModelService(modelId) ?? inferModelService(resolvedId);
     const serviceApiKey = service ? getServiceApiKey(service) : undefined;
@@ -508,6 +511,7 @@ export function createAI(config?: AIConfig): AIClient {
         options?.task,
         taskMatrix,
       );
+      assertLanguageModelCompatible(modelId, variant);
       return resolveModel(modelId, options);
     },
 
@@ -523,6 +527,7 @@ export function createAI(config?: AIConfig): AIClient {
       ) {
         validateProviderMatch(modelId, provider);
       }
+      assertLanguageModelCompatible(modelId, resolveLanguageModelVariant(options));
       return resolveModel(modelId, options);
     },
 
@@ -535,6 +540,13 @@ export function createAI(config?: AIConfig): AIClient {
     },
 
     modelCapabilities(options) {
+      if ("modelId" in (options ?? {})) {
+        const modelId = (options as { modelId?: string }).modelId;
+        const capabilities = modelId
+          ? getLanguageModelCapabilities(modelId)
+          : undefined;
+        if (capabilities) return capabilities;
+      }
       return LANGUAGE_MODEL_CAPABILITIES[resolveLanguageModelVariant(options)];
     },
 
@@ -571,6 +583,12 @@ function getConfiguredServiceApiKey(
       return config?.googleKey ?? process.env.GOOGLE_GEMINI_API_KEY;
     case "deepseek":
       return config?.deepseekKey ?? process.env.DEEPSEEK_API_KEY;
+    case "inception":
+    case "minimax":
+    case "nexagi":
+    case "stepfun":
+    case "xiaomi":
+      return config?.serviceKeys?.[service];
     case "xai":
       return config?.xaiKey ?? process.env.XAI_API_KEY;
     case "qwen":

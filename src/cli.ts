@@ -406,16 +406,11 @@ function providerStatuses(): ProviderStatus[] {
 }
 
 function serviceStatuses(): ServiceStatus[] {
-  return (Object.keys(MODEL_SERVICE_ENV_VARS) as ModelService[]).map(
-    (service) => {
-      const envVar = MODEL_SERVICE_ENV_VARS[service];
-      return {
-        service,
-        configured: Boolean(process.env[envVar]),
-        source: process.env[envVar] ? envVar : "-",
-      };
-    },
-  );
+  return Object.entries(MODEL_SERVICE_ENV_VARS).map(([service, envVar]) => ({
+    service: service as ModelService,
+    configured: Boolean(process.env[envVar]),
+    source: process.env[envVar] ? envVar : "-",
+  }));
 }
 
 function configuredLanguageProviders(): ProviderRoute[] {

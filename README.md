@@ -193,11 +193,11 @@ input/output is a baseline requirement for every default language model.
 
 | Tier | Text Default | Tools Default | Vision / Vision Tools Default | Use When |
 |------|--------------|---------------|-------------------------------|----------|
-| `nano` | `google/gemini-2.5-flash-lite` | `google/gemini-2.5-flash-lite` | `google/gemini-2.5-flash-lite` | Bulk classification, extraction, simple structured output |
-| `fast` | `deepseek/deepseek-v3.2` | `x-ai/grok-4.1-fast` | `google/gemini-3-flash` | Low-latency enrichment, cheap tool calls, fast image reads |
-| `standard` | `google/gemini-2.5-flash` | `google/gemini-2.5-flash` | `google/gemini-3-flash` | Everyday tasks, chat, moderate reasoning |
-| `powerful` | `anthropic/claude-sonnet-4.6` | `anthropic/claude-sonnet-4.6` | `anthropic/claude-sonnet-4.6` | Complex analysis, synthesis, coding |
-| `reasoning` | `anthropic/claude-opus-4.6` | `anthropic/claude-opus-4.6` | `anthropic/claude-opus-4.6` | Frontier quality, deep multi-step reasoning |
+| `nano` | `xiaomi/mimo-v2-flash` | `xiaomi/mimo-v2-flash` | `google/gemini-3.1-flash-lite-preview` | Cheap structured output and light vision work |
+| `fast` | `x-ai/grok-4.1-fast` | `x-ai/grok-4.1-fast` | `x-ai/grok-4.1-fast` | Low-latency tool calls, chat, image reads, long context |
+| `standard` | `google/gemini-3-flash-preview` | `google/gemini-3-flash-preview` | `google/gemini-3-flash-preview` | Everyday tasks, chat, coding, vision, 1M context |
+| `powerful` | `x-ai/grok-4.3` | `x-ai/grok-4.3` | `x-ai/grok-4.3` | High-quality synthesis with strong speed/cost balance |
+| `reasoning` | `anthropic/claude-opus-4.7` | `anthropic/claude-opus-4.7` | `anthropic/claude-opus-4.7` | Frontier quality and deep multi-step reasoning |
 
 ```typescript
 ai.model("fast"); // fast text
@@ -213,15 +213,23 @@ Pass `task` when the best model depends on the job more than the generic tier.
 over the same tier/capability shape.
 
 ```typescript
-ai.model("fast", { task: "coding", tools: true }); // Grok Code Fast
-ai.model("standard", { task: "coding" }); // Kimi K2.6
-ai.model("fast", { task: "agentic", tools: true }); // GLM 5 Turbo
-ai.model("standard", { task: "vision", vision: true }); // Qwen3 VL
-ai.model("standard", { task: "longContext" }); // Grok 4.20
+ai.model("fast", { task: "coding", tools: true }); // MiniMax M2.5
+ai.model("standard", { task: "coding" }); // GLM 5
+ai.model("fast", { task: "agentic", tools: true }); // Grok 4.1 Fast
+ai.model("standard", { task: "vision", vision: true }); // Gemini 3 Flash Preview
+ai.model("standard", { task: "longContext" }); // Grok 4.1 Fast
 ```
 
 Available tasks: `general`, `coding`, `agentic`, `chat`, `bulk`, `vision`,
 `reasoning`, `longContext`, and `creative`.
+
+When you pin a provider, task selection stays inside that provider wherever the
+provider has coverage. For example, `provider: "openai", task: "coding"` routes
+to OpenAI's Codex line, while `provider: "zai", task: "vision"` routes to GLM's
+vision model instead of falling back to the global winner from another provider.
+If a requested capability is incompatible with the resolved model, selection
+throws before any provider call. For example, `provider: "deepseek", vision:
+true` fails locally because DeepSeek's selected models are not vision-capable.
 
 ### Retrieval Models
 
@@ -396,15 +404,17 @@ Route through OpenRouter or direct providers when needed:
 ```typescript
 ai.model("standard", { provider: "openrouter" });
 ai.modelById("claude-sonnet-4-6", { provider: "anthropic" });
-ai.modelById("x-ai/grok-4.20", { provider: "xai" });
+ai.modelById("x-ai/grok-4.3", { provider: "xai" });
 ai.modelById("moonshotai/kimi-k2.6", { provider: "moonshotai" });
 ```
 
 Constants use normalized package IDs. `createAI()` translates known provider
 mismatches at runtime, such as Anthropic's direct `4-6` IDs, OpenRouter and
-Google direct `google/gemini-3-flash-preview` IDs for Gemini 3 Flash, and
-Gateway's `xai/grok-4.1-fast-non-reasoning`. DeepSeek, xAI, Qwen, Z.ai, and
-Moonshot/Kimi are direct OpenAI-compatible routes when their keys are configured.
+Google direct `google/gemini-3-flash-preview` IDs for Gemini 3 Flash,
+Gateway's `xai/grok-4.1-fast-non-reasoning`, and Alibaba-hosted Qwen IDs.
+DeepSeek, xAI, Qwen, Z.ai, and Moonshot/Kimi are direct OpenAI-compatible
+routes when their keys are configured. Other catalog services such as MiniMax,
+StepFun, Xiaomi, Inception, and Nex AGI route through Gateway or OpenRouter.
 
 ## Agent Attribution
 
@@ -424,46 +434,73 @@ import {
   GLM_MODELS,
   GOOGLE_EMBED_MODELS,
   GOOGLE_MODELS,
+  INCEPTION_MODELS,
   KIMI_MODELS,
+  MINIMAX_MODELS,
+  NEX_AGI_MODELS,
   OPENAI_MODELS,
+  PROVIDER_TASK_DEFAULT_MODELS,
   QWEN_MODELS,
+  STEPFUN_MODELS,
   VOYAGE_MODELS,
   XAI_MODELS,
+  XIAOMI_MODELS,
 } from "@howells/ai";
 
 // Anthropic
+ANTHROPIC_MODELS.CLAUDE_OPUS_4_7        // "anthropic/claude-opus-4.7"
 ANTHROPIC_MODELS.CLAUDE_OPUS_4_6        // "anthropic/claude-opus-4.6"
 ANTHROPIC_MODELS.CLAUDE_SONNET_4_6      // "anthropic/claude-sonnet-4.6"
 
 // DeepSeek
 DEEPSEEK_MODELS.DEEPSEEK_V3_2           // "deepseek/deepseek-v3.2"
+DEEPSEEK_MODELS.DEEPSEEK_V4_FLASH       // "deepseek/deepseek-v4-flash"
 
 // GLM / Z.ai
-GLM_MODELS.GLM_5_1                      // "z-ai/glm-5.1"
-GLM_MODELS.GLM_5_TURBO                  // "z-ai/glm-5-turbo"
+GLM_MODELS.GLM_5                        // "z-ai/glm-5"
+GLM_MODELS.GLM_5V_TURBO                 // "z-ai/glm-5v-turbo"
+GLM_MODELS.GLM_4_7                      // "z-ai/glm-4.7"
 GLM_MODELS.GLM_4_7_FLASH                // "z-ai/glm-4.7-flash"
 GLM_MODELS.GLM_4_6V                     // "z-ai/glm-4.6v"
 
 // Kimi / Moonshot
 KIMI_MODELS.KIMI_K2_6                   // "moonshotai/kimi-k2.6"
+KIMI_MODELS.KIMI_K2_5                   // "moonshotai/kimi-k2.5"
 KIMI_MODELS.KIMI_K2_THINKING            // "moonshotai/kimi-k2-thinking"
 
 // Google language models
-GOOGLE_MODELS.GEMINI_3_FLASH            // "google/gemini-3-flash"
-GOOGLE_MODELS.GEMINI_2_5_FLASH_LITE     // "google/gemini-2.5-flash-lite"
-GOOGLE_MODELS.GEMINI_2_5_FLASH          // "google/gemini-2.5-flash"
+GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW    // "google/gemini-3-flash-preview"
+GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW    // "google/gemini-3.1-pro-preview"
+GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW
 
 // OpenAI
-OPENAI_MODELS.GPT_5_NANO                // "openai/gpt-5-nano"
+OPENAI_MODELS.GPT_5_4_NANO              // "openai/gpt-5.4-nano"
+OPENAI_MODELS.GPT_5_4                   // "openai/gpt-5.4"
+OPENAI_MODELS.GPT_5_3_CODEX             // "openai/gpt-5.3-codex"
 
 // Qwen
-QWEN_MODELS.QWEN_2_5_VL_72B_INSTRUCT    // "qwen/qwen2.5-vl-72b-instruct"
-QWEN_MODELS.QWEN_3_VL_8B_INSTRUCT       // "qwen/qwen3-vl-8b-instruct"
+QWEN_MODELS.QWEN_3_235B_A22B_2507       // "qwen/qwen3-235b-a22b-2507"
+QWEN_MODELS.QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE
+QWEN_MODELS.QWEN_3_6_PLUS               // "qwen/qwen3.6-plus"
 
 // xAI
 XAI_MODELS.GROK_4_1_FAST                // "x-ai/grok-4.1-fast"
-XAI_MODELS.GROK_4_20                    // "x-ai/grok-4.20"
-XAI_MODELS.GROK_CODE_FAST_1             // "x-ai/grok-code-fast-1"
+XAI_MODELS.GROK_4_3                     // "x-ai/grok-4.3"
+
+// Gateway/OpenRouter-only services
+MINIMAX_MODELS.MINIMAX_M2_7             // "minimax/minimax-m2.7"
+MINIMAX_MODELS.MINIMAX_M2_5             // "minimax/minimax-m2.5"
+STEPFUN_MODELS.STEP_3_5_FLASH           // "stepfun/step-3.5-flash"
+XIAOMI_MODELS.MIMO_V2_FLASH             // "xiaomi/mimo-v2-flash"
+INCEPTION_MODELS.MERCURY_2              // "inception/mercury-2"
+NEX_AGI_MODELS.DEEPSEEK_V3_1_NEX_N1     // "nex-agi/deepseek-v3.1-nex-n1"
+
+// Provider-pinned task matrix
+PROVIDER_TASK_DEFAULT_MODELS.openai?.coding?.standard?.text
+// "openai/gpt-5.3-codex"
+
+ai.modelCapabilities({ modelId: "deepseek/deepseek-v3.2" })
+// { structured: true, tools: true, vision: false }
 
 // Voyage
 VOYAGE_MODELS.VOYAGE_3            // "voyage-3"

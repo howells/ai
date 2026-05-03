@@ -6,11 +6,13 @@ import {
   DEEPSEEK_MODELS,
   DEFAULT_MODELS,
   DEFAULT_TASK_MODELS,
+  getLanguageModelCapabilities,
   GOOGLE_EMBED_MODELS,
   GOOGLE_MODELS,
   GLM_MODELS,
   inferModelService,
   inferProvider,
+  INCEPTION_MODELS,
   KIMI_MODELS,
   LANGUAGE_MODEL_CATALOG,
   LANGUAGE_MODEL_CAPABILITIES,
@@ -18,17 +20,22 @@ import {
   LANGUAGE_MODEL_VARIANTS,
   MODEL_SERVICE_ENV_VARS,
   MODEL_TIERS,
+  MINIMAX_MODELS,
+  NEX_AGI_MODELS,
   OPENAI_MODELS,
   PROVIDER_DEFAULT_MODELS,
+  PROVIDER_TASK_DEFAULT_MODELS,
   QWEN_MODELS,
   resolveModels,
   resolveLanguageModelVariant,
   resolveProviderLanguageModelId,
   resolveProviderModelId,
   resolveTaskModels,
+  STEPFUN_MODELS,
   toDirectModelId,
   VOYAGE_MODELS,
   XAI_MODELS,
+  XIAOMI_MODELS,
 } from "../src";
 
 const MODEL_SLOTS = [
@@ -55,30 +62,67 @@ const PROVIDERS = [
   "moonshotai",
 ] as const;
 
+const GATEWAY_MODEL_IDS_USED = new Set([
+  "anthropic/claude-opus-4.7",
+  "anthropic/claude-opus-4.6",
+  "anthropic/claude-sonnet-4.6",
+  "anthropic/claude-haiku-4.5",
+  "deepseek/deepseek-v3.2",
+  "deepseek/deepseek-v4-flash",
+  "zai/glm-5",
+  "zai/glm-5v-turbo",
+  "zai/glm-4.7",
+  "zai/glm-4.7-flash",
+  "zai/glm-4.6v",
+  "google/gemini-3.1-flash-lite-preview",
+  "google/gemini-3.1-pro-preview",
+  "google/gemini-3-flash",
+  "moonshotai/kimi-k2.6",
+  "moonshotai/kimi-k2.5",
+  "moonshotai/kimi-k2-thinking",
+  "minimax/minimax-m2.7",
+  "minimax/minimax-m2.5",
+  "inception/mercury-2",
+  "openai/gpt-5.4-nano",
+  "openai/gpt-5.4-mini",
+  "openai/gpt-5.4",
+  "openai/gpt-5.3-codex",
+  "alibaba/qwen3.6-plus",
+  "xiaomi/mimo-v2-flash",
+  "xiaomi/mimo-v2-pro",
+  "xai/grok-4.1-fast-non-reasoning",
+  "xai/grok-4.3",
+]);
+
 describe("model matrix", () => {
   test("defines every public model tier and retrieval slot", () => {
     expect(Object.keys(DEFAULT_MODELS).sort()).toEqual([...MODEL_SLOTS].sort());
   });
 
   test("uses provider constants for all default language model tiers", () => {
-    expect(DEFAULT_MODELS.nano.text).toBe(GOOGLE_MODELS.GEMINI_2_5_FLASH_LITE);
-    expect(DEFAULT_MODELS.nano.tools).toBe(
-      GOOGLE_MODELS.GEMINI_2_5_FLASH_LITE,
+    expect(DEFAULT_MODELS.nano.text).toBe(XIAOMI_MODELS.MIMO_V2_FLASH);
+    expect(DEFAULT_MODELS.nano.tools).toBe(XIAOMI_MODELS.MIMO_V2_FLASH);
+    expect(DEFAULT_MODELS.nano.vision).toBe(
+      GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
     );
-    expect(DEFAULT_MODELS.fast.text).toBe(DEEPSEEK_MODELS.DEEPSEEK_V3_2);
+    expect(DEFAULT_MODELS.fast.text).toBe(XAI_MODELS.GROK_4_1_FAST);
     expect(DEFAULT_MODELS.fast.tools).toBe(XAI_MODELS.GROK_4_1_FAST);
-    expect(DEFAULT_MODELS.fast.vision).toBe(GOOGLE_MODELS.GEMINI_3_FLASH);
-    expect(DEFAULT_MODELS.fast.visionTools).toBe(
-      GOOGLE_MODELS.GEMINI_3_FLASH,
+    expect(DEFAULT_MODELS.fast.vision).toBe(XAI_MODELS.GROK_4_1_FAST);
+    expect(DEFAULT_MODELS.standard.text).toBe(
+      GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
     );
-    expect(DEFAULT_MODELS.standard.text).toBe(GOOGLE_MODELS.GEMINI_2_5_FLASH);
-    expect(DEFAULT_MODELS.standard.tools).toBe(GOOGLE_MODELS.GEMINI_2_5_FLASH);
-    expect(DEFAULT_MODELS.standard.vision).toBe(GOOGLE_MODELS.GEMINI_3_FLASH);
-    expect(DEFAULT_MODELS.powerful.text).toBe(
-      ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,
+    expect(DEFAULT_MODELS.standard.tools).toBe(
+      GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
     );
+    expect(DEFAULT_MODELS.standard.vision).toBe(
+      GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
+    );
+    expect(DEFAULT_MODELS.powerful.text).toBe(XAI_MODELS.GROK_4_3);
     expect(DEFAULT_MODELS.reasoning.text).toBe(
-      ANTHROPIC_MODELS.CLAUDE_OPUS_4_6,
+      ANTHROPIC_MODELS.CLAUDE_OPUS_4_7,
+    );
+    expect(ANTHROPIC_MODELS.CLAUDE_OPUS_4_7).toBe(
+      "anthropic/claude-opus-4.7",
     );
     expect(ANTHROPIC_MODELS.CLAUDE_OPUS_4_6).toBe(
       "anthropic/claude-opus-4.6",
@@ -89,10 +133,13 @@ describe("model matrix", () => {
     expect(ANTHROPIC_MODELS.CLAUDE_HAIKU_4_5).toBe(
       "anthropic/claude-haiku-4.5",
     );
-    expect(GOOGLE_MODELS.GEMINI_3_FLASH).toBe("google/gemini-3-flash");
-    expect(GOOGLE_MODELS.GEMINI_3_1_PRO).toBe("google/gemini-3.1-pro");
+    expect(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW).toBe(
+      "google/gemini-3-flash-preview",
+    );
+    expect(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW).toBe(
+      "google/gemini-3.1-pro-preview",
+    );
     expect(OPENAI_MODELS.GPT_5_4).toBe("openai/gpt-5.4");
-    expect(OPENAI_MODELS.GPT_5_5).toBe("openai/gpt-5.5");
     expect(DEFAULT_MODELS.embed).toEqual({
       voyage: "voyage-3",
       gemini: "gemini-embedding-2-preview",
@@ -103,17 +150,15 @@ describe("model matrix", () => {
     });
     expect(VOYAGE_MODELS.VOYAGE_3_5_LITE).toBe("voyage-3.5-lite");
     expect(VOYAGE_MODELS.MULTIMODAL_3).toBe("voyage-multimodal-3");
-    expect(QWEN_MODELS.QWEN_2_5_VL_72B_INSTRUCT).toBe(
-      "qwen/qwen2.5-vl-72b-instruct",
+    expect(QWEN_MODELS.QWEN_3_235B_A22B_2507).toBe(
+      "qwen/qwen3-235b-a22b-2507",
     );
-    expect(GLM_MODELS.GLM_5_1).toBe("z-ai/glm-5.1");
+    expect(GLM_MODELS.GLM_5).toBe("z-ai/glm-5");
     expect(GLM_MODELS.GLM_4_7_FLASH).toBe("z-ai/glm-4.7-flash");
     expect(KIMI_MODELS.KIMI_K2_6).toBe("moonshotai/kimi-k2.6");
-    expect(XAI_MODELS.GROK_4_20).toBe("x-ai/grok-4.20");
-    expect(XAI_MODELS.GROK_CODE_FAST_1).toBe("x-ai/grok-code-fast-1");
-    expect(QWEN_MODELS.QWEN_3_VL_8B_INSTRUCT).toBe(
-      "qwen/qwen3-vl-8b-instruct",
-    );
+    expect(XAI_MODELS.GROK_4_3).toBe("x-ai/grok-4.3");
+    expect(MINIMAX_MODELS.MINIMAX_M2_7).toBe("minimax/minimax-m2.7");
+    expect(STEPFUN_MODELS.STEP_3_5_FLASH).toBe("stepfun/step-3.5-flash");
   });
 
   test("catalogues every public language model constant and default", () => {
@@ -123,10 +168,15 @@ describe("model matrix", () => {
       ...Object.values(DEEPSEEK_MODELS),
       ...Object.values(GLM_MODELS),
       ...Object.values(GOOGLE_MODELS),
+      ...Object.values(INCEPTION_MODELS),
       ...Object.values(KIMI_MODELS),
+      ...Object.values(MINIMAX_MODELS),
+      ...Object.values(NEX_AGI_MODELS),
       ...Object.values(OPENAI_MODELS),
       ...Object.values(QWEN_MODELS),
+      ...Object.values(STEPFUN_MODELS),
       ...Object.values(XAI_MODELS),
+      ...Object.values(XIAOMI_MODELS),
     ];
 
     expect(new Set(publicLanguageModelIds).size).toBe(
@@ -164,7 +214,7 @@ describe("model matrix", () => {
         "openrouter",
         "coding",
       ),
-    ).toBe(KIMI_MODELS.KIMI_K2_6);
+    ).toBe(GLM_MODELS.GLM_5);
     expect(
       resolveProviderLanguageModelId(
         DEFAULT_MODELS,
@@ -173,7 +223,7 @@ describe("model matrix", () => {
         "openrouter",
         "coding",
       ),
-    ).toBe(XAI_MODELS.GROK_CODE_FAST_1);
+    ).toBe(MINIMAX_MODELS.MINIMAX_M2_5);
     expect(
       resolveProviderLanguageModelId(
         DEFAULT_MODELS,
@@ -182,7 +232,7 @@ describe("model matrix", () => {
         "openrouter",
         "vision",
       ),
-    ).toBe(QWEN_MODELS.QWEN_3_VL_8B_INSTRUCT);
+    ).toBe(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW);
     expect(
       resolveProviderLanguageModelId(
         DEFAULT_MODELS,
@@ -207,14 +257,14 @@ describe("model matrix", () => {
     const taskModels = resolveTaskModels({
       coding: {
         standard: {
-          text: GLM_MODELS.GLM_5_1,
+          text: KIMI_MODELS.KIMI_K2_5,
         },
       },
     });
 
-    expect(taskModels.coding.standard?.text).toBe(GLM_MODELS.GLM_5_1);
-    expect(taskModels.coding.standard?.tools).toBe(KIMI_MODELS.KIMI_K2_6);
-    expect(taskModels.agentic.fast?.tools).toBe(GLM_MODELS.GLM_5_TURBO);
+    expect(taskModels.coding.standard?.text).toBe(KIMI_MODELS.KIMI_K2_5);
+    expect(taskModels.coding.standard?.tools).toBe(GLM_MODELS.GLM_5);
+    expect(taskModels.agentic.fast?.tools).toBe(XAI_MODELS.GROK_4_1_FAST);
   });
 
   test("defines provider defaults for every tier and capability surface", () => {
@@ -237,11 +287,61 @@ describe("model matrix", () => {
     }
   });
 
+  test("keeps provider-pinned task selections provider-native", () => {
+    for (const provider of PROVIDERS) {
+      for (const task of LANGUAGE_MODEL_TASKS) {
+        for (const tier of MODEL_TIERS) {
+          for (const variant of LANGUAGE_MODEL_VARIANTS) {
+            const modelId = resolveProviderLanguageModelId(
+              DEFAULT_MODELS,
+              tier,
+              variant,
+              provider,
+              task,
+            );
+
+            expect(canRouteModelToProvider(modelId, provider)).toBe(true);
+          }
+        }
+      }
+    }
+
+    expect(PROVIDER_TASK_DEFAULT_MODELS.openai?.coding?.standard?.text).toBe(
+      OPENAI_MODELS.GPT_5_3_CODEX,
+    );
+    expect(
+      resolveProviderLanguageModelId(
+        DEFAULT_MODELS,
+        "standard",
+        "tools",
+        "openai",
+        "coding",
+      ),
+    ).toBe(OPENAI_MODELS.GPT_5_3_CODEX);
+    expect(
+      resolveProviderLanguageModelId(
+        DEFAULT_MODELS,
+        "standard",
+        "vision",
+        "zai",
+        "vision",
+      ),
+    ).toBe(GLM_MODELS.GLM_5V_TURBO);
+    expect(
+      resolveProviderLanguageModelId(
+        DEFAULT_MODELS,
+        "nano",
+        "vision",
+        "qwen",
+      ),
+    ).toBe(QWEN_MODELS.QWEN_3_6_PLUS);
+  });
+
   test("returns a fresh default matrix", () => {
     const first = resolveModels();
     const second = resolveModels();
 
-    first.fast.text = OPENAI_MODELS.GPT_5_NANO;
+    first.fast.text = OPENAI_MODELS.GPT_5_4_NANO;
     first.embed.voyage = VOYAGE_MODELS.VOYAGE_3_LITE;
 
     expect(second.fast.text).toBe(DEFAULT_MODELS.fast.text);
@@ -286,6 +386,21 @@ describe("model matrix", () => {
       vision: true,
     });
   });
+
+  test("reports actual model capabilities separately from requested variants", () => {
+    expect(getLanguageModelCapabilities(DEEPSEEK_MODELS.DEEPSEEK_V3_2)).toEqual(
+      {
+        structured: true,
+        tools: true,
+        vision: false,
+      },
+    );
+    expect(getLanguageModelCapabilities(QWEN_MODELS.QWEN_3_6_PLUS)).toEqual({
+      structured: true,
+      tools: true,
+      vision: true,
+    });
+  });
 });
 
 describe("provider helpers", () => {
@@ -299,23 +414,26 @@ describe("provider helpers", () => {
   test("infers known direct providers only", () => {
     expect(inferProvider("anthropic/claude-sonnet-4.6")).toBe("anthropic");
     expect(inferProvider("openai/gpt-5-nano")).toBe("openai");
-    expect(inferProvider("google/gemini-2.5-flash")).toBe("google");
+    expect(inferProvider("google/gemini-3-flash-preview")).toBe("google");
     expect(inferProvider("deepseek/deepseek-v3.2")).toBe("deepseek");
-    expect(inferProvider("x-ai/grok-4.20")).toBe("xai");
-    expect(inferProvider("qwen/qwen3-vl-8b-instruct")).toBe("qwen");
-    expect(inferProvider("z-ai/glm-5.1")).toBe("zai");
+    expect(inferProvider("x-ai/grok-4.3")).toBe("xai");
+    expect(inferProvider("qwen/qwen3.6-plus")).toBe("qwen");
+    expect(inferProvider("z-ai/glm-5")).toBe("zai");
     expect(inferProvider("moonshotai/kimi-k2.6")).toBe("moonshotai");
+    expect(inferProvider("minimax/minimax-m2.7")).toBeUndefined();
     expect(inferProvider("gpt-5-nano")).toBeUndefined();
   });
 
   test("infers underlying model services and service key env vars", () => {
     expect(inferModelService(KIMI_MODELS.KIMI_K2_6)).toBe("moonshotai");
-    expect(inferModelService(GLM_MODELS.GLM_5_1)).toBe("zai");
-    expect(inferModelService(XAI_MODELS.GROK_4_20)).toBe("xai");
-    expect(inferModelService(QWEN_MODELS.QWEN_3_VL_8B_INSTRUCT)).toBe("qwen");
+    expect(inferModelService(GLM_MODELS.GLM_5)).toBe("zai");
+    expect(inferModelService(XAI_MODELS.GROK_4_3)).toBe("xai");
+    expect(inferModelService(QWEN_MODELS.QWEN_3_6_PLUS)).toBe("qwen");
+    expect(inferModelService(MINIMAX_MODELS.MINIMAX_M2_7)).toBe("minimax");
     expect(MODEL_SERVICE_ENV_VARS.moonshotai).toBe("MOONSHOT_API_KEY");
     expect(MODEL_SERVICE_ENV_VARS.zai).toBe("ZAI_API_KEY");
     expect(MODEL_SERVICE_ENV_VARS.xai).toBe("XAI_API_KEY");
+    expect(MODEL_SERVICE_ENV_VARS.minimax).toBeUndefined();
   });
 
   test("resolves provider-specific model IDs for known aliases", () => {
@@ -336,19 +454,22 @@ describe("provider helpers", () => {
     ).toBe("claude-haiku-4-5-20251001");
 
     expect(
-      resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_FLASH, "openrouter"),
+      resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW, "openrouter"),
     ).toBe("google/gemini-3-flash-preview");
     expect(
-      resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_FLASH, "gateway"),
+      resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW, "gateway"),
     ).toBe("google/gemini-3-flash");
-    expect(resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_FLASH, "google")).toBe(
-      "gemini-3-flash-preview",
-    );
     expect(
-      resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_1_PRO, "google"),
+      resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW, "google"),
+    ).toBe("gemini-3-flash-preview");
+    expect(
+      resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW, "google"),
     ).toBe("gemini-3.1-pro-preview");
     expect(
-      resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE, "gateway"),
+      resolveProviderModelId(
+        GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
+        "gateway",
+      ),
     ).toBe("google/gemini-3.1-flash-lite-preview");
 
     expect(resolveProviderModelId(XAI_MODELS.GROK_4_1_FAST, "openrouter")).toBe(
@@ -357,13 +478,66 @@ describe("provider helpers", () => {
     expect(resolveProviderModelId(XAI_MODELS.GROK_4_1_FAST, "gateway")).toBe(
       "xai/grok-4.1-fast-non-reasoning",
     );
-    expect(resolveProviderModelId(XAI_MODELS.GROK_4_20, "xai")).toBe(
-      "grok-4.20",
+    expect(resolveProviderModelId(XAI_MODELS.GROK_4_3, "gateway")).toBe(
+      "xai/grok-4.3",
     );
-    expect(resolveProviderModelId(GLM_MODELS.GLM_5_1, "zai")).toBe("glm-5.1");
+    expect(resolveProviderModelId(XAI_MODELS.GROK_4_3, "xai")).toBe(
+      "grok-4.3",
+    );
+    expect(resolveProviderModelId(GLM_MODELS.GLM_5, "gateway")).toBe(
+      "zai/glm-5",
+    );
+    expect(resolveProviderModelId(GLM_MODELS.GLM_4_7, "gateway")).toBe(
+      "zai/glm-4.7",
+    );
+    expect(resolveProviderModelId(GLM_MODELS.GLM_5V_TURBO, "gateway")).toBe(
+      "zai/glm-5v-turbo",
+    );
+    expect(resolveProviderModelId(GLM_MODELS.GLM_4_7_FLASH, "gateway")).toBe(
+      "zai/glm-4.7-flash",
+    );
+    expect(resolveProviderModelId(GLM_MODELS.GLM_4_6V, "gateway")).toBe(
+      "zai/glm-4.6v",
+    );
+    expect(resolveProviderModelId(GLM_MODELS.GLM_5, "zai")).toBe("glm-5");
+    expect(resolveProviderModelId(QWEN_MODELS.QWEN_3_6_PLUS, "gateway")).toBe(
+      "alibaba/qwen3.6-plus",
+    );
     expect(resolveProviderModelId(KIMI_MODELS.KIMI_K2_6, "moonshotai")).toBe(
       "kimi-k2.6",
     );
+  });
+
+  test("only exposes exact Gateway routes with known Gateway model IDs", () => {
+    for (const model of LANGUAGE_MODEL_CATALOG) {
+      if (!canRouteModelToProvider(model.id, "gateway")) continue;
+
+      expect(GATEWAY_MODEL_IDS_USED.has(resolveProviderModelId(model.id, "gateway"))).toBe(
+        true,
+      );
+    }
+
+    expect(
+      canRouteModelToProvider(
+        QWEN_MODELS.QWEN_3_235B_A22B_2507,
+        "gateway",
+      ),
+    ).toBe(false);
+    expect(
+      canRouteModelToProvider(
+        QWEN_MODELS.QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE,
+        "gateway",
+      ),
+    ).toBe(false);
+    expect(
+      canRouteModelToProvider(STEPFUN_MODELS.STEP_3_5_FLASH, "gateway"),
+    ).toBe(false);
+    expect(
+      canRouteModelToProvider(
+        NEX_AGI_MODELS.DEEPSEEK_V3_1_NEX_N1,
+        "gateway",
+      ),
+    ).toBe(false);
   });
 
   test("normalizes legacy package IDs for providers that need the new spelling", () => {
@@ -391,27 +565,25 @@ describe("provider helpers", () => {
     expect(canRouteModelToProvider(XAI_MODELS.GROK_4_1_FAST, "gateway")).toBe(
       true,
     );
-    expect(canRouteModelToProvider(XAI_MODELS.GROK_4_20, "xai")).toBe(true);
+    expect(canRouteModelToProvider(XAI_MODELS.GROK_4_3, "xai")).toBe(true);
     expect(canRouteModelToProvider(KIMI_MODELS.KIMI_K2_6, "moonshotai")).toBe(
       true,
     );
-    expect(canRouteModelToProvider(GLM_MODELS.GLM_5_1, "zai")).toBe(true);
-    expect(canRouteModelToProvider(QWEN_MODELS.QWEN_3_VL_8B_INSTRUCT, "qwen")).toBe(
-      true,
-    );
+    expect(canRouteModelToProvider(GLM_MODELS.GLM_5, "zai")).toBe(true);
+    expect(canRouteModelToProvider(QWEN_MODELS.QWEN_3_6_PLUS, "qwen")).toBe(true);
     expect(canRouteModelToProvider(DEEPSEEK_MODELS.DEEPSEEK_V3_2, "deepseek")).toBe(
       true,
     );
     expect(canRouteModelToProvider(KIMI_MODELS.KIMI_K2_6, "xai")).toBe(false);
     expect(
       canRouteModelToProvider(
-        QWEN_MODELS.QWEN_2_5_VL_72B_INSTRUCT,
+        QWEN_MODELS.QWEN_3_235B_A22B_2507,
         "openrouter",
       ),
     ).toBe(true);
     expect(
       canRouteModelToProvider(
-        QWEN_MODELS.QWEN_2_5_VL_72B_INSTRUCT,
+        QWEN_MODELS.QWEN_3_235B_A22B_2507,
         "gateway",
       ),
     ).toBe(false);

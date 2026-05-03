@@ -259,10 +259,20 @@ export function serviceLabel(service: ModelService): string {
       return "Google";
     case "deepseek":
       return "DeepSeek";
+    case "inception":
+      return "Inception";
+    case "minimax":
+      return "MiniMax";
+    case "nexagi":
+      return "Nex AGI";
     case "xai":
       return "xAI";
     case "qwen":
       return "Qwen";
+    case "stepfun":
+      return "StepFun";
+    case "xiaomi":
+      return "Xiaomi";
     case "zai":
       return "Z.ai";
     case "moonshotai":

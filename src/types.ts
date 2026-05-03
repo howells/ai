@@ -44,8 +44,13 @@ export type ModelService =
   | "openai"
   | "google"
   | "deepseek"
+  | "inception"
+  | "minimax"
+  | "nexagi"
   | "xai"
   | "qwen"
+  | "stepfun"
+  | "xiaomi"
   | "zai"
   | "moonshotai";
 

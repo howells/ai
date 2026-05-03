@@ -59,9 +59,9 @@ describe("CLI", () => {
     expect(data.length).toBeGreaterThan(0);
     expect(data.every((row) => row.provider === "openrouter")).toBe(true);
     expect(data.every((row) => row.task === "general")).toBe(true);
-    expect(data.some((row) => row.resolved === "deepseek/deepseek-v3.2")).toBe(
-      true,
-    );
+    expect(
+      data.some((row) => row.resolved === "google/gemini-3-flash-preview"),
+    ).toBe(true);
   });
 
   test("prints task-specific model matrix JSON", () => {
@@ -89,9 +89,7 @@ describe("CLI", () => {
 
     expect(response.success).toBe(true);
     expect(data.every((row) => row.task === "coding")).toBe(true);
-    expect(data.some((row) => row.resolved === "moonshotai/kimi-k2.6")).toBe(
-      true,
-    );
+    expect(data.some((row) => row.resolved === "z-ai/glm-5")).toBe(true);
   });
 
   test("prints provider status JSON without requiring keys", () => {
