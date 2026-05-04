@@ -13,7 +13,14 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
-import { formatMs, formatTpsWithUnit, METRIC_META, type MetricKey } from "../lib/format";
+import {
+  formatMs,
+  formatTpsWithUnit,
+  formatUsd,
+  METRIC_META,
+  type MetricKey,
+} from "../lib/format";
+import type { HistoricalProviderSummary } from "../lib/history-types";
 import {
   GROUP_LABELS,
   GROUPS,
@@ -21,8 +28,15 @@ import {
   type ModelRow,
   providerLabel,
   routeCellFor,
-  SLOT_LEGEND,
 } from "../lib/models";
+import {
+  bestProviderComparison,
+  formatProviderScore,
+  getProviderComparisons,
+  isBetterMetric,
+  resultMetricValue,
+  type ProviderComparisons,
+} from "../lib/result-insights";
 import { Tooltip } from "./tooltip";
 
 export type { MetricKey };
@@ -36,6 +50,7 @@ export interface BenchmarkResult {
   outputTokens: number;
   inputTokens: number;
   tokensPerSecond: number;
+  costUsd?: number;
   output: string;
   error?: string;
   region: string;
@@ -48,6 +63,7 @@ interface BenchmarkTableProps {
   visibleProviders: readonly ProviderRoute[];
   configuredProviders: readonly ProviderRoute[];
   results: BenchmarkResult[];
+  historicalProviders?: readonly HistoricalProviderSummary[];
   metric: MetricKey;
   rowSelection: RowSelectionState;
   onRowSelectionChange: (next: RowSelectionState) => void;
@@ -62,6 +78,7 @@ export function BenchmarkTable({
   visibleProviders,
   configuredProviders,
   results,
+  historicalProviders = [],
   metric,
   rowSelection,
   onRowSelectionChange,
@@ -74,6 +91,17 @@ export function BenchmarkTable({
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
 
   const metricMeta = METRIC_META[metric];
+  const resultHighlights = useMemo(
+    () => getResultHighlights(rows, visibleProviders, results, metric),
+    [rows, visibleProviders, results, metric],
+  );
+  const historicalProviderMap = useMemo(
+    () =>
+      Object.fromEntries(
+        historicalProviders.map((summary) => [summary.provider, summary]),
+      ) as Partial<Record<ProviderRoute, HistoricalProviderSummary>>,
+    [historicalProviders],
+  );
 
   const columns = useMemo<ColumnDef<ModelRow>[]>(() => {
     const base: ColumnDef<ModelRow>[] = [
@@ -107,7 +135,18 @@ export function BenchmarkTable({
     ];
 
     for (const provider of visibleProviders) {
-      base.push({
+      const providerComparison = resultHighlights.providerComparisons[provider];
+      const historicalComparison = historicalProviderMap[provider]?.scores[metric];
+      const tooltipComparison =
+        providerComparison && !stale ? providerComparison : historicalComparison;
+      const tooltipComparisonLabel =
+        providerComparison && !stale
+          ? "Current matched route score"
+          : historicalComparison
+            ? "Historical matched route score"
+            : undefined;
+      const isFastestProvider = resultHighlights.fastestProvider === provider;
+      base.push(      {
         id: provider,
         accessorFn: (row) => {
           const cell = getResultCell(results, row.name, provider, metric);
@@ -122,6 +161,15 @@ export function BenchmarkTable({
                 </strong>
                 Cells show {metricMeta.full.toLowerCase()} ·{" "}
                 {metricMeta.direction === "lower" ? "lower wins" : "higher wins"}.
+                {tooltipComparison && tooltipComparisonLabel && (
+                  <span className="mt-1 block text-[var(--color-text-muted)]">
+                    {tooltipComparisonLabel}:{" "}
+                    {formatProviderScore(tooltipComparison.score)} across{" "}
+                    {tooltipComparison.matchedModels} matched{" "}
+                    {tooltipComparison.matchedModels === 1 ? "model" : "models"}
+                    {isFastestProvider ? " · fastest" : ""}
+                  </span>
+                )}
               </>
             }
             side="bottom"
@@ -132,18 +180,22 @@ export function BenchmarkTable({
             </span>
           </Tooltip>
         ),
-        cell: ({ row }) => (
-          <ProviderCell
-            row={row.original}
-            provider={provider}
-            results={results}
-            metric={metric}
-            rounds={rounds}
-            running={runningKey === `${provider}::${row.original.name}`}
-            configuredProviders={configuredProviders}
-            stale={stale}
-          />
-        ),
+        cell: ({ row }) => {
+          const key = resultKey(row.original.name, provider);
+          return (
+            <ProviderCell
+              row={row.original}
+              provider={provider}
+              results={results}
+              metric={metric}
+              rounds={rounds}
+              running={runningKey === `${provider}::${row.original.name}`}
+              configuredProviders={configuredProviders}
+              stale={stale}
+              isFastestModel={resultHighlights.fastestModelKey === key}
+            />
+          );
+        },
         sortingFn: (a, b) => {
           const av = getResultCell(results, a.original.name, provider, metric);
           const bv = getResultCell(results, b.original.name, provider, metric);
@@ -167,6 +219,8 @@ export function BenchmarkTable({
     metricMeta,
     stale,
     density,
+    resultHighlights,
+    historicalProviderMap,
   ]);
 
   const table = useReactTable({
@@ -205,21 +259,35 @@ export function BenchmarkTable({
   return (
     <div className="scroll-shadow-x scrollbar-thin h-full overflow-auto">
       <table className="w-full border-separate border-spacing-0">
-        <thead>
-          <tr>
+        {/*
+         * Sticky lives on the <tr> so the entire header band moves as one
+         * layer — eliminates the per-cell paint race that bled body rows
+         * above the header during vertical scroll. The hard 1px bottom
+         * border doubles as a crisp seam between fixed and scrolling content.
+         */}
+        <thead className="sticky top-0 z-30">
+          <tr className="sticky top-0 z-30">
             {table.getHeaderGroups()[0]?.headers.map((header, idx) => {
-              const isSticky = idx <= 1;
+              const isCorner = idx <= 1;
+              const isModelCol = idx === 1;
+              const isProviderCol = idx > 1;
+              const sizeStyle = isProviderCol
+                ? {
+                    width: header.column.columnDef.size,
+                    minWidth: header.column.columnDef.size,
+                    maxWidth: header.column.columnDef.size,
+                  }
+                : { minWidth: header.column.columnDef.size };
               return (
                 <th
                   key={header.id}
                   scope="col"
-                  className={`group/th sticky top-0 z-20 h-9 border-[var(--color-border)] border-b bg-[var(--color-canvas)] px-4 text-left align-middle text-[var(--color-text-subtle)] ${
-                    isSticky ? "z-30" : ""
-                  }`}
+                  className={`group/th h-9 border-[var(--color-border)] border-b bg-[var(--color-canvas)] px-4 text-left align-middle text-[var(--color-text-subtle)] ${
+                    isCorner ? "sticky top-0 z-30" : ""
+                  } ${isModelCol ? "border-[var(--color-border)] border-r" : ""}`}
                   style={{
-                    minWidth: header.column.columnDef.size,
+                    ...sizeStyle,
                     left: idx === 0 ? 0 : idx === 1 ? 36 : undefined,
-                    position: isSticky ? "sticky" : undefined,
                   }}
                 >
                   {header.isPlaceholder ? null : header.column.getCanSort() &&
@@ -281,14 +349,19 @@ export function BenchmarkTable({
                     >
                       {row.getVisibleCells().map((cell, idx) => {
                         const isSticky = idx <= 1;
+                        const isModelCol = idx === 1;
                         return (
                           <td
                             key={cell.id}
                             className={`border-[var(--color-border)] border-b px-4 ${cellPaddingY} ${
-                              idx === 0 ? "" : "align-top"
+                              idx === 0 ? "" : "align-middle"
                             } ${
                               isSticky
                                 ? `z-10 ${rowBg} group-hover:bg-[var(--color-row-hover)]`
+                                : ""
+                            } ${
+                              isModelCol
+                                ? "border-[var(--color-border)] border-r"
                                 : ""
                             }`}
                             style={{
@@ -340,6 +413,65 @@ function getResultCell(
   return cell[metric];
 }
 
+function resultKey(modelName: string, provider: ProviderRoute): string {
+  return `${provider}::${modelName}`;
+}
+
+function formatMetricValue(value: number, metric: MetricKey): string {
+  return metric === "tokensPerSecond"
+    ? formatTpsWithUnit(value)
+    : formatMs(value);
+}
+
+function getResultHighlights(
+  rows: readonly ModelRow[],
+  visibleProviders: readonly ProviderRoute[],
+  results: readonly BenchmarkResult[],
+  metric: MetricKey,
+): {
+  fastestModelKey: string | null;
+  fastestProvider: ProviderRoute | null;
+  providerComparisons: ProviderComparisons;
+} {
+  const rowNames = new Set(rows.map((row) => row.name));
+  const providerSet = new Set(visibleProviders);
+  const visibleResults = results.filter(
+    (result) =>
+      !result.error &&
+      rowNames.has(result.label) &&
+      providerSet.has(result.provider) &&
+      Number.isFinite(resultMetricValue(result, metric)),
+  );
+
+  let fastestModelKey: string | null = null;
+  let fastestModelValue: number | null = null;
+  for (const result of visibleResults) {
+    const value = resultMetricValue(result, metric);
+    if (
+      fastestModelValue === null ||
+      isBetterMetric(value, fastestModelValue, metric)
+    ) {
+      fastestModelValue = value;
+      fastestModelKey = resultKey(result.label, result.provider);
+    }
+  }
+
+  const providerComparisons = getProviderComparisons(
+    visibleResults,
+    metric,
+    visibleProviders,
+  );
+  const fastestProvider =
+    bestProviderComparison(providerComparisons, visibleProviders)?.provider ??
+    null;
+
+  return {
+    fastestModelKey,
+    fastestProvider,
+    providerComparisons,
+  };
+}
+
 function isBestInRow(
   results: BenchmarkResult[],
   modelName: string,
@@ -366,111 +498,46 @@ function ModelCell({
   row: ModelRow;
   density: "comfortable" | "compact";
 }) {
-  const [expanded, setExpanded] = useState(false);
-
   const allSlots = [
     ...row.defaultSlots.map((s) => ({ kind: "default" as const, label: s })),
     ...row.taskSlots.map((s) => ({ kind: "task" as const, label: s })),
   ];
-  const visibleCount = expanded ? allSlots.length : 2;
-  const visibleSlots = allSlots.slice(0, visibleCount);
-  const hiddenCount = allSlots.length - visibleCount;
-
-  if (density === "compact") {
-    return (
-      <Tooltip
-        content={
-          <>
-            <strong className="block pb-1 text-[var(--color-text)]">
-              {row.name}
-            </strong>
-            <span className="block pb-1 text-[var(--color-text-faint)]">
-              {row.id}
-            </span>
-            <span className="block text-[var(--color-text-muted)]">
-              {allSlots.map((s) => s.label).join(" · ")}
-            </span>
-          </>
-        }
-        side="bottom"
-        align="start"
-        width={280}
-      >
-        <div className="flex items-baseline gap-2">
-          <span className="truncate text-xs font-medium text-[var(--color-text)]">
-            {row.name}
-          </span>
-          <span className="data ml-auto truncate text-[10px] text-[var(--color-text-faint)]">
-            {row.id}
-          </span>
-        </div>
-      </Tooltip>
-    );
-  }
+  const SLOT_CAP = 6;
+  const visibleSlots = allSlots.slice(0, SLOT_CAP);
+  const hiddenCount = Math.max(0, allSlots.length - visibleSlots.length);
+  const nameSize = density === "compact" ? "text-xs" : "text-[13px]";
 
   return (
-    <div className="flex flex-col gap-0.5">
-      <div className="flex items-baseline gap-2">
-        <span className="truncate text-[13px] font-medium text-[var(--color-text)]">
+    <Tooltip
+      content={
+        <>
+          <strong className="block pb-1 text-[var(--color-text)]">
+            {row.name}
+          </strong>
+          <span className="block pb-1 text-[var(--color-text-faint)]">
+            {row.id}
+          </span>
+          {visibleSlots.length > 0 && (
+            <span className="block text-[var(--color-text-muted)]">
+              {visibleSlots.map((s) => s.label).join(" · ")}
+              {hiddenCount > 0 && ` · +${hiddenCount} more`}
+            </span>
+          )}
+        </>
+      }
+      side="bottom"
+      align="start"
+      width={280}
+    >
+      <div className="flex min-w-0 items-baseline gap-2">
+        <span className={`truncate font-medium text-[var(--color-text)] ${nameSize}`}>
           {row.name}
         </span>
-        <span className="data truncate text-[10px] text-[var(--color-text-faint)]">
+        <span className="data ml-auto min-w-0 truncate text-[10px] text-[var(--color-text-faint)]">
           {row.id}
         </span>
       </div>
-      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 pt-1">
-        {visibleSlots.map((slot, i) => (
-          <Tooltip
-            key={`${slot.kind}-${slot.label}`}
-            content={SLOT_LEGEND}
-            width={260}
-          >
-            <span className="flex items-center gap-1.5">
-              {i > 0 && (
-                <span
-                  aria-hidden="true"
-                  className="text-[var(--color-text-faint)]"
-                >
-                  ·
-                </span>
-              )}
-              <span
-                className={`data text-[10px] ${
-                  slot.kind === "task"
-                    ? "text-[var(--color-text-muted)]"
-                    : "text-[var(--color-text-faint)]"
-                }`}
-              >
-                {slot.label}
-              </span>
-            </span>
-          </Tooltip>
-        ))}
-        {hiddenCount > 0 && (
-          <>
-            <span aria-hidden="true" className="text-[var(--color-text-faint)]">
-              ·
-            </span>
-            <button
-              type="button"
-              onClick={() => setExpanded(true)}
-              className="data cursor-pointer text-[10px] text-[var(--color-text-faint)] transition-colors hover:text-[var(--color-text-muted)]"
-            >
-              +{hiddenCount}
-            </button>
-          </>
-        )}
-        {expanded && allSlots.length > 2 && (
-          <button
-            type="button"
-            onClick={() => setExpanded(false)}
-            className="ml-2 data cursor-pointer text-[10px] text-[var(--color-text-faint)] transition-colors hover:text-[var(--color-text-muted)]"
-          >
-            less
-          </button>
-        )}
-      </div>
-    </div>
+    </Tooltip>
   );
 }
 
@@ -483,6 +550,7 @@ function ProviderCell({
   running,
   configuredProviders,
   stale,
+  isFastestModel,
 }: {
   row: ModelRow;
   provider: ProviderRoute;
@@ -492,6 +560,7 @@ function ProviderCell({
   running: boolean;
   configuredProviders: readonly ProviderRoute[];
   stale: boolean;
+  isFastestModel: boolean;
 }) {
   const route = routeCellFor(row, provider, configuredProviders);
   const result = results.find(
@@ -501,94 +570,142 @@ function ProviderCell({
   void rounds;
 
   if (route.status === "no-route") {
+    // Permanent fact about the model/provider pair — render dim and quiet.
+    // Distinct from the missing-key state below, which uses a warn pill.
     return (
-      <span
-        title={`${row.name} cannot route through ${providerLabel(provider)}`}
-        className="block text-right text-xs text-[var(--color-text-faint)]"
-      >
-        —
-      </span>
+      <CellShell>
+        <span
+          title={`${row.name} cannot route through ${providerLabel(provider)}`}
+          className="block text-right text-xs text-[var(--color-text-faint)]"
+        >
+          —
+        </span>
+      </CellShell>
     );
   }
 
   if (running && !result) {
     return (
-      <span className="data flex items-center justify-end gap-1.5 text-right text-xs text-[var(--color-text-muted)]">
-        <span
-          aria-hidden="true"
-          className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-accent-strong)]"
-        />
-        running
-      </span>
+      <CellShell>
+        <span className="pill pill--ghost data">
+          <span
+            aria-hidden="true"
+            className="h-1.5 w-1.5 animate-pulse rounded-full bg-[var(--color-accent-strong)]"
+          />
+          running
+        </span>
+      </CellShell>
     );
   }
 
   if (result?.error) {
     return (
-      <span
-        className="pill pill--error block text-right"
-        title={result.error}
-      >
-        error
-      </span>
+      <CellShell>
+        <span className="pill pill--error" title={result.error}>
+          error
+        </span>
+      </CellShell>
     );
   }
 
   if (result) {
     const best = isBestInRow(results, row.name, provider, metric);
-    const value =
-      metric === "tokensPerSecond"
-        ? formatTpsWithUnit(result.tokensPerSecond)
-        : formatMs(result[metric]);
+    const value = formatMetricValue(result[metric], metric);
+    const cost =
+      result.costUsd !== undefined ? formatUsd(result.costUsd) : undefined;
+    const highlight = best || isFastestModel;
+    const ariaLabel = isFastestModel
+      ? "Fastest model"
+      : best
+        ? "Best in row"
+        : undefined;
 
-    if (best) {
-      return (
-        <div
-          className={`flex items-center justify-end ${stale ? "opacity-50" : ""}`}
-          title={stale ? "Stale — inputs changed since this run" : undefined}
-        >
+    return (
+      <CellShell
+        cost={cost}
+        stale={stale}
+        title={stale ? "Stale — inputs changed since this run" : undefined}
+      >
+        {highlight ? (
           <span
             className={`pill pill--best data tabular-nums ${
               stale ? "line-through decoration-1" : ""
             }`}
-            aria-label="Best in row"
+            aria-label={ariaLabel}
           >
             {value}
           </span>
-        </div>
-      );
-    }
-
-    return (
-      <div
-        className={`flex items-center justify-end ${stale ? "opacity-50" : ""}`}
-        title={stale ? "Stale — inputs changed since this run" : undefined}
-      >
-        <span
-          className={`data text-xs text-[var(--color-text-muted)] ${
-            stale ? "line-through decoration-1" : ""
-          }`}
-        >
-          {value}
-        </span>
-      </div>
+        ) : (
+          <span
+            className={`pill pill--ghost data tabular-nums ${
+              stale ? "line-through decoration-1" : ""
+            }`}
+          >
+            {value}
+          </span>
+        )}
+      </CellShell>
     );
   }
 
   if (route.status === "missing-key") {
     return (
-      <span
-        title={`Set ${envFor(provider)} to enable this route`}
-        className="pill pill--warn flex justify-end"
-      >
-        <KeyIcon />
-        no key
-      </span>
+      <CellShell>
+        <span
+          title={`Set ${envFor(provider)} to enable this route`}
+          className="pill pill--warn"
+        >
+          <KeyIcon />
+          no key
+        </span>
+      </CellShell>
     );
   }
 
-  // Pre-run: truly blank. The dot is reserved for the running state.
-  return <span aria-hidden="true" className="block" />;
+  // Pre-run: blank cell shell so row geometry stays constant.
+  return <CellShell />;
+}
+
+/*
+ * Single cell scaffolding — pins the primary value to vertical center and
+ * always reserves a 12px subline below it for cost (or a transparent
+ * placeholder). Keeps row sweep flat regardless of which states (cost,
+ * pill, em-dash, no-key chip) coexist in a row.
+ */
+function CellShell({
+  children,
+  cost,
+  stale,
+  title,
+}: {
+  children?: React.ReactNode;
+  cost?: string;
+  stale?: boolean;
+  title?: string;
+}) {
+  return (
+    <div
+      className={`flex flex-col items-end gap-0.5 ${stale ? "opacity-50" : ""}`}
+      title={title}
+    >
+      <div className="flex h-5 items-center justify-end">{children}</div>
+      <div className="flex h-3 items-center justify-end">
+        {cost ? (
+          <span
+            className={`data text-[10px] text-[var(--color-text-faint)] ${
+              stale ? "line-through decoration-1" : ""
+            }`}
+          >
+            {cost}
+          </span>
+        ) : (
+          <span aria-hidden="true" className="text-[10px] opacity-0">
+            $0.0000
+          </span>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function envFor(provider: ProviderRoute): string {

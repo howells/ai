@@ -146,7 +146,7 @@ export function BenchmarkToolbar({
         onToggle={() => update("configuredOnly", !filters.configuredOnly)}
       />
 
-      <span className="ml-auto hidden whitespace-nowrap text-[12px] text-[var(--color-text-muted)] lg:inline">
+      <span className="ml-auto whitespace-nowrap text-[12px] text-[var(--color-text-muted)]">
         <span className="data tabular-nums text-[var(--color-text)]">
           {filteredCount}
         </span>
@@ -159,14 +159,13 @@ export function BenchmarkToolbar({
       </span>
 
       {/*
-       * Bulk-action buttons live above 1280px only — narrow viewports rely on
-       * the row checkboxes and the "Configured" toggle, keeping the toolbar
-       * to a single calm line.
+       * Bulk-action buttons stay visible at every width — they're small and
+       * essential. The filter facet pills compress before these do.
        */}
       <button
         type="button"
         onClick={onSelectAll}
-        className="hidden xl:inline-flex cursor-pointer whitespace-nowrap rounded-[var(--radius-pill)] px-2.5 py-1 text-[12px] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
+        className="cursor-pointer whitespace-nowrap rounded-[var(--radius-pill)] px-2.5 py-1 text-[12px] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
       >
         Select visible
       </button>
@@ -174,7 +173,7 @@ export function BenchmarkToolbar({
         type="button"
         onClick={onClearSelection}
         disabled={selectedModelCount === 0}
-        className="hidden xl:inline-flex cursor-pointer whitespace-nowrap rounded-[var(--radius-pill)] px-2.5 py-1 text-[12px] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-raised)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40"
+        className="cursor-pointer whitespace-nowrap rounded-[var(--radius-pill)] px-2.5 py-1 text-[12px] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-raised)] hover:text-[var(--color-text)] disabled:cursor-not-allowed disabled:opacity-40"
       >
         Clear
       </button>

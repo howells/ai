@@ -150,6 +150,16 @@ body {
   background: var(--color-raised);
   color: var(--color-text-muted);
 }
+/*
+ * Transparent variant — same geometry as .pill--best so cells reserve identical
+ * space whether they hold a coloured pill or a plain value, preventing layout
+ * shift when the "best in row" highlight toggles between providers.
+ */
+.pill--ghost {
+  background: transparent;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
 
 /* Scrollbar — subtle on warm surfaces. */
 .scrollbar-thin::-webkit-scrollbar {
@@ -169,33 +179,34 @@ body {
 
 /*
  * Horizontal scroll-shadow — Lea Verou's pattern, retuned for warm canvas.
- * Cover gradients ride scroll content with the surface color; pinned shadows
- * appear only when content extends beyond the viewport.
+ * Cover gradients ride scroll content with a visible warm-grey so the fade
+ * actually reads against the white surface; pinned shadows appear only when
+ * content extends beyond the viewport.
  */
 .scroll-shadow-x {
   background:
     linear-gradient(
         to right,
-        var(--color-surface) 30%,
+        var(--color-overlay) 0%,
         oklch(1 0 0 / 0)
       )
-      left center / 36px 100% no-repeat,
+      left center / 24px 100% no-repeat,
     linear-gradient(
         to left,
-        var(--color-surface) 30%,
+        var(--color-overlay) 0%,
         oklch(1 0 0 / 0)
       )
-      right center / 36px 100% no-repeat,
+      right center / 24px 100% no-repeat,
     linear-gradient(
         to right,
-        oklch(0 0 0 / 0.05),
-        oklch(0 0 0 / 0) 30%
+        oklch(0 0 0 / 0.08),
+        oklch(0 0 0 / 0) 60%
       )
       left center / 14px 100% no-repeat,
     linear-gradient(
         to left,
-        oklch(0 0 0 / 0.05),
-        oklch(0 0 0 / 0) 30%
+        oklch(0 0 0 / 0.08),
+        oklch(0 0 0 / 0) 60%
       )
       right center / 14px 100% no-repeat,
     var(--color-surface);

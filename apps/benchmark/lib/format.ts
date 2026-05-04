@@ -15,6 +15,18 @@ export function formatTpsWithUnit(value: number): string {
   return `${formatTps(value)} t/s`;
 }
 
+/*
+ * Per-cell cost format. Always 4 decimals so the cost column reads as a
+ * single rhythm — no `$0` / `<$0.0001` / `$0.0001` mix in adjacent rows.
+ * Sub-rounding (|value| < 0.00005) collapses to `$0.0000` instead of the
+ * less-than form so cells stay typographically aligned.
+ */
+export function formatUsd(value: number): string {
+  if (!Number.isFinite(value) || Math.abs(value) < 0.00005) return "$0.0000";
+  if (value < 0.01) return `$${value.toFixed(4)}`;
+  return `$${value.toFixed(2)}`;
+}
+
 export function pluralize(n: number, single: string, plural?: string): string {
   if (n === 1) return single;
   return plural ?? `${single}s`;
