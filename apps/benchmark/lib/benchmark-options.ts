@@ -54,7 +54,7 @@ export const DEFAULT_ADVANCED_OPTIONS: BenchmarkAdvancedOptions = {
   reasoning: "default",
   webSearch: "off",
   responseHealing: false,
-  includeCost: false,
+  includeCost: true,
   logprobs: "off",
   tags: [],
 };

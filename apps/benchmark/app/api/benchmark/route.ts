@@ -9,6 +9,10 @@ import {
   type BenchmarkAdvancedOptions,
   buildBenchmarkGenerationOptions,
 } from "../../../lib/benchmark-options";
+import {
+  benchmarkOptionsHash,
+  persistBenchmarkResult,
+} from "../../../lib/benchmark-history";
 
 /** Allow benchmark streams to run for up to five minutes. */
 export const maxDuration = 300;
@@ -36,6 +40,7 @@ interface BenchmarkResult {
   outputTokens: number;
   inputTokens: number;
   tokensPerSecond: number;
+  costUsd?: number;
   output: string;
   error?: string;
   region: string;
@@ -95,8 +100,12 @@ async function executeRun(
 
     const totalTime = performance.now() - start;
     const usage = await result.usage;
+    const providerMetadata = await Promise.resolve(
+      (result as { providerMetadata?: unknown }).providerMetadata,
+    );
     const outTokens = usage.outputTokens ?? 0;
     const inTokens = usage.inputTokens ?? 0;
+    const costUsd = extractCostUsd(providerMetadata) ?? extractCostUsd(usage);
 
     return {
       model: run.model,
@@ -110,6 +119,7 @@ async function executeRun(
         totalTime > 0
           ? Math.round((outTokens / (totalTime / 1000)) * 10) / 10
           : 0,
+      ...(costUsd !== undefined ? { costUsd } : {}),
       output: output.slice(0, 500),
       region,
       round,
@@ -131,6 +141,44 @@ async function executeRun(
       round,
     };
   }
+}
+
+const COST_KEYS = new Set([
+  "cost",
+  "costUsd",
+  "cost_usd",
+  "totalCost",
+  "total_cost",
+  "totalCostUsd",
+  "total_cost_usd",
+]);
+
+function numericCost(value: unknown): number | undefined {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+        ? Number.parseFloat(value)
+        : Number.NaN;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+}
+
+function extractCostUsd(value: unknown, depth = 0): number | undefined {
+  if (!value || depth > 5 || typeof value !== "object") return undefined;
+
+  for (const [key, child] of Object.entries(value)) {
+    if (COST_KEYS.has(key)) {
+      const cost = numericCost(child);
+      if (cost !== undefined) return cost;
+    }
+  }
+
+  for (const child of Object.values(value)) {
+    const cost = extractCostUsd(child, depth + 1);
+    if (cost !== undefined) return cost;
+  }
+
+  return undefined;
 }
 
 function averageResults(results: BenchmarkResult[]): BenchmarkResult {
@@ -157,6 +205,7 @@ function averageResults(results: BenchmarkResult[]): BenchmarkResult {
       (valid.reduce((sum, r) => sum + r.tokensPerSecond, 0) / valid.length) *
         10,
     ) / 10;
+  const totalCostUsd = valid.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
 
   return {
     model: firstValid.model,
@@ -167,6 +216,7 @@ function averageResults(results: BenchmarkResult[]): BenchmarkResult {
     outputTokens: avg((r) => r.outputTokens),
     inputTokens: avg((r) => r.inputTokens),
     tokensPerSecond: avgTps,
+    ...(totalCostUsd > 0 ? { costUsd: totalCostUsd } : {}),
     output: "",
     region: firstValid.region,
     averaged: true,
@@ -200,12 +250,23 @@ export async function POST(request: NextRequest) {
 
   const region = process.env.VERCEL_REGION ?? process.env.AWS_REGION ?? "local";
   const multiRound = prompts.length > 1;
+  const optionsHash = benchmarkOptionsHash({ maxTokens, options });
+  const pendingHistoryWrites: Promise<void>[] = [];
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (data: BenchmarkResult) => {
+      const send = (data: BenchmarkResult, promptText: string) => {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+        pendingHistoryWrites.push(
+          persistBenchmarkResult({
+            prompt: promptText,
+            optionsHash,
+            result: data,
+          }).catch((error) => {
+            console.warn("Failed to persist benchmark result:", error);
+          }),
+        );
       };
 
       if (!multiRound) {
@@ -213,7 +274,7 @@ export async function POST(request: NextRequest) {
         await Promise.all(
           runs.map((run) =>
             executeRun(ai, run, firstPrompt, maxTokens, region, options).then(
-              send,
+              (result) => send(result, firstPrompt),
             ),
           ),
         );
@@ -239,7 +300,7 @@ export async function POST(request: NextRequest) {
 
           // Stream each round's results
           for (const result of roundResults) {
-            send(result);
+            send(result, promptForRound);
             const key = `${result.provider}:${result.model}`;
             const existing = allResults.get(key) ?? [];
             existing.push(result);
@@ -248,11 +309,13 @@ export async function POST(request: NextRequest) {
         }
 
         // Send averaged summaries
+        const averagedPrompt = prompts.join("\n\n---\n\n");
         for (const results of allResults.values()) {
-          send(averageResults(results));
+          send(averageResults(results), averagedPrompt);
         }
       }
 
+      await Promise.allSettled(pendingHistoryWrites);
       controller.enqueue(encoder.encode("data: [DONE]\n\n"));
       controller.close();
     },

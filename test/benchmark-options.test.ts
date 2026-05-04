@@ -18,6 +18,7 @@ describe("benchmark advanced options", () => {
       provider: "gateway",
       modelId: "anthropic/claude-sonnet-4.6",
       maxOutputTokens: 200,
+      includeCost: true,
     });
   });
 

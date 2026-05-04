@@ -22,6 +22,10 @@ import { LegendBar } from "../components/legend-bar";
 import { RunQueueStrip } from "../components/run-queue-strip";
 import { InfoIcon } from "../components/tooltip";
 import { METRIC_META, pluralize } from "../lib/format";
+import type {
+  BenchmarkHistoryResponse,
+  HistoricalProviderSummary,
+} from "../lib/history-types";
 import {
   DEFAULT_ADVANCED_OPTIONS,
   PRIVACY_OPTIONS,
@@ -37,12 +41,19 @@ import {
   type BenchmarkWebSearchMode,
 } from "../lib/benchmark-options";
 import {
+  bestProviderComparison,
+  getProviderComparisons,
+  isBetterMetric,
+  resultMetricValue,
+} from "../lib/result-insights";
+import {
   ALL_PROVIDERS,
   ALL_SERVICES,
   ALL_TASKS,
   ALL_TIERS,
   MODEL_ROWS,
   type ModelRow,
+  providerLabel,
   tiersForRow,
 } from "../lib/models";
 
@@ -131,6 +142,9 @@ export default function BenchmarkPage() {
   const [results, setResults] = useState<BenchmarkResult[]>([]);
   const [running, setRunning] = useState(false);
   const [lastSnapshot, setLastSnapshot] = useState<RunSnapshot | null>(null);
+  const [historySummaries, setHistorySummaries] = useState<
+    HistoricalProviderSummary[]
+  >([]);
   const abortRef = useRef<AbortController | null>(null);
 
   // ── Load config ────────────────────────────────────────────────────
@@ -241,6 +255,15 @@ export default function BenchmarkPage() {
     [filteredRows, rowSelection],
   );
 
+  const selectedHistoryModelLabels = useMemo(
+    () =>
+      filteredRows
+        .filter((row) => rowSelection[row.id])
+        .map((row) => row.name)
+        .sort(),
+    [filteredRows, rowSelection],
+  );
+
   const eligibleProviderCount = useMemo(
     () =>
       visibleProviders.filter((p) => availableProviders.includes(p)).length,
@@ -254,6 +277,19 @@ export default function BenchmarkPage() {
   );
   const displayResults =
     rounds > 1 ? results.filter((r) => r.averaged) : results;
+  const resultInsights = useMemo(
+    () => getRunInsights(displayResults, metric),
+    [displayResults, metric],
+  );
+  const historicalProviderInsight = useMemo(
+    () => getHistoricalProviderInsight(historySummaries, metric),
+    [historySummaries, metric],
+  );
+  const totalCostUsd = useMemo(() => {
+    const source = rounds > 1 ? displayResults : results.filter((r) => !r.averaged);
+    const total = source.reduce((sum, result) => sum + (result.costUsd ?? 0), 0);
+    return total > 0 ? total : undefined;
+  }, [displayResults, results, rounds]);
 
   const errorCount = useMemo(
     () => results.filter((r) => !r.averaged && r.error).length,
@@ -267,6 +303,46 @@ export default function BenchmarkPage() {
     if (ttfts.length === 0) return null;
     return Math.min(...ttfts);
   }, [results, rounds]);
+
+  useEffect(() => {
+    if (!configLoaded || running) return;
+    if (selectedHistoryModelLabels.length === 0 || visibleProviders.length === 0) {
+      setHistorySummaries([]);
+      return;
+    }
+
+    const controller = new AbortController();
+    const params = new URLSearchParams({
+      models: selectedHistoryModelLabels.join(","),
+      providers: visibleProviders.join(","),
+    });
+
+    void (async () => {
+      try {
+        const response = await fetch(`/api/benchmark/history?${params}`, {
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const history = (await response.json()) as BenchmarkHistoryResponse;
+        if (!controller.signal.aborted) {
+          setHistorySummaries(history.available ? history.providers : []);
+        }
+      } catch (error) {
+        if ((error as Error).name !== "AbortError") {
+          console.warn("Failed to load benchmark history:", error);
+          setHistorySummaries([]);
+        }
+      }
+    })();
+
+    return () => controller.abort();
+  }, [
+    configLoaded,
+    running,
+    results.length,
+    selectedHistoryModelLabels,
+    visibleProviders,
+  ]);
 
   // ── Stale detection ─────────────────────────────────────────────────
   const currentSnapshot = useMemo<RunSnapshot>(
@@ -506,7 +582,23 @@ export default function BenchmarkPage() {
         disabledReason={disabledReason}
         errors={errorCount}
         fastestTtft={fastestTtft}
+        fastestModel={resultInsights.fastestModel}
+        fastestModelProvider={resultInsights.fastestModelProvider}
+        fastestModelValue={resultInsights.fastestModelValue}
+        fastestProvider={resultInsights.fastestProvider}
+        fastestProviderScore={resultInsights.fastestProviderScore}
+        fastestProviderMatchedModels={
+          resultInsights.fastestProviderMatchedModels
+        }
+        historicalProvider={historicalProviderInsight?.provider}
+        historicalProviderScore={historicalProviderInsight?.score}
+        historicalProviderMatchedModels={
+          historicalProviderInsight?.matchedModels
+        }
+        metric={metric}
+        totalCostUsd={totalCostUsd}
         hasResults={displayResults.length > 0}
+        stale={isStale}
         onRun={runBenchmark}
       />
 
@@ -518,6 +610,7 @@ export default function BenchmarkPage() {
             visibleProviders={visibleProviders}
             configuredProviders={availableProviders}
             results={displayResults}
+            historicalProviders={historySummaries}
             metric={metric}
             rowSelection={rowSelection}
             onRowSelectionChange={setRowSelection}
@@ -543,6 +636,89 @@ export default function BenchmarkPage() {
       />
     </div>
   );
+}
+
+interface RunInsights {
+  fastestModel?: string;
+  fastestModelProvider?: string;
+  fastestModelValue?: number;
+  fastestProvider?: string;
+  fastestProviderScore?: number;
+  fastestProviderMatchedModels?: number;
+}
+
+interface HistoricalProviderInsight {
+  provider: string;
+  score: number;
+  matchedModels: number;
+}
+
+function getRunInsights(
+  results: readonly BenchmarkResult[],
+  metric: MetricKey,
+): RunInsights {
+  const successful = results.filter(
+    (result) => !result.error && Number.isFinite(resultMetricValue(result, metric)),
+  );
+
+  let fastestModel: string | undefined;
+  let fastestModelProvider: string | undefined;
+  let fastestModelValue: number | undefined;
+  for (const result of successful) {
+    const value = resultMetricValue(result, metric);
+    if (
+      fastestModelValue === undefined ||
+      isBetterMetric(value, fastestModelValue, metric)
+    ) {
+      fastestModelValue = value;
+      fastestModel = result.label;
+      fastestModelProvider = providerLabel(result.provider);
+    }
+  }
+
+  let fastestProvider: string | undefined;
+  let fastestProviderScore: number | undefined;
+  let fastestProviderMatchedModels: number | undefined;
+  const fastestProviderComparison = bestProviderComparison(
+    getProviderComparisons(successful, metric),
+  );
+  if (fastestProviderComparison) {
+    fastestProvider = providerLabel(fastestProviderComparison.provider);
+    fastestProviderScore = fastestProviderComparison.score;
+    fastestProviderMatchedModels = fastestProviderComparison.matchedModels;
+  }
+
+  return {
+    fastestModel,
+    fastestModelProvider,
+    fastestModelValue,
+    fastestProvider,
+    fastestProviderScore,
+    fastestProviderMatchedModels,
+  };
+}
+
+function getHistoricalProviderInsight(
+  summaries: readonly HistoricalProviderSummary[],
+  metric: MetricKey,
+): HistoricalProviderInsight | undefined {
+  let best: HistoricalProviderInsight | undefined;
+  for (const summary of summaries) {
+    const score = summary.scores[metric];
+    if (!score || score.matchedModels < 2) continue;
+    if (
+      !best ||
+      score.score < best.score ||
+      (score.score === best.score && score.matchedModels > best.matchedModels)
+    ) {
+      best = {
+        provider: providerLabel(summary.provider),
+        score: score.score,
+        matchedModels: score.matchedModels,
+      };
+    }
+  }
+  return best;
 }
 
 // ── Settings panel ──────────────────────────────────────────────────

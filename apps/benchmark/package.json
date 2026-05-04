@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@howells/ai": "workspace:*",
+    "@neondatabase/serverless": "^1.1.0",
     "@tailwindcss/postcss": "^4.2.2",
     "@tanstack/react-table": "^8.21.3",
     "geist": "^1.7.0",
