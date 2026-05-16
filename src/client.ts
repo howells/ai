@@ -43,6 +43,7 @@ import {
   PROVIDER_CONFIG_CAPABILITIES,
   resolveModels,
   resolveLanguageModelVariant,
+  resolveOpenRouterFreeModelId,
   resolveProviderLanguageModelId,
   resolveProviderModelId,
   resolveTaskModels,
@@ -306,12 +307,23 @@ export function createAI(config?: AIConfig): AIClient {
     }
   }
 
+  function resolveRequestedProvider(options?: ModelOptions): ProviderRoute {
+    if (!options?.free) return options?.provider ?? "gateway";
+    if (options.provider && options.provider !== "openrouter") {
+      throw new Error(
+        "Free model selection is only supported through provider \"openrouter\". " +
+          "Remove free: true or use provider: \"openrouter\".",
+      );
+    }
+    return "openrouter";
+  }
+
   function resolveModel(
     modelId: string,
     options?: ModelOptions,
   ): LanguageModel {
-    const provider = options?.provider ?? "gateway";
-    if (options?.provider) {
+    const provider = resolveRequestedProvider(options);
+    if (options?.provider || options?.free) {
       assertExplicitProviderConfigured(provider);
     }
 
@@ -418,8 +430,8 @@ export function createAI(config?: AIConfig): AIClient {
     modelId: string,
     options?: ModelOptions,
   ): ProviderModelConfig {
-    const provider = options?.provider ?? "gateway";
-    if (options?.provider) {
+    const provider = resolveRequestedProvider(options);
+    if (options?.provider || options?.free) {
       assertExplicitProviderConfigured(provider);
     }
     if (
@@ -502,17 +514,22 @@ export function createAI(config?: AIConfig): AIClient {
   return {
     model(tier, options) {
       const variant = resolveLanguageModelVariant(options);
-      const provider = options?.provider ?? "gateway";
-      const modelId = resolveProviderLanguageModelId(
-        matrix,
-        tier,
-        variant,
-        provider,
-        options?.task,
-        taskMatrix,
-      );
+      const provider = resolveRequestedProvider(options);
+      const modelId = options?.free
+        ? resolveOpenRouterFreeModelId(tier, variant)
+        : resolveProviderLanguageModelId(
+            matrix,
+            tier,
+            variant,
+            provider,
+            options?.task,
+            taskMatrix,
+          );
+      const routeOptions = options?.free
+        ? { ...options, provider: "openrouter" as const }
+        : options;
       assertLanguageModelCompatible(modelId, variant);
-      return resolveModel(modelId, options);
+      return resolveModel(modelId, routeOptions);
     },
 
     modelById(modelId, options) {

@@ -3,6 +3,7 @@ import {
   createAI,
   GLM_MODELS,
   KIMI_MODELS,
+  OPENAI_MODELS,
   QWEN_MODELS,
 } from "../src";
 import type { ModelTier, ProviderRoute } from "../src";
@@ -238,24 +239,24 @@ describe("createAI", () => {
     });
 
     const cases = [
-      ["nano", "gateway", "xiaomi/mimo-v2-flash"],
-      ["nano", "openrouter", "xiaomi/mimo-v2-flash"],
+      ["nano", "gateway", "openai/gpt-5.4-nano"],
+      ["nano", "openrouter", "openai/gpt-5.4-nano"],
       ["nano", "anthropic", "claude-haiku-4-5-20251001"],
       ["nano", "openai", "gpt-5.4-nano"],
       ["nano", "google", "gemini-3.1-flash-lite-preview"],
-      ["fast", "gateway", "xai/grok-4.1-fast-non-reasoning"],
-      ["fast", "openrouter", "x-ai/grok-4.1-fast"],
+      ["fast", "gateway", "google/gemini-3.1-flash-lite-preview"],
+      ["fast", "openrouter", "google/gemini-3.1-flash-lite-preview"],
       ["fast", "anthropic", "claude-haiku-4-5-20251001"],
       ["fast", "openai", "gpt-5.4-nano"],
       ["fast", "google", "gemini-3-flash-preview"],
-      ["fast", "xai", "grok-4-1-fast-non-reasoning"],
+      ["fast", "xai", "grok-4.3"],
       ["standard", "gateway", "google/gemini-3-flash"],
       ["standard", "openrouter", "google/gemini-3-flash-preview"],
       ["standard", "anthropic", "claude-sonnet-4-6"],
       ["standard", "openai", "gpt-5.4-mini"],
       ["standard", "google", "gemini-3-flash-preview"],
-      ["powerful", "gateway", "xai/grok-4.3"],
-      ["powerful", "openrouter", "x-ai/grok-4.3"],
+      ["powerful", "gateway", "google/gemini-3.1-pro-preview"],
+      ["powerful", "openrouter", "google/gemini-3.1-pro-preview"],
       ["powerful", "anthropic", "claude-opus-4-7"],
       ["powerful", "openai", "gpt-5.4"],
       ["powerful", "google", "gemini-3.1-pro-preview"],
@@ -288,13 +289,13 @@ describe("createAI", () => {
     });
 
     expect(modelIdOf(ai.model("fast", { tools: true }))).toBe(
-      "xai/grok-4.1-fast-non-reasoning",
+      "google/gemini-3.1-flash-lite-preview",
     );
     expect(
       modelIdOf(ai.model("fast", { provider: "openrouter", tools: true })),
-    ).toBe("x-ai/grok-4.1-fast");
+    ).toBe("google/gemini-3.1-flash-lite-preview");
     expect(modelIdOf(ai.model("fast", { vision: true }))).toBe(
-      "xai/grok-4.1-fast-non-reasoning",
+      "google/gemini-3.1-flash-lite-preview",
     );
     expect(
       modelIdOf(
@@ -304,10 +305,26 @@ describe("createAI", () => {
           vision: true,
         }),
       ),
-    ).toBe("x-ai/grok-4.1-fast");
+    ).toBe("google/gemini-3.1-flash-lite-preview");
     expect(
       modelIdOf(ai.model("standard", { provider: "google", vision: true })),
     ).toBe("gemini-3-flash-preview");
+  });
+
+  test("routes free tier selections through OpenRouter's managed free router", () => {
+    const ai = createAI({
+      openRouterKey: "openrouter-key",
+    });
+
+    expect(modelIdOf(ai.model("standard", { free: true }))).toBe(
+      "openrouter/free",
+    );
+    expect(
+      modelIdOf(ai.model("fast", { free: true, tools: true, vision: true })),
+    ).toBe("openrouter/free");
+    expect(() =>
+      ai.model("standard", { free: true, provider: "gateway" }),
+    ).toThrow(/only supported through provider "openrouter"/);
   });
 
   test("selects task-specific tier models and falls back per provider", () => {
@@ -342,7 +359,7 @@ describe("createAI", () => {
           task: "coding",
         }),
       ),
-    ).toBe(GLM_MODELS.GLM_5);
+    ).toBe(OPENAI_MODELS.GPT_5_3_CODEX);
     expect(
       modelIdOf(
         ai.model("standard", {

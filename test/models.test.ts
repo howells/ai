@@ -23,11 +23,13 @@ import {
   MINIMAX_MODELS,
   NEX_AGI_MODELS,
   OPENAI_MODELS,
+  OPENROUTER_MODELS,
   PROVIDER_DEFAULT_MODELS,
   PROVIDER_TASK_DEFAULT_MODELS,
   QWEN_MODELS,
   resolveModels,
   resolveLanguageModelVariant,
+  resolveOpenRouterFreeModelId,
   resolveProviderLanguageModelId,
   resolveProviderModelId,
   resolveTaskModels,
@@ -90,7 +92,6 @@ const GATEWAY_MODEL_IDS_USED = new Set([
   "alibaba/qwen3.6-plus",
   "xiaomi/mimo-v2-flash",
   "xiaomi/mimo-v2-pro",
-  "xai/grok-4.1-fast-non-reasoning",
   "xai/grok-4.3",
 ]);
 
@@ -100,14 +101,20 @@ describe("model matrix", () => {
   });
 
   test("uses provider constants for all default language model tiers", () => {
-    expect(DEFAULT_MODELS.nano.text).toBe(XIAOMI_MODELS.MIMO_V2_FLASH);
-    expect(DEFAULT_MODELS.nano.tools).toBe(XIAOMI_MODELS.MIMO_V2_FLASH);
+    expect(DEFAULT_MODELS.nano.text).toBe(OPENAI_MODELS.GPT_5_4_NANO);
+    expect(DEFAULT_MODELS.nano.tools).toBe(OPENAI_MODELS.GPT_5_4_NANO);
     expect(DEFAULT_MODELS.nano.vision).toBe(
       GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
     );
-    expect(DEFAULT_MODELS.fast.text).toBe(XAI_MODELS.GROK_4_1_FAST);
-    expect(DEFAULT_MODELS.fast.tools).toBe(XAI_MODELS.GROK_4_1_FAST);
-    expect(DEFAULT_MODELS.fast.vision).toBe(XAI_MODELS.GROK_4_1_FAST);
+    expect(DEFAULT_MODELS.fast.text).toBe(
+      GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
+    );
+    expect(DEFAULT_MODELS.fast.tools).toBe(
+      GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
+    );
+    expect(DEFAULT_MODELS.fast.vision).toBe(
+      GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
+    );
     expect(DEFAULT_MODELS.standard.text).toBe(
       GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
     );
@@ -117,7 +124,9 @@ describe("model matrix", () => {
     expect(DEFAULT_MODELS.standard.vision).toBe(
       GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
     );
-    expect(DEFAULT_MODELS.powerful.text).toBe(XAI_MODELS.GROK_4_3);
+    expect(DEFAULT_MODELS.powerful.text).toBe(
+      GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW,
+    );
     expect(DEFAULT_MODELS.reasoning.text).toBe(
       ANTHROPIC_MODELS.CLAUDE_OPUS_4_7,
     );
@@ -156,6 +165,7 @@ describe("model matrix", () => {
     expect(GLM_MODELS.GLM_5).toBe("z-ai/glm-5");
     expect(GLM_MODELS.GLM_4_7_FLASH).toBe("z-ai/glm-4.7-flash");
     expect(KIMI_MODELS.KIMI_K2_6).toBe("moonshotai/kimi-k2.6");
+    expect(OPENROUTER_MODELS.FREE).toBe("openrouter/free");
     expect(XAI_MODELS.GROK_4_3).toBe("x-ai/grok-4.3");
     expect(MINIMAX_MODELS.MINIMAX_M2_7).toBe("minimax/minimax-m2.7");
     expect(STEPFUN_MODELS.STEP_3_5_FLASH).toBe("stepfun/step-3.5-flash");
@@ -173,6 +183,7 @@ describe("model matrix", () => {
       ...Object.values(MINIMAX_MODELS),
       ...Object.values(NEX_AGI_MODELS),
       ...Object.values(OPENAI_MODELS),
+      ...Object.values(OPENROUTER_MODELS),
       ...Object.values(QWEN_MODELS),
       ...Object.values(STEPFUN_MODELS),
       ...Object.values(XAI_MODELS),
@@ -214,7 +225,7 @@ describe("model matrix", () => {
         "openrouter",
         "coding",
       ),
-    ).toBe(GLM_MODELS.GLM_5);
+    ).toBe(OPENAI_MODELS.GPT_5_3_CODEX);
     expect(
       resolveProviderLanguageModelId(
         DEFAULT_MODELS,
@@ -223,7 +234,7 @@ describe("model matrix", () => {
         "openrouter",
         "coding",
       ),
-    ).toBe(MINIMAX_MODELS.MINIMAX_M2_5);
+    ).toBe(GLM_MODELS.GLM_4_7);
     expect(
       resolveProviderLanguageModelId(
         DEFAULT_MODELS,
@@ -263,8 +274,16 @@ describe("model matrix", () => {
     });
 
     expect(taskModels.coding.standard?.text).toBe(KIMI_MODELS.KIMI_K2_5);
-    expect(taskModels.coding.standard?.tools).toBe(GLM_MODELS.GLM_5);
-    expect(taskModels.agentic.fast?.tools).toBe(XAI_MODELS.GROK_4_1_FAST);
+    expect(taskModels.coding.standard?.tools).toBe(
+      OPENAI_MODELS.GPT_5_3_CODEX,
+    );
+    expect(taskModels.agentic.fast?.tools).toBe(GLM_MODELS.GLM_4_7);
+  });
+
+  test("uses OpenRouter's managed free router for free model selection", () => {
+    expect(
+      resolveOpenRouterFreeModelId("standard", "visionTools"),
+    ).toBe(OPENROUTER_MODELS.FREE);
   });
 
   test("defines provider defaults for every tier and capability surface", () => {
@@ -472,15 +491,6 @@ describe("provider helpers", () => {
       ),
     ).toBe("google/gemini-3.1-flash-lite-preview");
 
-    expect(resolveProviderModelId(XAI_MODELS.GROK_4_1_FAST, "openrouter")).toBe(
-      "x-ai/grok-4.1-fast",
-    );
-    expect(resolveProviderModelId(XAI_MODELS.GROK_4_1_FAST, "gateway")).toBe(
-      "xai/grok-4.1-fast-non-reasoning",
-    );
-    expect(resolveProviderModelId(XAI_MODELS.GROK_4_1_FAST, "xai")).toBe(
-      "grok-4-1-fast-non-reasoning",
-    );
     expect(resolveProviderModelId(XAI_MODELS.GROK_4_3, "gateway")).toBe(
       "xai/grok-4.3",
     );
@@ -565,7 +575,7 @@ describe("provider helpers", () => {
     expect(
       canRouteModelToProvider(DEEPSEEK_MODELS.DEEPSEEK_V3_2, "anthropic"),
     ).toBe(false);
-    expect(canRouteModelToProvider(XAI_MODELS.GROK_4_1_FAST, "gateway")).toBe(
+    expect(canRouteModelToProvider(INCEPTION_MODELS.MERCURY_2, "gateway")).toBe(
       true,
     );
     expect(canRouteModelToProvider(XAI_MODELS.GROK_4_3, "xai")).toBe(true);

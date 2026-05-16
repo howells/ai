@@ -193,10 +193,10 @@ input/output is a baseline requirement for every default language model.
 
 | Tier | Text Default | Tools Default | Vision / Vision Tools Default | Use When |
 |------|--------------|---------------|-------------------------------|----------|
-| `nano` | `xiaomi/mimo-v2-flash` | `xiaomi/mimo-v2-flash` | `google/gemini-3.1-flash-lite-preview` | Cheap structured output and light vision work |
-| `fast` | `x-ai/grok-4.1-fast` | `x-ai/grok-4.1-fast` | `x-ai/grok-4.1-fast` | Low-latency tool calls, chat, image reads, long context |
+| `nano` | `openai/gpt-5.4-nano` | `openai/gpt-5.4-nano` | `google/gemini-3.1-flash-lite-preview` | Premium low-cost text plus lightweight Gemini vision |
+| `fast` | `google/gemini-3.1-flash-lite-preview` | `google/gemini-3.1-flash-lite-preview` | `google/gemini-3.1-flash-lite-preview` | Fast premium Gemini calls across text, tools, and vision |
 | `standard` | `google/gemini-3-flash-preview` | `google/gemini-3-flash-preview` | `google/gemini-3-flash-preview` | Everyday tasks, chat, coding, vision, 1M context |
-| `powerful` | `x-ai/grok-4.3` | `x-ai/grok-4.3` | `x-ai/grok-4.3` | High-quality synthesis with strong speed/cost balance |
+| `powerful` | `google/gemini-3.1-pro-preview` | `google/gemini-3.1-pro-preview` | `google/gemini-3.1-pro-preview` | High-quality premium Gemini reasoning and multimodal work |
 | `reasoning` | `anthropic/claude-opus-4.7` | `anthropic/claude-opus-4.7` | `anthropic/claude-opus-4.7` | Frontier quality and deep multi-step reasoning |
 
 ```typescript
@@ -204,6 +204,7 @@ ai.model("fast"); // fast text
 ai.model("fast", { tools: true }); // fast tool calling
 ai.model("fast", { vision: true }); // fast image understanding
 ai.model("fast", { tools: true, vision: true }); // fast image + tools
+ai.model("standard", { free: true }); // OpenRouter free-model router
 ```
 
 ### Workload Tasks
@@ -213,11 +214,11 @@ Pass `task` when the best model depends on the job more than the generic tier.
 over the same tier/capability shape.
 
 ```typescript
-ai.model("fast", { task: "coding", tools: true }); // MiniMax M2.5
-ai.model("standard", { task: "coding" }); // GLM 5
-ai.model("fast", { task: "agentic", tools: true }); // Grok 4.1 Fast
+ai.model("fast", { task: "coding", tools: true }); // GLM 4.7
+ai.model("standard", { task: "coding" }); // GPT-5.3 Codex
+ai.model("fast", { task: "agentic", tools: true }); // GLM 4.7
 ai.model("standard", { task: "vision", vision: true }); // Gemini 3 Flash Preview
-ai.model("standard", { task: "longContext" }); // Grok 4.1 Fast
+ai.model("standard", { task: "longContext" }); // Gemini 3 Flash Preview
 ```
 
 Available tasks: `general`, `coding`, `agentic`, `chat`, `bulk`, `vision`,
@@ -403,6 +404,7 @@ Route through OpenRouter or direct providers when needed:
 
 ```typescript
 ai.model("standard", { provider: "openrouter" });
+ai.model("standard", { free: true }); // always provider: "openrouter"
 ai.modelById("claude-sonnet-4-6", { provider: "anthropic" });
 ai.modelById("x-ai/grok-4.3", { provider: "xai" });
 ai.modelById("moonshotai/kimi-k2.6", { provider: "moonshotai" });
@@ -411,10 +413,12 @@ ai.modelById("moonshotai/kimi-k2.6", { provider: "moonshotai" });
 Constants use normalized package IDs. `createAI()` translates known provider
 mismatches at runtime, such as Anthropic's direct `4-6` IDs, OpenRouter and
 Google direct `google/gemini-3-flash-preview` IDs for Gemini 3 Flash,
-Gateway's `xai/grok-4.1-fast-non-reasoning`, and Alibaba-hosted Qwen IDs.
+Gateway's `google/gemini-3-flash` alias, and Alibaba-hosted Qwen IDs.
 DeepSeek, xAI, Qwen, Z.ai, and Moonshot/Kimi are direct OpenAI-compatible
 routes when their keys are configured. Other catalog services such as MiniMax,
 StepFun, Xiaomi, Inception, and Nex AGI route through Gateway or OpenRouter.
+Free selections use OpenRouter's `openrouter/free` router so the backing model
+can rotate with OpenRouter's current free inventory and requested capabilities.
 
 ## Agent Attribution
 
@@ -439,6 +443,7 @@ import {
   MINIMAX_MODELS,
   NEX_AGI_MODELS,
   OPENAI_MODELS,
+  OPENROUTER_MODELS,
   PROVIDER_TASK_DEFAULT_MODELS,
   QWEN_MODELS,
   STEPFUN_MODELS,
@@ -475,8 +480,12 @@ GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW
 
 // OpenAI
 OPENAI_MODELS.GPT_5_4_NANO              // "openai/gpt-5.4-nano"
+OPENAI_MODELS.GPT_5_4_MINI              // "openai/gpt-5.4-mini"
 OPENAI_MODELS.GPT_5_4                   // "openai/gpt-5.4"
 OPENAI_MODELS.GPT_5_3_CODEX             // "openai/gpt-5.3-codex"
+
+// OpenRouter-managed
+OPENROUTER_MODELS.FREE                  // "openrouter/free"
 
 // Qwen
 QWEN_MODELS.QWEN_3_235B_A22B_2507       // "qwen/qwen3-235b-a22b-2507"
@@ -484,7 +493,6 @@ QWEN_MODELS.QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE
 QWEN_MODELS.QWEN_3_6_PLUS               // "qwen/qwen3.6-plus"
 
 // xAI
-XAI_MODELS.GROK_4_1_FAST                // "x-ai/grok-4.1-fast"
 XAI_MODELS.GROK_4_3                     // "x-ai/grok-4.3"
 
 // Gateway/OpenRouter-only services

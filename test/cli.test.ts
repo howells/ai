@@ -89,7 +89,9 @@ describe("CLI", () => {
 
     expect(response.success).toBe(true);
     expect(data.every((row) => row.task === "coding")).toBe(true);
-    expect(data.some((row) => row.resolved === "z-ai/glm-5")).toBe(true);
+    expect(data.some((row) => row.resolved === "openai/gpt-5.3-codex")).toBe(
+      true,
+    );
   });
 
   test("prints provider status JSON without requiring keys", () => {

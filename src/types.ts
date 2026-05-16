@@ -220,6 +220,11 @@ export interface ModelOptions {
    */
   task?: ModelTask;
   /**
+   * Route through OpenRouter's free-model router for this call.
+   * This requires OpenRouter and cannot be combined with another provider.
+   */
+  free?: boolean;
+  /**
    * Override the provider route for this call.
    * Defaults to "gateway" (Vercel AI Gateway). Use "openrouter" for
    * OpenRouter proxying, or "anthropic", "openai", and "google" for direct
