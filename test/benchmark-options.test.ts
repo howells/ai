@@ -30,6 +30,7 @@ describe("benchmark advanced options", () => {
       options: {
         ...DEFAULT_ADVANCED_OPTIONS,
         routePreference: "fastest",
+        serviceTier: "priority",
         privacy: ["no-retention", "no-training"],
         allowProviders: ["anthropic"],
         denyProviders: ["openai"],
@@ -48,6 +49,7 @@ describe("benchmark advanced options", () => {
       provider: "openrouter",
       modelId: "anthropic/claude-sonnet-4.6",
       maxOutputTokens: 300,
+      serviceTier: "priority",
       routing: {
         prefer: "fastest",
         privacy: ["no-retention", "no-training"],

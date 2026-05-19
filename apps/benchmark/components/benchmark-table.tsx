@@ -1,6 +1,7 @@
 "use client";
 
 import type { ProviderRoute } from "@howells/ai";
+import type { Row } from "@tanstack/react-table";
 import {
   type ColumnDef,
   type RowSelectionState,
@@ -68,9 +69,11 @@ interface BenchmarkTableProps {
   rowSelection: RowSelectionState;
   onRowSelectionChange: (next: RowSelectionState) => void;
   density: "comfortable" | "compact";
+  grouped: boolean;
   rounds: number;
   runningKey: string | null;
   stale: boolean;
+  openRouterVariant?: string;
 }
 
 export function BenchmarkTable({
@@ -83,9 +86,11 @@ export function BenchmarkTable({
   rowSelection,
   onRowSelectionChange,
   density,
+  grouped: showGroups,
   rounds,
   runningKey,
   stale,
+  openRouterVariant,
 }: BenchmarkTableProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
@@ -193,6 +198,7 @@ export function BenchmarkTable({
               configuredProviders={configuredProviders}
               stale={stale}
               isFastestModel={resultHighlights.fastestModelKey === key}
+              openRouterVariant={openRouterVariant}
             />
           );
         },
@@ -218,6 +224,7 @@ export function BenchmarkTable({
     configuredProviders,
     metricMeta,
     stale,
+    openRouterVariant,
     density,
     resultHighlights,
     historicalProviderMap,
@@ -242,7 +249,7 @@ export function BenchmarkTable({
   });
 
   const sortedRows = table.getRowModel().rows;
-  const grouped = useMemo(() => {
+  const groupedRows = useMemo(() => {
     const map: Record<ModelGroup, typeof sortedRows> = {
       defaults: [],
       "task-optimized": [],
@@ -317,71 +324,48 @@ export function BenchmarkTable({
           </tr>
         </thead>
 
-        {GROUPS.map((groupKey) => {
-          const groupRows = grouped[groupKey];
-          if (groupRows.length === 0) return null;
-          return (
-            <tbody key={groupKey}>
-              <tr>
-                <td
-                  colSpan={columns.length}
-                  className="sticky top-9 z-20 border-b border-[var(--color-border)] bg-[var(--color-canvas)] pt-5 pr-4 pb-2 pl-[60px]"
-                >
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
-                      {GROUP_LABELS[groupKey]}
-                    </span>
-                    <span className="text-[11px] text-[var(--color-text-faint)]">
-                      {groupRows.length}
-                    </span>
-                  </div>
-                </td>
-              </tr>
-              {groupRows.map((row) => {
-                  const isSelected = row.getIsSelected();
-                  const rowBg = isSelected
-                    ? "bg-[var(--color-row-selected)]"
-                    : "bg-[var(--color-surface)]";
-                  return (
-                    <tr
-                      key={row.id}
-                      className={`group ${rowBg} transition-colors hover:bg-[var(--color-row-hover)]`}
+        {showGroups
+          ? GROUPS.map((groupKey) => {
+              const groupRows = groupedRows[groupKey];
+              if (groupRows.length === 0) return null;
+              return (
+                <tbody key={groupKey}>
+                  <tr>
+                    <td
+                      colSpan={columns.length}
+                      className="sticky top-9 z-20 border-b border-[var(--color-border)] bg-[var(--color-canvas)] pt-5 pr-4 pb-2 pl-[60px]"
                     >
-                      {row.getVisibleCells().map((cell, idx) => {
-                        const isSticky = idx <= 1;
-                        const isModelCol = idx === 1;
-                        return (
-                          <td
-                            key={cell.id}
-                            className={`border-[var(--color-border)] border-b px-4 ${cellPaddingY} ${
-                              idx === 0 ? "" : "align-middle"
-                            } ${
-                              isSticky
-                                ? `z-10 ${rowBg} group-hover:bg-[var(--color-row-hover)]`
-                                : ""
-                            } ${
-                              isModelCol
-                                ? "border-[var(--color-border)] border-r"
-                                : ""
-                            }`}
-                            style={{
-                              position: isSticky ? "sticky" : undefined,
-                              left: idx === 0 ? 0 : idx === 1 ? 36 : undefined,
-                            }}
-                          >
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext(),
-                            )}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
-            </tbody>
-          );
-        })}
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
+                          {GROUP_LABELS[groupKey]}
+                        </span>
+                        <span className="text-[11px] text-[var(--color-text-faint)]">
+                          {groupRows.length}
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                  {groupRows.map((row) => (
+                    <BenchmarkTableRow
+                      key={row.id}
+                      row={row}
+                      cellPaddingY={cellPaddingY}
+                    />
+                  ))}
+                </tbody>
+              );
+            })
+          : (
+              <tbody>
+                {sortedRows.map((row) => (
+                  <BenchmarkTableRow
+                    key={row.id}
+                    row={row}
+                    cellPaddingY={cellPaddingY}
+                  />
+                ))}
+              </tbody>
+            )}
 
         {table.getRowModel().rows.length === 0 && (
           <tbody>
@@ -400,17 +384,71 @@ export function BenchmarkTable({
   );
 }
 
+function BenchmarkTableRow({
+  row,
+  cellPaddingY,
+}: {
+  row: Row<ModelRow>;
+  cellPaddingY: string;
+}) {
+  const isSelected = row.getIsSelected();
+  const rowBg = isSelected
+    ? "bg-[var(--color-row-selected)]"
+    : "bg-[var(--color-surface)]";
+
+  return (
+    <tr
+      key={row.id}
+      className={`group ${rowBg} transition-colors hover:bg-[var(--color-row-hover)]`}
+    >
+      {row.getVisibleCells().map((cell, idx) => {
+        const isSticky = idx <= 1;
+        const isModelCol = idx === 1;
+        return (
+          <td
+            key={cell.id}
+            className={`border-[var(--color-border)] border-b px-4 ${cellPaddingY} ${
+              idx === 0 ? "" : "align-middle"
+            } ${
+              isSticky
+                ? `z-10 ${rowBg} group-hover:bg-[var(--color-row-hover)]`
+                : ""
+            } ${isModelCol ? "border-[var(--color-border)] border-r" : ""}`}
+            style={{
+              position: isSticky ? "sticky" : undefined,
+              left: idx === 0 ? 0 : idx === 1 ? 36 : undefined,
+            }}
+          >
+            {flexRender(cell.column.columnDef.cell, cell.getContext())}
+          </td>
+        );
+      })}
+    </tr>
+  );
+}
+
 function getResultCell(
   results: BenchmarkResult[],
   modelName: string,
   provider: ProviderRoute,
   metric: MetricKey,
 ): number | undefined {
-  const cell = results.find(
-    (r) => r.label === modelName && r.provider === provider,
-  );
+  const cell = findResult(results, modelName, provider);
   if (!cell || cell.error) return undefined;
   return cell[metric];
+}
+
+function findResult(
+  results: readonly BenchmarkResult[],
+  modelName: string,
+  provider: ProviderRoute,
+): BenchmarkResult | undefined {
+  const cell = results.find(
+    (r) =>
+      r.provider === provider &&
+      (r.label === modelName || r.label.startsWith(`${modelName} :`)),
+  );
+  return cell;
 }
 
 function resultKey(modelName: string, provider: ProviderRoute): string {
@@ -438,7 +476,7 @@ function getResultHighlights(
   const visibleResults = results.filter(
     (result) =>
       !result.error &&
-      rowNames.has(result.label) &&
+      rowNames.has(baseResultLabel(result.label)) &&
       providerSet.has(result.provider) &&
       Number.isFinite(resultMetricValue(result, metric)),
   );
@@ -452,7 +490,7 @@ function getResultHighlights(
       isBetterMetric(value, fastestModelValue, metric)
     ) {
       fastestModelValue = value;
-      fastestModelKey = resultKey(result.label, result.provider);
+      fastestModelKey = resultKey(baseResultLabel(result.label), result.provider);
     }
   }
 
@@ -482,7 +520,7 @@ function isBestInRow(
   if (here === undefined) return false;
 
   const rowValues = results
-    .filter((r) => r.label === modelName && !r.error)
+    .filter((r) => baseResultLabel(r.label) === modelName && !r.error)
     .map((r) => r[metric]);
   if (rowValues.length < 2) return false;
 
@@ -551,6 +589,7 @@ function ProviderCell({
   configuredProviders,
   stale,
   isFastestModel,
+  openRouterVariant,
 }: {
   row: ModelRow;
   provider: ProviderRoute;
@@ -561,11 +600,14 @@ function ProviderCell({
   configuredProviders: readonly ProviderRoute[];
   stale: boolean;
   isFastestModel: boolean;
+  openRouterVariant?: string;
 }) {
   const route = routeCellFor(row, provider, configuredProviders);
-  const result = results.find(
-    (r) => r.label === row.name && r.provider === provider,
-  );
+  const result = findResult(results, row.name, provider);
+  const providerModelId =
+    provider === "openrouter" && openRouterVariant && route.providerModelId
+      ? `${route.providerModelId.replace(/:(nitro|exacto|floor)$/, "")}:${openRouterVariant}`
+      : route.providerModelId;
 
   void rounds;
 
@@ -624,7 +666,11 @@ function ProviderCell({
       <CellShell
         cost={cost}
         stale={stale}
-        title={stale ? "Stale — inputs changed since this run" : undefined}
+        title={
+          stale
+            ? "Stale — inputs changed since this run"
+            : result.model || providerModelId
+        }
       >
         {highlight ? (
           <span
@@ -663,7 +709,11 @@ function ProviderCell({
   }
 
   // Pre-run: blank cell shell so row geometry stays constant.
-  return <CellShell />;
+  return <CellShell route={providerModelId} />;
+}
+
+function baseResultLabel(label: string): string {
+  return label.replace(/ :(nitro|exacto|floor)$/, "");
 }
 
 /*
@@ -675,11 +725,13 @@ function ProviderCell({
 function CellShell({
   children,
   cost,
+  route,
   stale,
   title,
 }: {
   children?: React.ReactNode;
   cost?: string;
+  route?: string;
   stale?: boolean;
   title?: string;
 }) {
@@ -697,6 +749,10 @@ function CellShell({
             }`}
           >
             {cost}
+          </span>
+        ) : route ? (
+          <span className="data max-w-[96px] truncate text-[10px] text-[var(--color-text-faint)]">
+            {route}
           </span>
         ) : (
           <span aria-hidden="true" className="text-[10px] opacity-0">

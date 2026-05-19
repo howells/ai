@@ -1,19 +1,25 @@
 import type {
   GenerationOptions,
+  OpenRouterModelVariant,
   PrivacyConstraint,
   ProviderRoute,
   Quantization,
   ReasoningEffort,
   RoutePreference,
+  ServiceTier,
 } from "@howells/ai";
 
 export type BenchmarkCacheMode = "off" | "ephemeral" | "ephemeral-5m" | "ephemeral-1h";
 export type BenchmarkReasoningMode = "default" | ReasoningEffort;
 export type BenchmarkWebSearchMode = "off" | "auto" | "native" | "exa";
 export type BenchmarkLogprobsMode = "off" | "basic" | "top5";
+export type BenchmarkOpenRouterVariant = "off" | OpenRouterModelVariant;
+export type BenchmarkServiceTier = "default" | ServiceTier;
 
 export interface BenchmarkAdvancedOptions {
   routePreference: RoutePreference;
+  openRouterVariant: BenchmarkOpenRouterVariant;
+  serviceTier: BenchmarkServiceTier;
   privacy: PrivacyConstraint[];
   allowProviders: string[];
   denyProviders: string[];
@@ -43,6 +49,8 @@ export interface BenchmarkGenerationInput {
 
 export const DEFAULT_ADVANCED_OPTIONS: BenchmarkAdvancedOptions = {
   routePreference: "auto",
+  openRouterVariant: "off",
+  serviceTier: "default",
   privacy: [],
   allowProviders: [],
   denyProviders: [],
@@ -67,6 +75,66 @@ export const ROUTE_PREFERENCES: readonly {
   { value: "cheapest", label: "Cheapest" },
   { value: "fastest", label: "Fastest" },
   { value: "highest-throughput", label: "Throughput" },
+  { value: "highest-quality", label: "Quality" },
+];
+
+export const OPENROUTER_VARIANTS: readonly {
+  value: BenchmarkOpenRouterVariant;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "off",
+    label: "None",
+    description: "Use OpenRouter's default provider routing.",
+  },
+  {
+    value: "nitro",
+    label: "Nitro",
+    description: "Append :nitro and sort providers by throughput.",
+  },
+  {
+    value: "exacto",
+    label: "Exacto",
+    description: "Append :exacto for quality-first tool-use routing.",
+  },
+  {
+    value: "floor",
+    label: "Floor",
+    description: "Append :floor and sort providers by price.",
+  },
+];
+
+export const SERVICE_TIERS: readonly {
+  value: BenchmarkServiceTier;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "default",
+    label: "Provider default",
+    description: "Omit service tier and let the selected provider decide.",
+  },
+  {
+    value: "auto",
+    label: "Auto",
+    description: "Use provider automatic tier selection where supported.",
+  },
+  {
+    value: "standard",
+    label: "Standard",
+    description: "Prefer the standard paid service tier where supported.",
+  },
+  {
+    value: "flex",
+    label: "Flex",
+    description: "Prefer lower-cost, slower processing where supported.",
+  },
+  {
+    value: "priority",
+    label: "Priority",
+    description: "Prefer prioritized processing where supported.",
+  },
 ];
 
 export const PRIVACY_OPTIONS: readonly {
@@ -151,6 +219,9 @@ export function buildBenchmarkGenerationOptions({
   };
 
   if (Object.keys(routing).length > 0) generation.routing = routing;
+  if (options.serviceTier !== "default") {
+    generation.serviceTier = options.serviceTier;
+  }
   if (options.fallbackModels.length > 0) {
     generation.fallbackModels = options.fallbackModels;
   }

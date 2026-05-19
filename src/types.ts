@@ -225,6 +225,16 @@ export interface ModelOptions {
    */
   free?: boolean;
   /**
+   * OpenRouter virtual model variant.
+   *
+   * - `nitro` sorts backing providers by throughput.
+   * - `exacto` uses OpenRouter's quality/tool-calling optimized routing.
+   * - `floor` sorts backing providers by price.
+   *
+   * Only valid with provider "openrouter".
+   */
+  openRouterVariant?: OpenRouterModelVariant;
+  /**
    * Override the provider route for this call.
    * Defaults to "gateway" (Vercel AI Gateway). Use "openrouter" for
    * OpenRouter proxying, or "anthropic", "openai", and "google" for direct
@@ -235,6 +245,9 @@ export interface ModelOptions {
    */
   provider?: ProviderRoute;
 }
+
+/** OpenRouter model-suffix variants such as `model:nitro`. */
+export type OpenRouterModelVariant = "nitro" | "exacto" | "floor";
 
 /** Normalized reasoning budget for generation calls. */
 export type ReasoningEffort =
@@ -285,7 +298,8 @@ export type RoutePreference =
   | "auto"
   | "cheapest"
   | "fastest"
-  | "highest-throughput";
+  | "highest-throughput"
+  | "highest-quality";
 
 /** Privacy / compliance constraints applied to provider routing. */
 export type PrivacyConstraint = "no-retention" | "no-training" | "hipaa";
@@ -323,8 +337,10 @@ export interface RoutingMaxCost {
  */
 export interface RoutingOptions {
   /**
-   * Sort upstream providers by cost, latency, or throughput.
+   * Sort upstream providers by cost, latency, throughput, or quality.
    * Maps to Vercel Gateway `sort` and OpenRouter `provider.sort`.
+   * `highest-quality` currently maps to OpenRouter Exacto-style routing;
+   * providers without a quality-routing primitive ignore it.
    */
   prefer?: RoutePreference;
   /**

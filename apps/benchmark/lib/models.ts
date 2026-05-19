@@ -191,6 +191,14 @@ function inferServiceForRow(modelId: string): ModelService {
   return inferModelService(modelId) ?? "anthropic";
 }
 
+function serviceForEntry(
+  entry: (typeof LANGUAGE_MODEL_CATALOG)[number],
+): ModelService {
+  return "service" in entry
+    ? (entry.service as ModelService)
+    : inferServiceForRow(entry.id);
+}
+
 export const MODEL_ROWS: ModelRow[] = LANGUAGE_MODEL_CATALOG.filter((entry) =>
   OFFERED_MODEL_IDS.has(entry.id),
 ).map((entry) => {
@@ -203,8 +211,7 @@ export const MODEL_ROWS: ModelRow[] = LANGUAGE_MODEL_CATALOG.filter((entry) =>
   return {
     id: entry.id,
     name: entry.name,
-    service: (entry.service as ModelService | undefined) ??
-      inferServiceForRow(entry.id),
+    service: serviceForEntry(entry),
     group: groupFor(defaultSlots, globalTaskSlots),
     defaultSlots,
     taskSlots,
@@ -409,4 +416,3 @@ export const TASK_DESCRIPTIONS: Record<ModelTask, string> = {
 
 export const SLOT_LEGEND =
   "Slots are (tier × variant) defaults this model fills. Pick a slot via createAI({ tier, variant }) and the model resolves automatically.";
-

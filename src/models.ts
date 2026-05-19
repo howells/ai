@@ -97,11 +97,13 @@ export const GLM_MODELS = {
 
 /** Supported Google model IDs for language model tiers. */
 export const GOOGLE_MODELS = {
+  /** Latest high-quality multimodal default with strong quality/cost balance. */
+  GEMINI_3_5_FLASH: "google/gemini-3.5-flash",
   /** Latest lightweight Gemini model for fastest vision/tool routing. */
   GEMINI_3_1_FLASH_LITE_PREVIEW: "google/gemini-3.1-flash-lite-preview",
   /** Latest high-capability Gemini model for powerful/reasoning routing. */
   GEMINI_3_1_PRO_PREVIEW: "google/gemini-3.1-pro-preview",
-  /** High-quality multimodal default with strong quality/cost balance. */
+  /** Legacy Gemini 3 Flash alias kept for explicit caller compatibility. */
   GEMINI_3_FLASH_PREVIEW: "google/gemini-3-flash-preview",
 } as const;
 
@@ -247,6 +249,12 @@ export const LANGUAGE_MODEL_CATALOG = [
     name: "GLM 4.6V",
     service: "zai",
     tasks: ["vision", "longContext"],
+  },
+  {
+    id: GOOGLE_MODELS.GEMINI_3_5_FLASH,
+    name: "Gemini 3.5 Flash",
+    service: "google",
+    tasks: ["general", "vision", "chat", "coding", "longContext"],
   },
   {
     id: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
@@ -432,10 +440,10 @@ export const DEFAULT_MODELS: ModelMatrix = {
     visionTools: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
   },
   standard: {
-    text: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW, // high-quality multimodal default
-    tools: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
-    vision: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
-    visionTools: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
+    text: GOOGLE_MODELS.GEMINI_3_5_FLASH, // high-quality multimodal default
+    tools: GOOGLE_MODELS.GEMINI_3_5_FLASH,
+    vision: GOOGLE_MODELS.GEMINI_3_5_FLASH,
+    visionTools: GOOGLE_MODELS.GEMINI_3_5_FLASH,
   },
   powerful: {
     text: GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW,
@@ -498,8 +506,8 @@ export const DEFAULT_TASK_MODELS: TaskModelMatrix = {
       tools: GLM_MODELS.GLM_4_7,
     },
     standard: {
-      text: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
-      tools: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
+      text: GOOGLE_MODELS.GEMINI_3_5_FLASH,
+      tools: GOOGLE_MODELS.GEMINI_3_5_FLASH,
     },
     powerful: {
       text: KIMI_MODELS.KIMI_K2_6,
@@ -518,7 +526,7 @@ export const DEFAULT_TASK_MODELS: TaskModelMatrix = {
       text: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
     },
     standard: {
-      text: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
+      text: GOOGLE_MODELS.GEMINI_3_5_FLASH,
     },
   },
   bulk: {
@@ -531,8 +539,8 @@ export const DEFAULT_TASK_MODELS: TaskModelMatrix = {
       tools: GLM_MODELS.GLM_4_7_FLASH,
     },
     standard: {
-      text: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
-      tools: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
+      text: GOOGLE_MODELS.GEMINI_3_5_FLASH,
+      tools: GOOGLE_MODELS.GEMINI_3_5_FLASH,
     },
   },
   vision: {
@@ -541,8 +549,8 @@ export const DEFAULT_TASK_MODELS: TaskModelMatrix = {
       visionTools: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
     },
     standard: {
-      vision: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
-      visionTools: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
+      vision: GOOGLE_MODELS.GEMINI_3_5_FLASH,
+      visionTools: GOOGLE_MODELS.GEMINI_3_5_FLASH,
     },
     powerful: {
       vision: GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW,
@@ -569,8 +577,8 @@ export const DEFAULT_TASK_MODELS: TaskModelMatrix = {
   },
   longContext: {
     standard: {
-      text: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
-      tools: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
+      text: GOOGLE_MODELS.GEMINI_3_5_FLASH,
+      tools: GOOGLE_MODELS.GEMINI_3_5_FLASH,
     },
     powerful: {
       text: GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW,
@@ -647,8 +655,8 @@ export const PROVIDER_DEFAULT_MODELS: ProviderLanguageModelMatrix = {
   },
   google: {
     nano: everyVariant(GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW),
-    fast: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
-    standard: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
+    fast: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
+    standard: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
     powerful: everyVariant(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW),
     reasoning: everyVariant(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW),
   },
@@ -790,24 +798,24 @@ export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
   },
   google: {
     coding: {
-      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
+      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
       powerful: everyVariant(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW),
     },
     agentic: {
-      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
+      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
       powerful: everyVariant(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW),
     },
     chat: {
-      fast: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
-      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
+      fast: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
+      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
     },
     bulk: {
       nano: everyVariant(GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW),
       fast: everyVariant(GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW),
     },
     vision: {
-      fast: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
-      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
+      fast: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
+      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
       powerful: everyVariant(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW),
     },
     reasoning: {
@@ -815,11 +823,11 @@ export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
       reasoning: everyVariant(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW),
     },
     longContext: {
-      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
+      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
       powerful: everyVariant(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW),
     },
     creative: {
-      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
+      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
       powerful: everyVariant(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW),
     },
   },
@@ -1039,6 +1047,7 @@ const LANGUAGE_MODEL_FEATURES: Record<
         ANTHROPIC_MODELS.CLAUDE_HAIKU_4_5,
         GLM_MODELS.GLM_5V_TURBO,
         GLM_MODELS.GLM_4_6V,
+        GOOGLE_MODELS.GEMINI_3_5_FLASH,
         GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
         GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW,
         GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
@@ -1303,6 +1312,9 @@ const PROVIDER_MODEL_IDS: Record<
     openrouter: "anthropic/claude-haiku-4.5",
     gateway: "anthropic/claude-haiku-4.5",
     anthropic: "claude-haiku-4-5-20251001",
+  },
+  "google/gemini-3.5-flash": {
+    google: "gemini-3.5-flash",
   },
   "google/gemini-3-flash-preview": {
     gateway: "google/gemini-3-flash",

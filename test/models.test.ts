@@ -78,6 +78,7 @@ const GATEWAY_MODEL_IDS_USED = new Set([
   "zai/glm-4.6v",
   "google/gemini-3.1-flash-lite-preview",
   "google/gemini-3.1-pro-preview",
+  "google/gemini-3.5-flash",
   "google/gemini-3-flash",
   "moonshotai/kimi-k2.6",
   "moonshotai/kimi-k2.5",
@@ -116,13 +117,13 @@ describe("model matrix", () => {
       GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
     );
     expect(DEFAULT_MODELS.standard.text).toBe(
-      GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
+      GOOGLE_MODELS.GEMINI_3_5_FLASH,
     );
     expect(DEFAULT_MODELS.standard.tools).toBe(
-      GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
+      GOOGLE_MODELS.GEMINI_3_5_FLASH,
     );
     expect(DEFAULT_MODELS.standard.vision).toBe(
-      GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
+      GOOGLE_MODELS.GEMINI_3_5_FLASH,
     );
     expect(DEFAULT_MODELS.powerful.text).toBe(
       GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW,
@@ -141,6 +142,9 @@ describe("model matrix", () => {
     );
     expect(ANTHROPIC_MODELS.CLAUDE_HAIKU_4_5).toBe(
       "anthropic/claude-haiku-4.5",
+    );
+    expect(GOOGLE_MODELS.GEMINI_3_5_FLASH).toBe(
+      "google/gemini-3.5-flash",
     );
     expect(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW).toBe(
       "google/gemini-3-flash-preview",
@@ -243,7 +247,7 @@ describe("model matrix", () => {
         "openrouter",
         "vision",
       ),
-    ).toBe(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW);
+    ).toBe(GOOGLE_MODELS.GEMINI_3_5_FLASH);
     expect(
       resolveProviderLanguageModelId(
         DEFAULT_MODELS,
@@ -433,7 +437,7 @@ describe("provider helpers", () => {
   test("infers known direct providers only", () => {
     expect(inferProvider("anthropic/claude-sonnet-4.6")).toBe("anthropic");
     expect(inferProvider("openai/gpt-5-nano")).toBe("openai");
-    expect(inferProvider("google/gemini-3-flash-preview")).toBe("google");
+    expect(inferProvider("google/gemini-3.5-flash")).toBe("google");
     expect(inferProvider("deepseek/deepseek-v3.2")).toBe("deepseek");
     expect(inferProvider("x-ai/grok-4.3")).toBe("xai");
     expect(inferProvider("qwen/qwen3.6-plus")).toBe("qwen");
@@ -472,6 +476,15 @@ describe("provider helpers", () => {
       resolveProviderModelId(ANTHROPIC_MODELS.CLAUDE_HAIKU_4_5, "anthropic"),
     ).toBe("claude-haiku-4-5-20251001");
 
+    expect(
+      resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_5_FLASH, "openrouter"),
+    ).toBe("google/gemini-3.5-flash");
+    expect(
+      resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_5_FLASH, "gateway"),
+    ).toBe("google/gemini-3.5-flash");
+    expect(
+      resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_5_FLASH, "google"),
+    ).toBe("gemini-3.5-flash");
     expect(
       resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW, "openrouter"),
     ).toBe("google/gemini-3-flash-preview");

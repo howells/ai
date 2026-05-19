@@ -75,6 +75,9 @@ import type {
   TaskModelMatrix,
 } from "./types";
 
+const OPENROUTER_VARIANTS = new Set(["nitro", "exacto", "floor"]);
+const OPENROUTER_VARIANT_PATTERN = /:(nitro|exacto|floor)$/;
+
 const OPENAI_COMPATIBLE_PROVIDER_CONFIG = {
   deepseek: {
     service: "deepseek",
@@ -318,20 +321,61 @@ export function createAI(config?: AIConfig): AIClient {
     return "openrouter";
   }
 
+  function resolveOpenRouterModelId(
+    modelId: string,
+    options?: ModelOptions,
+  ): string {
+    const resolvedId = resolveProviderModelId(modelId, "openrouter");
+    const variant = options?.openRouterVariant;
+    if (!variant) return resolvedId;
+    if (!OPENROUTER_VARIANTS.has(variant)) {
+      throw new Error(
+        `Unknown OpenRouter model variant "${variant}". ` +
+          'Use "nitro", "exacto", or "floor".',
+      );
+    }
+    return resolvedId.replace(OPENROUTER_VARIANT_PATTERN, "") + `:${variant}`;
+  }
+
+  function assertOpenRouterVariantAllowed(
+    provider: ProviderRoute,
+    options?: ModelOptions,
+  ): void {
+    if (!options?.openRouterVariant || provider === "openrouter") return;
+
+    throw new Error(
+      "OpenRouter model variants are only supported with provider \"openrouter\". " +
+        "Use provider: \"openrouter\" or remove openRouterVariant.",
+    );
+  }
+
+  function assertOpenRouterModelIdAllowed(
+    modelId: string,
+    provider: ProviderRoute,
+  ): void {
+    if (!OPENROUTER_VARIANT_PATTERN.test(modelId) || provider === "openrouter") {
+      return;
+    }
+
+    throw new Error(
+      "OpenRouter model suffixes (:nitro, :exacto, :floor) are only supported " +
+        "with provider \"openrouter\".",
+    );
+  }
+
   function resolveModel(
     modelId: string,
     options?: ModelOptions,
   ): LanguageModel {
     const provider = resolveRequestedProvider(options);
+    assertOpenRouterVariantAllowed(provider, options);
+    assertOpenRouterModelIdAllowed(modelId, provider);
     if (options?.provider || options?.free) {
       assertExplicitProviderConfigured(provider);
     }
 
     if (provider === "openrouter") {
-      return openrouter.model(
-        resolveProviderModelId(modelId, provider),
-        options,
-      );
+      return openrouter.model(resolveOpenRouterModelId(modelId, options), options);
     }
 
     if (provider === "gateway") {
@@ -431,6 +475,8 @@ export function createAI(config?: AIConfig): AIClient {
     options?: ModelOptions,
   ): ProviderModelConfig {
     const provider = resolveRequestedProvider(options);
+    assertOpenRouterVariantAllowed(provider, options);
+    assertOpenRouterModelIdAllowed(modelId, provider);
     if (options?.provider || options?.free) {
       assertExplicitProviderConfigured(provider);
     }
@@ -442,7 +488,10 @@ export function createAI(config?: AIConfig): AIClient {
       validateProviderMatch(modelId, provider);
     }
 
-    const resolvedId = resolveProviderModelId(modelId, provider);
+    const resolvedId =
+      provider === "openrouter"
+        ? resolveOpenRouterModelId(modelId, options)
+        : resolveProviderModelId(modelId, provider);
     assertLanguageModelCompatible(modelId, resolveLanguageModelVariant(options));
     const capabilities = PROVIDER_CONFIG_CAPABILITIES[provider];
     const service = inferModelService(modelId) ?? inferModelService(resolvedId);
@@ -537,6 +586,7 @@ export function createAI(config?: AIConfig): AIClient {
       if (provider) {
         assertExplicitProviderConfigured(provider);
       }
+      assertOpenRouterModelIdAllowed(modelId, provider ?? "gateway");
       if (
         provider &&
         !canRouteModelToProvider(modelId, provider) &&

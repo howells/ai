@@ -28,16 +28,20 @@ import type {
 } from "../lib/history-types";
 import {
   DEFAULT_ADVANCED_OPTIONS,
+  OPENROUTER_VARIANTS,
   PRIVACY_OPTIONS,
   QUANTIZATION_OPTIONS,
   ROUTE_PREFERENCES,
+  SERVICE_TIERS,
   formatList,
   parseList,
   setMembership,
   type BenchmarkAdvancedOptions,
   type BenchmarkCacheMode,
   type BenchmarkLogprobsMode,
+  type BenchmarkOpenRouterVariant,
   type BenchmarkReasoningMode,
+  type BenchmarkServiceTier,
   type BenchmarkWebSearchMode,
 } from "../lib/benchmark-options";
 import {
@@ -71,6 +75,7 @@ interface BenchmarkConfig {
 
 interface RunSnapshot {
   prompt: string;
+  imageInputs: string;
   rounds: number;
   maxTokens: number;
   optionsKey: string;
@@ -85,6 +90,13 @@ const DEFAULT_PROMPTS = [
 ];
 
 const DEFAULT_PROMPT = DEFAULT_PROMPTS[0] ?? "";
+
+function parseImageInputs(value: string): string[] {
+  return value
+    .split(/\n/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
 
 const INITIAL_FILTERS: ToolbarFilters = {
   search: "",
@@ -105,6 +117,7 @@ const INITIAL_SELECTION: RowSelectionState = (() => {
 
 export default function BenchmarkPage() {
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
+  const [imageInputs, setImageInputs] = useState("");
   const [rounds, setRounds] = useState(1);
   const [maxTokens, setMaxTokens] = useState(200);
   const [advancedOptions, setAdvancedOptions] =
@@ -113,6 +126,7 @@ export default function BenchmarkPage() {
   const [density, setDensity] = useState<"comfortable" | "compact">(
     "comfortable",
   );
+  const [groupRows, setGroupRows] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
@@ -146,6 +160,10 @@ export default function BenchmarkPage() {
     HistoricalProviderSummary[]
   >([]);
   const abortRef = useRef<AbortController | null>(null);
+  const activeOpenRouterVariant =
+    advancedOptions.openRouterVariant === "off"
+      ? undefined
+      : advancedOptions.openRouterVariant;
 
   // ── Load config ────────────────────────────────────────────────────
   useEffect(() => {
@@ -243,12 +261,21 @@ export default function BenchmarkPage() {
           id: `${provider}:${row.id}`,
           model: resolveProviderModelId(row.id, provider),
           provider,
-          label: row.name,
+          label:
+            provider === "openrouter" && activeOpenRouterVariant
+              ? `${row.name} :${activeOpenRouterVariant}`
+              : row.name,
         });
       }
     }
     return out;
-  }, [filteredRows, rowSelection, visibleProviders, availableProviders]);
+  }, [
+    filteredRows,
+    rowSelection,
+    visibleProviders,
+    availableProviders,
+    activeOpenRouterVariant,
+  ]);
 
   const selectedModelCount = useMemo(
     () => filteredRows.filter((row) => rowSelection[row.id]).length,
@@ -342,12 +369,14 @@ export default function BenchmarkPage() {
     results.length,
     selectedHistoryModelLabels,
     visibleProviders,
+    advancedOptions.openRouterVariant,
   ]);
 
   // ── Stale detection ─────────────────────────────────────────────────
   const currentSnapshot = useMemo<RunSnapshot>(
     () => ({
       prompt,
+      imageInputs,
       rounds,
       maxTokens,
       optionsKey: JSON.stringify(advancedOptions),
@@ -357,7 +386,15 @@ export default function BenchmarkPage() {
         .join("|"),
       providerKey: visibleProviders.join("|"),
     }),
-    [prompt, rounds, maxTokens, advancedOptions, rowSelection, visibleProviders],
+    [
+      prompt,
+      imageInputs,
+      rounds,
+      maxTokens,
+      advancedOptions,
+      rowSelection,
+      visibleProviders,
+    ],
   );
 
   const isStale = useMemo(() => {
@@ -365,6 +402,7 @@ export default function BenchmarkPage() {
     if (results.length === 0) return false;
     return (
       lastSnapshot.prompt !== currentSnapshot.prompt ||
+      lastSnapshot.imageInputs !== currentSnapshot.imageInputs ||
       lastSnapshot.rounds !== currentSnapshot.rounds ||
       lastSnapshot.maxTokens !== currentSnapshot.maxTokens ||
       lastSnapshot.optionsKey !== currentSnapshot.optionsKey
@@ -404,6 +442,7 @@ export default function BenchmarkPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: rounds > 1 ? DEFAULT_PROMPTS.slice(0, rounds) : prompt,
+          images: parseImageInputs(imageInputs),
           runs,
           maxTokens,
           options: advancedOptions,
@@ -452,6 +491,7 @@ export default function BenchmarkPage() {
     running,
     runs,
     prompt,
+    imageInputs,
     rounds,
     maxTokens,
     advancedOptions,
@@ -470,6 +510,8 @@ export default function BenchmarkPage() {
   function clearSelection() {
     setRowSelection({});
   }
+
+  const sidebarSummary = `${rounds}r · ${maxTokens}t · ${METRIC_META[metric].short}`;
 
   return (
     <div className="flex h-svh flex-col bg-[var(--color-canvas)] text-[var(--color-text)]">
@@ -500,6 +542,13 @@ export default function BenchmarkPage() {
           </span>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setSettingsOpen((open) => !open)}
+            className="rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-[12px] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
+          >
+            {settingsOpen ? "Hide settings" : "Settings"}
+          </button>
           <span className="data text-[11px] text-[var(--color-text-faint)]">
             {availableProviders.length}/{ALL_PROVIDERS.length}{" "}
             {pluralize(availableProviders.length, "key")} configured
@@ -515,125 +564,124 @@ export default function BenchmarkPage() {
         </div>
       </header>
 
-      {/* Settings panel — collapsible */}
-      <section
-        className={`shrink-0 border-[var(--color-border)] border-b bg-[var(--color-surface)] transition-[max-height,padding] duration-200 ease-out ${
-          settingsOpen
-            ? "max-h-[32rem] overflow-auto px-6 py-3"
-            : "max-h-9 overflow-hidden px-6 py-1.5"
-        }`}
-      >
-        {settingsOpen ? (
-          <SettingsPanelOpen
-            prompt={prompt}
-            onPromptChange={setPrompt}
-            rounds={rounds}
-            onRoundsChange={setRounds}
-            maxTokens={maxTokens}
-            onMaxTokensChange={setMaxTokens}
-            advancedOptions={advancedOptions}
-            onAdvancedOptionsChange={setAdvancedOptions}
-            metric={metric}
-            onMetricChange={setMetric}
-            density={density}
-            onDensityChange={setDensity}
-            onCollapse={() => setSettingsOpen(false)}
+      <div className="flex min-h-0 flex-1">
+        <aside
+          data-state={settingsOpen ? "expanded" : "collapsed"}
+          className={`min-h-0 shrink-0 border-[var(--color-border)] border-r bg-[var(--color-surface)] transition-[width] duration-200 ease-out ${
+            settingsOpen ? "w-[25rem]" : "w-12"
+          }`}
+        >
+          {settingsOpen ? (
+            <SettingsPanelOpen
+              prompt={prompt}
+              onPromptChange={setPrompt}
+              imageInputs={imageInputs}
+              onImageInputsChange={setImageInputs}
+              rounds={rounds}
+              onRoundsChange={setRounds}
+              maxTokens={maxTokens}
+              onMaxTokensChange={setMaxTokens}
+              advancedOptions={advancedOptions}
+              onAdvancedOptionsChange={setAdvancedOptions}
+              metric={metric}
+              onMetricChange={setMetric}
+              density={density}
+              onDensityChange={setDensity}
+              groupRows={groupRows}
+              onGroupRowsChange={setGroupRows}
+              onCollapse={() => setSettingsOpen(false)}
+            />
+          ) : (
+            <SettingsRail
+              summary={sidebarSummary}
+              onExpand={() => setSettingsOpen(true)}
+            />
+          )}
+        </aside>
+
+        <section className="flex min-w-0 flex-1 flex-col">
+          <BenchmarkToolbar
+            filters={filters}
+            onFiltersChange={setFilters}
+            availableProviders={availableProviders}
+            allProviders={ALL_PROVIDERS}
+            allServices={ALL_SERVICES}
+            tierCounts={tierCounts}
+            taskCounts={taskCounts}
+            serviceCounts={serviceCounts}
+            modelCount={MODEL_ROWS.length}
+            filteredCount={filteredRows.length}
+            selectedModelCount={selectedModelCount}
+            onSelectAll={selectAllFiltered}
+            onClearSelection={clearSelection}
           />
-        ) : (
-          <SettingsPanelCollapsed
-            prompt={prompt}
+
+          <RunQueueStrip
+            runs={runs.length}
+            models={selectedModelCount}
+            providers={eligibleProviderCount}
             rounds={rounds}
-            maxTokens={maxTokens}
-            advancedOptions={advancedOptions}
+            totalRequests={totalRequests}
+            completed={completed}
+            running={running}
+            disabled={!configLoaded || runs.length === 0}
+            disabledReason={disabledReason}
+            errors={errorCount}
+            fastestTtft={fastestTtft}
+            fastestModel={resultInsights.fastestModel}
+            fastestModelProvider={resultInsights.fastestModelProvider}
+            fastestModelValue={resultInsights.fastestModelValue}
+            fastestProvider={resultInsights.fastestProvider}
+            fastestProviderScore={resultInsights.fastestProviderScore}
+            fastestProviderMatchedModels={
+              resultInsights.fastestProviderMatchedModels
+            }
+            historicalProvider={historicalProviderInsight?.provider}
+            historicalProviderScore={historicalProviderInsight?.score}
+            historicalProviderMatchedModels={
+              historicalProviderInsight?.matchedModels
+            }
             metric={metric}
-            density={density}
-            onExpand={() => setSettingsOpen(true)}
+            totalCostUsd={totalCostUsd}
+            hasResults={displayResults.length > 0}
+            stale={isStale}
+            onRun={runBenchmark}
           />
-        )}
-      </section>
 
-      {/* Filter toolbar */}
-      <BenchmarkToolbar
-        filters={filters}
-        onFiltersChange={setFilters}
-        availableProviders={availableProviders}
-        allProviders={ALL_PROVIDERS}
-        allServices={ALL_SERVICES}
-        tierCounts={tierCounts}
-        taskCounts={taskCounts}
-        serviceCounts={serviceCounts}
-        modelCount={MODEL_ROWS.length}
-        filteredCount={filteredRows.length}
-        selectedModelCount={selectedModelCount}
-        onSelectAll={selectAllFiltered}
-        onClearSelection={clearSelection}
-      />
+          <main className="min-h-0 flex-1">
+            {configLoaded ? (
+              <BenchmarkTable
+                rows={filteredRows}
+                visibleProviders={visibleProviders}
+                configuredProviders={availableProviders}
+                results={displayResults}
+                historicalProviders={historySummaries}
+                metric={metric}
+                rowSelection={rowSelection}
+                onRowSelectionChange={setRowSelection}
+                density={density}
+                grouped={groupRows}
+                rounds={rounds}
+                runningKey={null}
+                stale={isStale}
+                openRouterVariant={activeOpenRouterVariant}
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center text-sm text-[var(--color-text-faint)]">
+                Loading benchmark configuration…
+              </div>
+            )}
+          </main>
 
-      {/* Run-queue strip */}
-      <RunQueueStrip
-        runs={runs.length}
-        models={selectedModelCount}
-        providers={eligibleProviderCount}
-        rounds={rounds}
-        totalRequests={totalRequests}
-        completed={completed}
-        running={running}
-        disabled={!configLoaded || runs.length === 0}
-        disabledReason={disabledReason}
-        errors={errorCount}
-        fastestTtft={fastestTtft}
-        fastestModel={resultInsights.fastestModel}
-        fastestModelProvider={resultInsights.fastestModelProvider}
-        fastestModelValue={resultInsights.fastestModelValue}
-        fastestProvider={resultInsights.fastestProvider}
-        fastestProviderScore={resultInsights.fastestProviderScore}
-        fastestProviderMatchedModels={
-          resultInsights.fastestProviderMatchedModels
-        }
-        historicalProvider={historicalProviderInsight?.provider}
-        historicalProviderScore={historicalProviderInsight?.score}
-        historicalProviderMatchedModels={
-          historicalProviderInsight?.matchedModels
-        }
-        metric={metric}
-        totalCostUsd={totalCostUsd}
-        hasResults={displayResults.length > 0}
-        stale={isStale}
-        onRun={runBenchmark}
-      />
-
-      {/* Table fills remaining viewport */}
-      <main className="min-h-0 flex-1">
-        {configLoaded ? (
-          <BenchmarkTable
-            rows={filteredRows}
-            visibleProviders={visibleProviders}
-            configuredProviders={availableProviders}
-            results={displayResults}
-            historicalProviders={historySummaries}
+          <LegendBar
             metric={metric}
-            rowSelection={rowSelection}
-            onRowSelectionChange={setRowSelection}
-            density={density}
-            rounds={rounds}
-            runningKey={null}
+            configuredCount={availableProviders.length}
+            totalProviders={ALL_PROVIDERS.length}
+            region={region}
             stale={isStale}
           />
-        ) : (
-          <div className="flex h-full items-center justify-center text-sm text-[var(--color-text-faint)]">
-            Loading benchmark configuration…
-          </div>
-        )}
-      </main>
-
-      {/* Status bar */}
-      <LegendBar
-        metric={metric}
-        configuredCount={availableProviders.length}
-        totalProviders={ALL_PROVIDERS.length}
-        region={region}
-        stale={isStale}
-      />
+        </section>
+      </div>
     </div>
   );
 }
@@ -726,6 +774,8 @@ function getHistoricalProviderInsight(
 interface SettingsOpenProps {
   prompt: string;
   onPromptChange: (next: string) => void;
+  imageInputs: string;
+  onImageInputsChange: (next: string) => void;
   rounds: number;
   onRoundsChange: (next: number) => void;
   maxTokens: number;
@@ -736,12 +786,16 @@ interface SettingsOpenProps {
   onMetricChange: (next: MetricKey) => void;
   density: "comfortable" | "compact";
   onDensityChange: (next: "comfortable" | "compact") => void;
+  groupRows: boolean;
+  onGroupRowsChange: (next: boolean) => void;
   onCollapse: () => void;
 }
 
 function SettingsPanelOpen({
   prompt,
   onPromptChange,
+  imageInputs,
+  onImageInputsChange,
   rounds,
   onRoundsChange,
   maxTokens,
@@ -752,13 +806,15 @@ function SettingsPanelOpen({
   onMetricChange,
   density,
   onDensityChange,
+  groupRows,
+  onGroupRowsChange,
   onCollapse,
 }: SettingsOpenProps) {
   const meta = METRIC_META[metric];
 
   return (
-    <div className="flex flex-col gap-2.5">
-      <div className="flex items-center justify-between">
+    <div className="scrollbar-thin flex h-full flex-col gap-3 overflow-y-auto p-4">
+      <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <span
             aria-hidden="true"
@@ -776,7 +832,7 @@ function SettingsPanelOpen({
         <button
           type="button"
           onClick={onCollapse}
-          className="cursor-pointer rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-[12px] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
+          className="shrink-0 cursor-pointer rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-[12px] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
         >
           Collapse
         </button>
@@ -785,11 +841,18 @@ function SettingsPanelOpen({
         value={prompt}
         onChange={(e) => onPromptChange(e.target.value)}
         rows={2}
-        className="w-full resize-none rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-faint)] transition-colors focus:border-[var(--color-border-strong)]"
+        className="min-h-[4.25rem] w-full resize-none rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-faint)] transition-colors focus:border-[var(--color-border-strong)]"
         placeholder="Enter your test prompt…"
       />
+      <textarea
+        value={imageInputs}
+        onChange={(e) => onImageInputsChange(e.target.value)}
+        rows={2}
+        className="min-h-[4.25rem] w-full resize-none rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-faint)] transition-colors focus:border-[var(--color-border-strong)]"
+        placeholder="Optional image URLs or data URLs, one per line…"
+      />
 
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <FieldNumber
           label="Rounds"
           tooltip="Number of independent prompts/runs per cell. With rounds > 1 the table shows the average of the rounds."
@@ -842,6 +905,17 @@ function SettingsPanelOpen({
             ]}
           />
         </FieldGroup>
+
+        <FieldGroup label="Rows">
+          <SegmentedControl
+            value={groupRows ? "grouped" : "flat"}
+            onChange={(value) => onGroupRowsChange(value === "grouped")}
+            options={[
+              { value: "flat", label: "Flat" },
+              { value: "grouped", label: "Grouped" },
+            ]}
+          />
+        </FieldGroup>
       </div>
 
       <AdvancedProviderControls
@@ -852,48 +926,25 @@ function SettingsPanelOpen({
   );
 }
 
-interface SettingsCollapsedProps {
-  prompt: string;
-  rounds: number;
-  maxTokens: number;
-  advancedOptions: BenchmarkAdvancedOptions;
-  metric: MetricKey;
-  density: "comfortable" | "compact";
+interface SettingsRailProps {
+  summary: string;
   onExpand: () => void;
 }
 
-function SettingsPanelCollapsed({
-  prompt,
-  rounds,
-  maxTokens,
-  advancedOptions,
-  metric,
-  density,
-  onExpand,
-}: SettingsCollapsedProps) {
-  const meta = METRIC_META[metric];
-  const advancedCount = countAdvancedOptions(advancedOptions);
+function SettingsRail({ summary, onExpand }: SettingsRailProps) {
   return (
-    <div className="flex h-6 items-center gap-2.5 text-[12px] text-[var(--color-text-muted)]">
-      <span
-        aria-hidden="true"
-        className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-text-muted)]"
-      />
-      <span className="font-medium text-[var(--color-text)]">Prompt</span>
-      <span className="truncate text-[var(--color-text-muted)]">
-        {prompt}
-      </span>
-      <span className="data ml-2 shrink-0 tabular-nums text-[11px] text-[var(--color-text-faint)]">
-        {rounds}r · {maxTokens}t · {meta.short} · {density}
-        {advancedCount > 0 ? ` · ${advancedCount} provider knobs` : ""}
-      </span>
+    <div className="flex h-full flex-col items-center gap-3 py-3">
       <button
         type="button"
         onClick={onExpand}
-        className="ml-auto cursor-pointer rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-0.5 text-[12px] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
+        className="grid h-8 w-8 cursor-pointer place-items-center rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-surface)] text-[16px] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
+        aria-label="Open settings"
       >
-        Expand
+        →
       </button>
+      <div className="data max-h-[20rem] rotate-180 [writing-mode:vertical-rl] text-[10px] text-[var(--color-text-faint)]">
+        {summary}
+      </div>
     </div>
   );
 }
@@ -901,6 +952,8 @@ function SettingsPanelCollapsed({
 function countAdvancedOptions(options: BenchmarkAdvancedOptions): number {
   let count = 0;
   if (options.routePreference !== "auto") count++;
+  if (options.openRouterVariant !== "off") count++;
+  if (options.serviceTier !== "default") count++;
   if (options.privacy.length > 0) count++;
   if (options.allowProviders.length > 0) count++;
   if (options.denyProviders.length > 0) count++;
@@ -946,29 +999,31 @@ function AdvancedProviderControls({
 
   return (
     <div className="mt-1 border-[var(--color-border)] border-t pt-3">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+      <div className="mb-2 flex flex-col gap-2">
+        <div className="flex items-start gap-2">
           <span
             aria-hidden="true"
-            className="h-1.5 w-1.5 rounded-full bg-[var(--color-text-faint)]"
+            className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-text-faint)]"
           />
-          <span className="text-[13px] font-medium text-[var(--color-text)]">
-            Provider behavior
-          </span>
-          <span className="text-[11px] text-[var(--color-text-faint)]">
-            Normalized controls; unsupported providers ignore unsupported fields
-          </span>
+          <div className="min-w-0">
+            <div className="text-[13px] font-medium text-[var(--color-text)]">
+              Provider behavior
+            </div>
+            <div className="text-[11px] text-[var(--color-text-faint)]">
+              Normalized controls; unsupported providers ignore unsupported fields
+            </div>
+          </div>
         </div>
         <button
           type="button"
           onClick={() => onChange(DEFAULT_ADVANCED_OPTIONS)}
-          className="cursor-pointer rounded-[var(--radius-pill)] px-2.5 py-1 text-[12px] text-[var(--color-text-faint)] transition-colors hover:bg-[var(--color-raised)] hover:text-[var(--color-text-muted)]"
+          className="w-fit cursor-pointer rounded-[var(--radius-pill)] px-2.5 py-1 text-[12px] text-[var(--color-text-faint)] transition-colors hover:bg-[var(--color-raised)] hover:text-[var(--color-text-muted)]"
         >
           Reset behavior
         </button>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-[1.2fr_1fr_1fr]">
+      <div className="grid grid-cols-1 gap-3">
         <div className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-canvas)] p-3">
           <div className="mb-2 flex items-center justify-between">
             <span className="text-[12px] font-medium text-[var(--color-text-muted)]">
@@ -983,6 +1038,42 @@ function AdvancedProviderControls({
             onChange={(value) => update("routePreference", value)}
             options={ROUTE_PREFERENCES}
           />
+          <div className="mt-2">
+            <TinySelect
+              label="OpenRouter variant"
+              value={options.openRouterVariant}
+              tooltip={
+                OPENROUTER_VARIANTS.find(
+                  (option) => option.value === options.openRouterVariant,
+                )?.description
+              }
+              onChange={(value) =>
+                update("openRouterVariant", value as BenchmarkOpenRouterVariant)
+              }
+              options={OPENROUTER_VARIANTS.map((option) => [
+                option.value,
+                option.label,
+              ])}
+            />
+          </div>
+          <div className="mt-2">
+            <TinySelect
+              label="Service tier"
+              value={options.serviceTier}
+              tooltip={
+                SERVICE_TIERS.find(
+                  (option) => option.value === options.serviceTier,
+                )?.description
+              }
+              onChange={(value) =>
+                update("serviceTier", value as BenchmarkServiceTier)
+              }
+              options={SERVICE_TIERS.map((option) => [
+                option.value,
+                option.label,
+              ])}
+            />
+          </div>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {PRIVACY_OPTIONS.map((option) => (
               <TogglePill
@@ -1005,7 +1096,7 @@ function AdvancedProviderControls({
               Disable fallback
             </TogglePill>
           </div>
-          <div className="mt-2 grid grid-cols-3 gap-2">
+          <div className="mt-2 grid grid-cols-1 gap-2">
             <TinyTextField
               label="Allow"
               value={formatList(options.allowProviders)}
@@ -1343,16 +1434,20 @@ function TinySelect<T extends string>({
   label,
   value,
   options,
+  tooltip,
   onChange,
 }: {
   label: string;
   value: T;
   options: readonly (readonly [T, string])[];
+  tooltip?: string;
   onChange: (value: T) => void;
 }) {
   return (
     <label className="flex min-w-0 flex-col gap-1">
-      <span className="text-[10px] text-[var(--color-text-faint)]">{label}</span>
+      <span className="text-[10px] text-[var(--color-text-faint)]" title={tooltip}>
+        {label}
+      </span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value as T)}

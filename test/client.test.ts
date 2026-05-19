@@ -81,12 +81,12 @@ describe("createAI", () => {
         `Provider "${provider}" was explicitly requested but ${envVar} is not configured.`,
       );
       expect(() =>
-      ai.modelById("google/gemini-3-flash-preview", { provider }),
+        ai.modelById("google/gemini-3.5-flash", { provider }),
       ).toThrow(
         `Provider "${provider}" was explicitly requested but ${envVar} is not configured.`,
       );
       expect(() =>
-      ai.modelConfig("google/gemini-3-flash-preview", { provider }),
+        ai.modelConfig("google/gemini-3.5-flash", { provider }),
       ).toThrow(
         `Provider "${provider}" was explicitly requested but ${envVar} is not configured.`,
       );
@@ -248,13 +248,13 @@ describe("createAI", () => {
       ["fast", "openrouter", "google/gemini-3.1-flash-lite-preview"],
       ["fast", "anthropic", "claude-haiku-4-5-20251001"],
       ["fast", "openai", "gpt-5.4-nano"],
-      ["fast", "google", "gemini-3-flash-preview"],
+      ["fast", "google", "gemini-3.5-flash"],
       ["fast", "xai", "grok-4.3"],
-      ["standard", "gateway", "google/gemini-3-flash"],
-      ["standard", "openrouter", "google/gemini-3-flash-preview"],
+      ["standard", "gateway", "google/gemini-3.5-flash"],
+      ["standard", "openrouter", "google/gemini-3.5-flash"],
       ["standard", "anthropic", "claude-sonnet-4-6"],
       ["standard", "openai", "gpt-5.4-mini"],
-      ["standard", "google", "gemini-3-flash-preview"],
+      ["standard", "google", "gemini-3.5-flash"],
       ["powerful", "gateway", "google/gemini-3.1-pro-preview"],
       ["powerful", "openrouter", "google/gemini-3.1-pro-preview"],
       ["powerful", "anthropic", "claude-opus-4-7"],
@@ -308,7 +308,7 @@ describe("createAI", () => {
     ).toBe("google/gemini-3.1-flash-lite-preview");
     expect(
       modelIdOf(ai.model("standard", { provider: "google", vision: true })),
-    ).toBe("gemini-3-flash-preview");
+    ).toBe("gemini-3.5-flash");
   });
 
   test("routes free tier selections through OpenRouter's managed free router", () => {
@@ -497,6 +497,55 @@ describe("createAI", () => {
         }),
       ),
     ).toBe("claude-sonnet-4-6");
+  });
+
+  test("applies OpenRouter model variants as virtual model suffixes", () => {
+    const ai = createAI({
+      openRouterKey: "openrouter-key",
+      openaiKey: "openai-key",
+    });
+
+    expect(
+      modelIdOf(
+        ai.model("standard", {
+          provider: "openrouter",
+          openRouterVariant: "nitro",
+        }),
+      ),
+    ).toBe("google/gemini-3.5-flash:nitro");
+    expect(
+      modelIdOf(
+        ai.modelById("moonshotai/kimi-k2.6", {
+          provider: "openrouter",
+          openRouterVariant: "exacto",
+        }),
+      ),
+    ).toBe("moonshotai/kimi-k2.6:exacto");
+    expect(
+      modelIdOf(
+        ai.modelById("moonshotai/kimi-k2.6:nitro", {
+          provider: "openrouter",
+          openRouterVariant: "floor",
+        }),
+      ),
+    ).toBe("moonshotai/kimi-k2.6:floor");
+    expect(
+      ai.modelConfig("moonshotai/kimi-k2.6", {
+        provider: "openrouter",
+        openRouterVariant: "exacto",
+      }),
+    ).toMatchObject({
+      id: "moonshotai/kimi-k2.6:exacto",
+    });
+    expect(() =>
+      ai.modelById("openai/gpt-5.4", {
+        provider: "openai",
+        openRouterVariant: "nitro",
+      }),
+    ).toThrow(/only supported with provider "openrouter"/);
+    expect(() => ai.modelById("openai/gpt-5.4:nitro")).toThrow(
+      /only supported with provider "openrouter"/,
+    );
   });
 
   test("exposes Voyage image embedding models", () => {
