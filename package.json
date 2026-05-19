@@ -1,6 +1,6 @@
 {
   "name": "@howells/ai",
-  "version": "0.1.17",
+  "version": "0.1.18",
   "type": "module",
   "description": "Unified AI client for all projects — Gateway, OpenRouter, direct providers, tiered language models, and retrieval models.",
   "license": "MIT",
