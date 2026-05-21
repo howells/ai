@@ -43,6 +43,7 @@ export const ALL_PROVIDERS: ProviderRoute[] = [
   "qwen",
   "zai",
   "moonshotai",
+  "groq",
 ];
 
 export const ALL_TIERS: readonly ModelTier[] = MODEL_TIERS;
@@ -317,6 +318,8 @@ export function providerLabel(p: ProviderRoute): string {
       return "Z.ai";
     case "moonshotai":
       return "Moonshot";
+    case "groq":
+      return "Groq";
   }
 }
 
@@ -342,6 +345,8 @@ export function providerShort(p: ProviderRoute): string {
       return "ZAI";
     case "moonshotai":
       return "MS";
+    case "groq":
+      return "GRQ";
   }
 }
 
@@ -382,6 +387,8 @@ export function serviceLabel(service: ModelService): string {
       return "Z.ai";
     case "moonshotai":
       return "Moonshot";
+    case "groq":
+      return "Groq";
   }
 }
 

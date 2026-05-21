@@ -4,6 +4,7 @@ import {
   GLM_MODELS,
   KIMI_MODELS,
   OPENAI_MODELS,
+  OPENROUTER_EMBED_MODELS,
   QWEN_MODELS,
 } from "../src";
 import type { ModelTier, ProviderRoute } from "../src";
@@ -22,6 +23,7 @@ const ENV_KEYS = [
   "QWEN_API_KEY",
   "ZAI_API_KEY",
   "MOONSHOT_API_KEY",
+  "GROQ_API_KEY",
 ] as const;
 
 const originalEnv = new Map<string, string | undefined>();
@@ -72,6 +74,7 @@ describe("createAI", () => {
       ["qwen", "QWEN_API_KEY"],
       ["zai", "ZAI_API_KEY"],
       ["moonshotai", "MOONSHOT_API_KEY"],
+      ["groq", "GROQ_API_KEY"],
     ] as const satisfies readonly [ProviderRoute, string][];
 
     for (const [provider, envVar] of cases) {
@@ -108,6 +111,7 @@ describe("createAI", () => {
     process.env.ANTHROPIC_API_KEY = "anthropic-key";
     process.env.XAI_API_KEY = "xai-key";
     process.env.MOONSHOT_API_KEY = "moonshot-key";
+    process.env.GROQ_API_KEY = "groq-key";
 
     expect(createAI().availableProviders).toEqual([
       "gateway",
@@ -115,6 +119,7 @@ describe("createAI", () => {
       "anthropic",
       "xai",
       "moonshotai",
+      "groq",
     ]);
   });
 
@@ -141,6 +146,7 @@ describe("createAI", () => {
       qwenKey: "qwen-key",
       zaiKey: "zai-key",
       moonshotKey: "moonshot-key",
+      groqKey: "groq-key",
     });
 
     expect(ai.availableProviders).toEqual([
@@ -153,6 +159,7 @@ describe("createAI", () => {
       "qwen",
       "zai",
       "moonshotai",
+      "groq",
     ]);
   });
 
@@ -161,11 +168,13 @@ describe("createAI", () => {
 
     process.env.MOONSHOT_API_KEY = "moonshot-key";
     process.env.ZAI_API_KEY = "zai-key";
+    process.env.GROQ_API_KEY = "groq-key";
 
-    expect(createAI().availableServices).toEqual(["zai", "moonshotai"]);
+    expect(createAI().availableServices).toEqual(["groq", "zai", "moonshotai"]);
 
     delete process.env.MOONSHOT_API_KEY;
     delete process.env.ZAI_API_KEY;
+    delete process.env.GROQ_API_KEY;
 
     expect(
       createAI({
@@ -236,6 +245,7 @@ describe("createAI", () => {
       qwenKey: "qwen-key",
       zaiKey: "zai-key",
       moonshotKey: "moonshot-key",
+      groqKey: "groq-key",
     });
 
     const cases = [
@@ -270,6 +280,7 @@ describe("createAI", () => {
       ["standard", "qwen", "qwen3.6-plus"],
       ["standard", "zai", "glm-4.7"],
       ["standard", "moonshotai", "kimi-k2.6"],
+      ["standard", "groq", "openai/gpt-oss-120b"],
     ] as const satisfies readonly [
       ModelTier,
       ProviderRoute,
@@ -567,6 +578,7 @@ describe("createAI", () => {
   test("exposes provider-neutral text embedding models", () => {
     const voyage = createAI({ voyageKey: "voyage-key" });
     const gemini = createAI({ googleKey: "google-key" });
+    const openrouter = createAI({ openRouterKey: "openrouter-key" });
 
     expect(
       modelIdOf(voyage.embeddingModel({ input: "text", provider: "voyage" })),
@@ -574,20 +586,44 @@ describe("createAI", () => {
     expect(
       modelIdOf(gemini.embeddingModel({ input: "text", provider: "gemini" })),
     ).toBe("gemini-embedding-2-preview");
+    expect(
+      modelIdOf(
+        openrouter.embeddingModel({ input: "text", provider: "openrouter" }),
+      ),
+    ).toBe("openai/text-embedding-3-small");
+  });
+
+  test("exposes curated OpenRouter embedding models", () => {
+    const ai = createAI({ openRouterKey: "openrouter-key" });
+
+    expect(modelIdOf(ai.embeddingModel({ provider: "openrouter" }))).toBe(
+      OPENROUTER_EMBED_MODELS.OPENAI_TEXT_EMBEDDING_3_SMALL,
+    );
+    expect(
+      modelIdOf(ai.embeddingModel({ input: "image", provider: "openrouter" })),
+    ).toBe(OPENROUTER_EMBED_MODELS.GEMINI_EMBEDDING_2);
+    expect(() =>
+      createAI().embeddingModel({ provider: "openrouter" }),
+    ).toThrow(
+      'Provider "openrouter" was explicitly requested but OPENROUTER_API_KEY is not configured.',
+    );
   });
 
   test("uses provider-specific embedding slot overrides", () => {
     const ai = createAI({
       googleKey: "google-key",
+      openRouterKey: "openrouter-key",
       voyageKey: "voyage-key",
       models: {
         embed: {
           voyage: "voyage-3-lite",
           gemini: "gemini-embedding-001",
+          openrouter: "openai/text-embedding-3-large",
         },
         multimodalEmbed: {
           voyage: "voyage-multimodal-3",
           gemini: "gemini-embedding-2-preview",
+          openrouter: "google/gemini-embedding-001",
         },
       },
     });
@@ -598,12 +634,18 @@ describe("createAI", () => {
     expect(modelIdOf(ai.embeddingModel({ provider: "gemini" }))).toBe(
       "gemini-embedding-001",
     );
+    expect(modelIdOf(ai.embeddingModel({ provider: "openrouter" }))).toBe(
+      "openai/text-embedding-3-large",
+    );
     expect(
       modelIdOf(ai.embeddingModel({ input: "image", provider: "voyage" })),
     ).toBe("voyage-multimodal-3");
     expect(
       modelIdOf(ai.embeddingModel({ input: "image", provider: "gemini" })),
     ).toBe("gemini-embedding-2-preview");
+    expect(
+      modelIdOf(ai.embeddingModel({ input: "image", provider: "openrouter" })),
+    ).toBe("google/gemini-embedding-001");
   });
 
   test("exposes provider-neutral runtime model config", () => {

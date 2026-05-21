@@ -786,6 +786,8 @@ function envFor(provider: ProviderRoute): string {
       return "ZAI_API_KEY";
     case "moonshotai":
       return "MOONSHOT_API_KEY";
+    case "groq":
+      return "GROQ_API_KEY";
   }
 }
 

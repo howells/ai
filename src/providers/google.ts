@@ -10,6 +10,7 @@
 
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { LanguageModel } from "ai";
+import { envValue } from "../env";
 import type { ModelOptions } from "../types";
 
 /** Direct Google provider adapter for text generation and embeddings. */
@@ -39,7 +40,7 @@ export function createGoogleProvider(
   function getClient() {
     if (client) return client;
 
-    const key = apiKey ?? process.env.GOOGLE_GEMINI_API_KEY;
+    const key = apiKey ?? envValue("GOOGLE_GEMINI_API_KEY");
     if (!key) {
       throw new Error(
         "GOOGLE_GEMINI_API_KEY is required for direct Google access. " +

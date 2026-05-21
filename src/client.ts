@@ -3,7 +3,7 @@
  *
  * Creates a configured client with provider-aware model tiers and retrieval models.
  * Text generation routes through Vercel AI Gateway by default.
- * Embeddings through Voyage AI or Google Gemini.
+ * Embeddings through Voyage AI, Google Gemini, or curated OpenRouter models.
  * Reranking through Voyage AI.
  *
  * Each createAI() call returns an independent client — no shared module state.
@@ -33,6 +33,7 @@
  */
 
 import type { LanguageModel } from "ai";
+import { envValue } from "./env";
 import {
   assertLanguageModelCompatible,
   canRouteModelToProvider,
@@ -57,6 +58,7 @@ import type { GoogleProvider } from "./providers/google";
 import { createGoogleProvider } from "./providers/google";
 import { createOpenAICompatibleProvider } from "./providers/openai-compatible";
 import { createOpenAIProvider } from "./providers/openai";
+import type { OpenRouterProvider } from "./providers/openrouter";
 import { createOpenRouterProvider } from "./providers/openrouter";
 import type { VoyageProvider } from "./providers/voyage";
 import { createVoyageProvider } from "./providers/voyage";
@@ -104,8 +106,16 @@ const OPENAI_COMPATIBLE_PROVIDER_CONFIG = {
     envVar: "MOONSHOT_API_KEY",
     baseURL: "https://api.moonshot.ai/v1",
   },
+  groq: {
+    service: "groq",
+    envVar: "GROQ_API_KEY",
+    baseURL: "https://api.groq.com/openai/v1",
+  },
 } as const satisfies Record<
-  Extract<ProviderRoute, "deepseek" | "xai" | "qwen" | "zai" | "moonshotai">,
+  Extract<
+    ProviderRoute,
+    "deepseek" | "xai" | "qwen" | "zai" | "moonshotai" | "groq"
+  >,
   {
     service: ModelService;
     envVar: string;
@@ -192,7 +202,8 @@ export interface AIClient {
     | ReturnType<VoyageProvider["embedModel"]>
     | ReturnType<VoyageProvider["multimodalEmbedModel"]>
     | ReturnType<GoogleProvider["embedModel"]>
-    | ReturnType<GoogleProvider["imageEmbedModel"]>;
+    | ReturnType<GoogleProvider["imageEmbedModel"]>
+    | ReturnType<OpenRouterProvider["embedModel"]>;
 
   /**
    * Get the Voyage reranking model for the configured rerank slot.
@@ -228,7 +239,9 @@ export function createAI(config?: AIConfig): AIClient {
   );
   const anthropic = createAnthropicProvider(config?.anthropicKey);
   const openai = createOpenAIProvider(config?.openaiKey);
-  const gateway = createGatewayProvider(config?.gatewayKey);
+  const gateway = createGatewayProvider(
+    config?.gatewayKey ?? envValue("AI_GATEWAY_API_KEY"),
+  );
   const voyage = createVoyageProvider(config?.voyageKey);
   const google = createGoogleProvider(config?.googleKey);
   const compatibleProviders = {
@@ -267,27 +280,34 @@ export function createAI(config?: AIConfig): AIClient {
       envVar: OPENAI_COMPATIBLE_PROVIDER_CONFIG.moonshotai.envVar,
       baseURL: OPENAI_COMPATIBLE_PROVIDER_CONFIG.moonshotai.baseURL,
     }),
+    groq: createOpenAICompatibleProvider({
+      provider: "groq",
+      service: "groq",
+      apiKey: getConfiguredServiceApiKey(config, "groq"),
+      envVar: OPENAI_COMPATIBLE_PROVIDER_CONFIG.groq.envVar,
+      baseURL: OPENAI_COMPATIBLE_PROVIDER_CONFIG.groq.baseURL,
+    }),
   };
 
   const available: ProviderRoute[] = [];
   // Gateway uses AI_GATEWAY_API_KEY locally and Vercel OIDC in deployments.
   if (
     config?.gatewayKey ??
-    process.env.AI_GATEWAY_API_KEY ??
-    process.env.VERCEL_ENV
+    envValue("AI_GATEWAY_API_KEY") ??
+    envValue("VERCEL_ENV")
   ) {
     available.push("gateway");
   }
-  if (config?.openRouterKey ?? process.env.OPENROUTER_API_KEY) {
+  if (config?.openRouterKey ?? envValue("OPENROUTER_API_KEY")) {
     available.push("openrouter");
   }
-  if (config?.anthropicKey ?? process.env.ANTHROPIC_API_KEY) {
+  if (config?.anthropicKey ?? envValue("ANTHROPIC_API_KEY")) {
     available.push("anthropic");
   }
-  if (config?.openaiKey ?? process.env.OPENAI_API_KEY) {
+  if (config?.openaiKey ?? envValue("OPENAI_API_KEY")) {
     available.push("openai");
   }
-  if (config?.googleKey ?? process.env.GOOGLE_GEMINI_API_KEY) {
+  if (config?.googleKey ?? envValue("GOOGLE_GEMINI_API_KEY")) {
     available.push("google");
   }
   for (const provider of Object.keys(
@@ -396,6 +416,7 @@ export function createAI(config?: AIConfig): AIClient {
       case "qwen":
       case "zai":
       case "moonshotai":
+      case "groq":
         return compatibleProviders[provider].model(providerModelId, options);
       default:
         throw new Error(`Unknown provider: ${provider}`);
@@ -405,20 +426,21 @@ export function createAI(config?: AIConfig): AIClient {
   function getProviderApiKey(provider: ProviderRoute): string | undefined {
     switch (provider) {
       case "gateway":
-        return config?.gatewayKey ?? process.env.AI_GATEWAY_API_KEY;
+        return config?.gatewayKey ?? envValue("AI_GATEWAY_API_KEY");
       case "openrouter":
-        return config?.openRouterKey ?? process.env.OPENROUTER_API_KEY;
+        return config?.openRouterKey ?? envValue("OPENROUTER_API_KEY");
       case "anthropic":
-        return config?.anthropicKey ?? process.env.ANTHROPIC_API_KEY;
+        return config?.anthropicKey ?? envValue("ANTHROPIC_API_KEY");
       case "openai":
-        return config?.openaiKey ?? process.env.OPENAI_API_KEY;
+        return config?.openaiKey ?? envValue("OPENAI_API_KEY");
       case "google":
-        return config?.googleKey ?? process.env.GOOGLE_GEMINI_API_KEY;
+        return config?.googleKey ?? envValue("GOOGLE_GEMINI_API_KEY");
       case "deepseek":
       case "xai":
       case "qwen":
       case "zai":
       case "moonshotai":
+      case "groq":
         return getConfiguredServiceApiKey(
           config,
           OPENAI_COMPATIBLE_PROVIDER_CONFIG[provider].service,
@@ -429,7 +451,9 @@ export function createAI(config?: AIConfig): AIClient {
   function isProviderConfigured(provider: ProviderRoute): boolean {
     if (provider === "gateway") {
       return Boolean(
-        config?.gatewayKey ?? process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_ENV,
+        config?.gatewayKey ??
+          envValue("AI_GATEWAY_API_KEY") ??
+          envValue("VERCEL_ENV"),
       );
     }
 
@@ -453,6 +477,7 @@ export function createAI(config?: AIConfig): AIClient {
       case "qwen":
       case "zai":
       case "moonshotai":
+      case "groq":
         return OPENAI_COMPATIBLE_PROVIDER_CONFIG[provider].envVar;
     }
   }
@@ -494,7 +519,10 @@ export function createAI(config?: AIConfig): AIClient {
         : resolveProviderModelId(modelId, provider);
     assertLanguageModelCompatible(modelId, resolveLanguageModelVariant(options));
     const capabilities = PROVIDER_CONFIG_CAPABILITIES[provider];
-    const service = inferModelService(modelId) ?? inferModelService(resolvedId);
+    const service =
+      provider === "groq"
+        ? "groq"
+        : inferModelService(modelId) ?? inferModelService(resolvedId);
     const serviceApiKey = service ? getServiceApiKey(service) : undefined;
     const serviceApiKeyEnv = service ? MODEL_SERVICE_ENV_VARS[service] : undefined;
 
@@ -553,6 +581,13 @@ export function createAI(config?: AIConfig): AIClient {
       return input === "image"
         ? google.imageEmbedModel(matrix.multimodalEmbed.gemini)
         : google.embedModel(matrix.embed.gemini);
+    }
+
+    if (provider === "openrouter") {
+      assertExplicitProviderConfigured("openrouter");
+      return input === "image"
+        ? openrouter.embedModel(matrix.multimodalEmbed.openrouter)
+        : openrouter.embedModel(matrix.embed.openrouter);
     }
 
     return input === "image"
@@ -643,13 +678,15 @@ function getConfiguredServiceApiKey(
 
   switch (service) {
     case "anthropic":
-      return config?.anthropicKey ?? process.env.ANTHROPIC_API_KEY;
+      return config?.anthropicKey ?? envValue("ANTHROPIC_API_KEY");
     case "openai":
-      return config?.openaiKey ?? process.env.OPENAI_API_KEY;
+      return config?.openaiKey ?? envValue("OPENAI_API_KEY");
     case "google":
-      return config?.googleKey ?? process.env.GOOGLE_GEMINI_API_KEY;
+      return config?.googleKey ?? envValue("GOOGLE_GEMINI_API_KEY");
+    case "groq":
+      return config?.groqKey ?? envValue("GROQ_API_KEY");
     case "deepseek":
-      return config?.deepseekKey ?? process.env.DEEPSEEK_API_KEY;
+      return config?.deepseekKey ?? envValue("DEEPSEEK_API_KEY");
     case "inception":
     case "minimax":
     case "nexagi":
@@ -657,12 +694,12 @@ function getConfiguredServiceApiKey(
     case "xiaomi":
       return config?.serviceKeys?.[service];
     case "xai":
-      return config?.xaiKey ?? process.env.XAI_API_KEY;
+      return config?.xaiKey ?? envValue("XAI_API_KEY");
     case "qwen":
-      return config?.qwenKey ?? process.env.QWEN_API_KEY;
+      return config?.qwenKey ?? envValue("QWEN_API_KEY");
     case "zai":
-      return config?.zaiKey ?? process.env.ZAI_API_KEY;
+      return config?.zaiKey ?? envValue("ZAI_API_KEY");
     case "moonshotai":
-      return config?.moonshotKey ?? process.env.MOONSHOT_API_KEY;
+      return config?.moonshotKey ?? envValue("MOONSHOT_API_KEY");
   }
 }

@@ -7,6 +7,7 @@
 
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import type { LanguageModel } from "ai";
+import { envValue } from "../env";
 import type { AppConfig, ModelOptions } from "../types";
 
 const OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1";
@@ -28,6 +29,9 @@ interface OpenRouterModelConfig {
 /** Minimal OpenRouter provider adapter used by the AI client. */
 export interface OpenRouterProvider {
   model: (modelId: string, options?: ModelOptions) => LanguageModel;
+  embedModel: (
+    modelId: string,
+  ) => ReturnType<ReturnType<typeof createOpenRouter>["textEmbeddingModel"]>;
   modelConfig: (
     modelId: `${string}/${string}`,
     options?: ModelOptions,
@@ -45,10 +49,10 @@ export function createOpenRouterProvider(
 ): OpenRouterProvider {
   let client: ReturnType<typeof createOpenRouter> | null = null;
 
-  const env = process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? "development";
+  const env = envValue("VERCEL_ENV") ?? envValue("NODE_ENV") ?? "development";
 
   function getApiKey() {
-    const key = apiKey ?? process.env.OPENROUTER_API_KEY;
+    const key = apiKey ?? envValue("OPENROUTER_API_KEY");
     if (!key) {
       throw new Error(
         "OPENROUTER_API_KEY is required. Pass it to createAI() or set the environment variable.",
@@ -89,6 +93,9 @@ export function createOpenRouterProvider(
     model(modelId, options) {
       const user = getUser(options);
       return getClient()(modelId, user ? { user } : {});
+    },
+    embedModel(modelId) {
+      return getClient().textEmbeddingModel(modelId);
     },
     modelConfig(modelId, _options) {
       const headers = getHeaders();

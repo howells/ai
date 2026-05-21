@@ -119,6 +119,14 @@ export const OPENAI_MODELS = {
   GPT_5_3_CODEX: "openai/gpt-5.3-codex",
 } as const;
 
+/** Supported Groq model IDs for direct high-throughput routing. */
+export const GROQ_MODELS = {
+  /** OpenAI open-weight 120B model served directly by Groq. */
+  GPT_OSS_120B: "openai/gpt-oss-120b",
+  /** Fast OpenAI open-weight 20B model served directly by Groq. */
+  GPT_OSS_20B: "openai/gpt-oss-20b",
+} as const;
+
 /** Supported xAI model IDs for language model tier variants. */
 export const XAI_MODELS = {
   /** Current xAI flagship for high-quality long-context agent work. */
@@ -341,6 +349,18 @@ export const LANGUAGE_MODEL_CATALOG = [
     tasks: ["coding", "agentic"],
   },
   {
+    id: GROQ_MODELS.GPT_OSS_120B,
+    name: "GPT-OSS 120B",
+    service: "groq",
+    tasks: ["general", "reasoning", "agentic", "chat"],
+  },
+  {
+    id: GROQ_MODELS.GPT_OSS_20B,
+    name: "GPT-OSS 20B",
+    service: "groq",
+    tasks: ["general", "bulk", "chat"],
+  },
+  {
     id: OPENROUTER_MODELS.FREE,
     name: "OpenRouter Free Router",
     tasks: ["general", "coding", "agentic", "chat", "bulk", "vision"],
@@ -422,6 +442,20 @@ export const GOOGLE_EMBED_MODELS = {
   GEMINI_EMBEDDING_1: "gemini-embedding-001",
 } as const;
 
+// ── OpenRouter embedding model constants ──────────────────────────────
+
+/** Curated OpenRouter embedding model IDs. Limited to OpenAI and Gemini. */
+export const OPENROUTER_EMBED_MODELS = {
+  /** Best default cost/quality pick among OpenAI and Gemini via OpenRouter. */
+  OPENAI_TEXT_EMBEDDING_3_SMALL: "openai/text-embedding-3-small",
+  /** Higher-quality OpenAI text embedding option when cost is less important. */
+  OPENAI_TEXT_EMBEDDING_3_LARGE: "openai/text-embedding-3-large",
+  /** Latest Gemini embedding model on OpenRouter, including multimodal inputs. */
+  GEMINI_EMBEDDING_2: "google/gemini-embedding-2-preview",
+  /** Stable Gemini text embedding model on OpenRouter. */
+  GEMINI_EMBEDDING_1: "google/gemini-embedding-001",
+} as const;
+
 // ── Default matrix ────────────────────────────────────────────────────
 
 /** Default tier/capability model mapping used by `createAI()` when no override exists. */
@@ -462,10 +496,12 @@ export const DEFAULT_MODELS: ModelMatrix = {
   embed: {
     voyage: VOYAGE_MODELS.VOYAGE_3, // 1024d text embeddings
     gemini: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2,
+    openrouter: OPENROUTER_EMBED_MODELS.OPENAI_TEXT_EMBEDDING_3_SMALL,
   },
   multimodalEmbed: {
     voyage: VOYAGE_MODELS.MULTIMODAL_3_5, // 1024d text + images in same space
     gemini: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2,
+    openrouter: OPENROUTER_EMBED_MODELS.GEMINI_EMBEDDING_2,
   },
   rerank: VOYAGE_MODELS.RERANK_2_5, // standard reranker (Voyage AI)
 } as const;
@@ -715,6 +751,13 @@ export const PROVIDER_DEFAULT_MODELS: ProviderLanguageModelMatrix = {
     standard: everyVariant(KIMI_MODELS.KIMI_K2_6),
     powerful: everyVariant(KIMI_MODELS.KIMI_K2_6),
     reasoning: everyVariant(KIMI_MODELS.KIMI_K2_6),
+  },
+  groq: {
+    nano: everyVariant(GROQ_MODELS.GPT_OSS_20B),
+    fast: everyVariant(GROQ_MODELS.GPT_OSS_20B),
+    standard: everyVariant(GROQ_MODELS.GPT_OSS_120B),
+    powerful: everyVariant(GROQ_MODELS.GPT_OSS_120B),
+    reasoning: everyVariant(GROQ_MODELS.GPT_OSS_120B),
   },
 } as const;
 
@@ -1004,6 +1047,27 @@ export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
       powerful: everyVariant(KIMI_MODELS.KIMI_K2_6),
     },
   },
+  groq: {
+    agentic: {
+      standard: everyVariant(GROQ_MODELS.GPT_OSS_120B),
+      powerful: everyVariant(GROQ_MODELS.GPT_OSS_120B),
+    },
+    chat: {
+      nano: everyVariant(GROQ_MODELS.GPT_OSS_20B),
+      fast: everyVariant(GROQ_MODELS.GPT_OSS_20B),
+      standard: everyVariant(GROQ_MODELS.GPT_OSS_120B),
+    },
+    bulk: {
+      nano: everyVariant(GROQ_MODELS.GPT_OSS_20B),
+      fast: everyVariant(GROQ_MODELS.GPT_OSS_20B),
+      standard: everyVariant(GROQ_MODELS.GPT_OSS_20B),
+    },
+    reasoning: {
+      standard: everyVariant(GROQ_MODELS.GPT_OSS_120B),
+      powerful: everyVariant(GROQ_MODELS.GPT_OSS_120B),
+      reasoning: everyVariant(GROQ_MODELS.GPT_OSS_120B),
+    },
+  },
 } as const;
 
 export const LANGUAGE_MODEL_CAPABILITIES: Record<
@@ -1237,6 +1301,7 @@ const PROVIDER_PREFIXES: Record<string, ProviderRoute> = {
   "z-ai": "zai",
   zai: "zai",
   moonshotai: "moonshotai",
+  groq: "groq",
 };
 
 const DIRECT_PROVIDER_PREFIXES: Record<string, ProviderRoute> = {
@@ -1250,12 +1315,14 @@ const DIRECT_PROVIDER_PREFIXES: Record<string, ProviderRoute> = {
   "z-ai": "zai",
   zai: "zai",
   moonshotai: "moonshotai",
+  groq: "groq",
 };
 
 export const MODEL_SERVICE_ENV_VARS: Partial<Record<ModelService, string>> = {
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
   google: "GOOGLE_GEMINI_API_KEY",
+  groq: "GROQ_API_KEY",
   deepseek: "DEEPSEEK_API_KEY",
   xai: "XAI_API_KEY",
   qwen: "QWEN_API_KEY",
@@ -1267,6 +1334,7 @@ const MODEL_SERVICE_PREFIXES: Record<string, ModelService> = {
   anthropic: "anthropic",
   openai: "openai",
   google: "google",
+  groq: "groq",
   deepseek: "deepseek",
   inception: "inception",
   minimax: "minimax",
@@ -1347,6 +1415,12 @@ const PROVIDER_MODEL_IDS: Record<
     gateway: "xai/grok-4.3",
     xai: "grok-4.3",
   },
+  "openai/gpt-oss-120b": {
+    groq: "openai/gpt-oss-120b",
+  },
+  "openai/gpt-oss-20b": {
+    groq: "openai/gpt-oss-20b",
+  },
   "qwen/qwen3.6-plus": {
     gateway: "alibaba/qwen3.6-plus",
   },
@@ -1369,6 +1443,8 @@ const PROVIDER_MODEL_IDS: Record<
 
 const GATEWAY_UNAVAILABLE_MODEL_IDS = new Set<string>([
   NEX_AGI_MODELS.DEEPSEEK_V3_1_NEX_N1,
+  GROQ_MODELS.GPT_OSS_120B,
+  GROQ_MODELS.GPT_OSS_20B,
   OPENROUTER_MODELS.FREE,
   QWEN_MODELS.QWEN_3_235B_A22B_2507,
   QWEN_MODELS.QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE,
@@ -1452,6 +1528,14 @@ export const PROVIDER_CONFIG_CAPABILITIES: Record<
     agentAttribution: false,
   },
   moonshotai: {
+    modelId: true,
+    apiKey: true,
+    baseURL: true,
+    headers: false,
+    appAttribution: false,
+    agentAttribution: false,
+  },
+  groq: {
     modelId: true,
     apiKey: true,
     baseURL: true,
@@ -1554,6 +1638,7 @@ export function canRouteModelToProvider(
 ): boolean {
   if (provider === "openrouter") return true;
   if (provider === "gateway") return !GATEWAY_UNAVAILABLE_MODEL_IDS.has(modelId);
+  if (PROVIDER_MODEL_IDS[modelId]?.[provider]) return true;
   if (!modelId.includes("/")) return true;
 
   const prefix = modelId.slice(0, modelId.indexOf("/"));

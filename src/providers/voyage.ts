@@ -8,6 +8,7 @@
  */
 
 import { createVoyage } from "voyage-ai-provider";
+import { envValue } from "../env";
 
 /** Voyage provider adapter for embeddings and reranking. */
 export interface VoyageProvider {
@@ -37,7 +38,7 @@ export function createVoyageProvider(
   function getClient() {
     if (client) return client;
 
-    const key = apiKey ?? process.env.VOYAGE_API_KEY;
+    const key = apiKey ?? envValue("VOYAGE_API_KEY");
     if (!key) {
       throw new Error(
         "VOYAGE_API_KEY is required. Pass it to createAI() or set the environment variable.",

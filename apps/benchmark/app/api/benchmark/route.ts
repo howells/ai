@@ -8,12 +8,15 @@ import {
 import { type NextRequest, NextResponse } from "next/server";
 import {
   type BenchmarkAdvancedOptions,
+  type BenchmarkReasoningMode,
   buildBenchmarkGenerationOptions,
+  DEFAULT_ADVANCED_OPTIONS,
 } from "../../../lib/benchmark-options";
 import {
   benchmarkOptionsHash,
   persistBenchmarkResult,
 } from "../../../lib/benchmark-history";
+import { loadBenchmarkEnv } from "../../../lib/server-env";
 
 /** Allow benchmark streams to run for up to five minutes. */
 export const maxDuration = 300;
@@ -22,6 +25,10 @@ interface RunDef {
   model: string;
   provider: ProviderRoute;
   label?: string;
+  /** Optional OpenRouter backing provider slug for this specific run. */
+  routeProvider?: string;
+  /** Optional reasoning mode override for this specific run. */
+  reasoning?: BenchmarkReasoningMode;
 }
 
 interface BenchmarkRequest {
@@ -54,6 +61,8 @@ interface BenchmarkResult {
 }
 
 export function GET() {
+  loadBenchmarkEnv();
+
   const ai = createAI({
     app: { name: "Howells AI Benchmark", url: "https://github.com/howells/ai" },
   });
@@ -95,6 +104,20 @@ async function executeRun(
       ...(images.length > 0 ? { vision: true } : {}),
       ...(openRouterVariant ? { openRouterVariant } : {}),
     });
+    const runOptions: BenchmarkAdvancedOptions | undefined =
+      (run.routeProvider && run.provider === "openrouter") || run.reasoning
+        ? {
+            ...(options ?? DEFAULT_ADVANCED_OPTIONS),
+            ...(run.routeProvider && run.provider === "openrouter"
+              ? {
+                  allowProviders: [run.routeProvider],
+                  fallbacks: false,
+                }
+              : {}),
+            ...(run.reasoning ? { reasoning: run.reasoning } : {}),
+          }
+        : options;
+
     const result = streamText({
       model,
       ...(images.length > 0
@@ -105,7 +128,7 @@ async function executeRun(
           provider: run.provider,
           modelId: run.model,
           maxTokens,
-          options,
+          options: runOptions,
         }),
       ),
     });
@@ -252,6 +275,8 @@ function averageResults(results: BenchmarkResult[]): BenchmarkResult {
  * summary for multi-round requests.
  */
 export async function POST(request: NextRequest) {
+  loadBenchmarkEnv();
+
   const body = (await request.json()) as BenchmarkRequest;
   const { runs, maxTokens = 200, options } = body;
 

@@ -43,6 +43,7 @@ export type ModelService =
   | "anthropic"
   | "openai"
   | "google"
+  | "groq"
   | "deepseek"
   | "inception"
   | "minimax"
@@ -77,7 +78,7 @@ export interface LanguageModelCatalogEntry {
 }
 
 /** Provider routes for embedding models. */
-export type EmbeddingProviderRoute = "voyage" | "gemini";
+export type EmbeddingProviderRoute = "voyage" | "gemini" | "openrouter";
 
 /** Slots that return embedding models. */
 export type EmbeddingModelSlot = "embed" | "multimodalEmbed";
@@ -153,6 +154,8 @@ export interface AIConfig {
   zaiKey?: string;
   /** Moonshot/Kimi API key. Defaults to process.env.MOONSHOT_API_KEY. */
   moonshotKey?: string;
+  /** Groq API key. Defaults to process.env.GROQ_API_KEY. */
+  groqKey?: string;
   /** Underlying service API keys for provider-routed model authors. */
   serviceKeys?: Partial<Record<ModelService, string>>;
   /** Vercel AI Gateway API key. Defaults to process.env.AI_GATEWAY_API_KEY. Auto-authenticates on Vercel. */
@@ -176,6 +179,7 @@ export interface AIConfig {
  * - "qwen"       — direct Qwen OpenAI-compatible API
  * - "zai"        — direct Z.ai OpenAI-compatible API
  * - "moonshotai" — direct Moonshot/Kimi OpenAI-compatible API
+ * - "groq"       — direct Groq OpenAI-compatible API
  */
 export type ProviderRoute =
   | "openrouter"
@@ -187,7 +191,8 @@ export type ProviderRoute =
   | "xai"
   | "qwen"
   | "zai"
-  | "moonshotai";
+  | "moonshotai"
+  | "groq";
 
 /** Input family for provider-neutral embedding model selection. */
 export type EmbeddingInputKind = "text" | "image";

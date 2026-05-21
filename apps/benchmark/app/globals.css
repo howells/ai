@@ -1,4 +1,7 @@
 @import "tailwindcss";
+@import "streamdown/styles.css";
+
+@source "../node_modules/streamdown/dist/*.js";
 
 @theme {
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
@@ -62,6 +65,17 @@
 
 :root {
   color-scheme: light;
+  --background: var(--color-canvas);
+  --foreground: var(--color-text);
+  --card: var(--color-surface);
+  --card-foreground: var(--color-text);
+  --muted: var(--color-raised);
+  --muted-foreground: var(--color-text-muted);
+  --border: var(--color-border);
+  --input: var(--color-border);
+  --primary: var(--color-cta);
+  --primary-foreground: var(--color-cta-fg);
+  --radius: var(--radius-control);
 }
 
 html,
@@ -224,4 +238,44 @@ body {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: 6px;
+}
+
+.streamdown-output {
+  color: var(--color-text);
+}
+.streamdown-output > * + * {
+  margin-top: 0.75rem;
+}
+.streamdown-output :where(p, ul, ol, pre, blockquote, table) {
+  margin-block: 0;
+}
+.streamdown-output :where(ul, ol) {
+  padding-left: 1.25rem;
+}
+.streamdown-output ul {
+  list-style: disc;
+}
+.streamdown-output ol {
+  list-style: decimal;
+}
+.streamdown-output :where(code, pre) {
+  font-family: var(--font-mono);
+}
+.streamdown-output pre {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-raised);
+  padding: 0.75rem;
+}
+.streamdown-output :not(pre) > code {
+  border-radius: 4px;
+  background: var(--color-raised);
+  padding: 0.0625rem 0.25rem;
+  font-size: 0.875em;
+}
+.streamdown-output blockquote {
+  border-left: 2px solid var(--color-border-strong);
+  color: var(--color-text-muted);
+  padding-left: 0.75rem;
 }

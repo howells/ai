@@ -19,6 +19,7 @@ function runCli(...args: string[]) {
       QWEN_API_KEY: "",
       ZAI_API_KEY: "",
       MOONSHOT_API_KEY: "",
+      GROQ_API_KEY: "",
       VERCEL_ENV: "",
     },
   });
@@ -117,6 +118,9 @@ describe("CLI", () => {
       true,
     );
     expect(data.providers.some((provider) => provider.provider === "moonshotai")).toBe(
+      true,
+    );
+    expect(data.providers.some((provider) => provider.provider === "groq")).toBe(
       true,
     );
     expect(data.services.some((service) => service.service === "moonshotai")).toBe(
