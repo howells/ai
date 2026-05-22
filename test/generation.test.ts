@@ -264,6 +264,47 @@ describe("resolveGenerationOptions", () => {
     });
   });
 
+  test("maps OpenRouter throughput preference for Nitro-equivalent routing", () => {
+    const result = resolveGenerationOptions({
+      provider: "openrouter",
+      routing: {
+        prefer: "highest-throughput",
+      },
+    });
+
+    expect(providerOptionsFor(result, "openrouter")).toMatchObject({
+      provider: {
+        sort: "throughput",
+      },
+    });
+  });
+
+  test("maps normalized quality preference to OpenRouter Exacto routing", () => {
+    const result = resolveGenerationOptions({
+      provider: "openrouter",
+      routing: {
+        prefer: "highest-quality",
+      },
+    });
+
+    expect(providerOptionsFor(result, "openrouter")).toMatchObject({
+      provider: {
+        sort: "exacto",
+      },
+    });
+  });
+
+  test("ignores normalized quality preference on Gateway", () => {
+    const result = resolveGenerationOptions({
+      provider: "gateway",
+      routing: {
+        prefer: "highest-quality",
+      },
+    });
+
+    expect(providerOptionsFor(result, "gateway")).toBeUndefined();
+  });
+
   test("maps OpenRouter web search and response-healing plugins", () => {
     const result = resolveGenerationOptions({
       provider: "openrouter",

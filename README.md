@@ -7,7 +7,7 @@ generation settings.
 ## Quick Start
 
 ```typescript
-import { createAI } from "@howells/ai";
+import { createAI, visionPrompt } from "@howells/ai";
 import { generateText, Output, streamText, embed } from "ai";
 
 const ai = createAI({
@@ -27,7 +27,9 @@ const { text: analysis } = await generateText({
     tools: true,
     vision: true,
   }),
-  prompt: "Analyze this design",
+  prompt: visionPrompt("Analyze this design", [
+    "https://example.com/design.png",
+  ]),
 });
 
 // Structured output
@@ -37,6 +39,25 @@ const { output } = await generateText({
   prompt: "Extract entities from this text",
 });
 ```
+
+## Vision Input
+
+Use `visionPrompt()` to build AI SDK-native text + image prompts from URLs,
+data URLs, or binary image data:
+
+```typescript
+const { text } = await generateText({
+  model: ai.model("standard", { vision: true }),
+  prompt: visionPrompt("What changed in this screenshot?", [
+    "https://example.com/screenshot.png",
+    { data: screenshotBytes, mediaType: "image/png" },
+  ]),
+});
+```
+
+`imagePart()` is also exported when you need to compose the AI SDK message parts
+yourself, and `visionMessage()` wraps the same content as a user message for
+APIs that expect `messages`.
 
 ## Generation Options
 
@@ -95,8 +116,9 @@ await streamText({
 | `creativity` | AI SDK `temperature` preset |
 | `cache` | Anthropic `cacheControl`, OpenRouter `cache_control`. Pass `"ephemeral"` or `{ ttl: "5m" \| "1h" }`. |
 | `serviceTier` | OpenAI/Google service tier where supported |
-| `routing` | Gateway `sort/only/order/zeroDataRetention/...`, OpenRouter `provider.{sort, only, ignore, order, allow_fallbacks, max_price, quantizations, zdr, data_collection}` |
+| `routing` | Normalized route intent. Gateway `sort/only/order/zeroDataRetention/...`, OpenRouter `provider.{sort, only, ignore, order, allow_fallbacks, max_price, quantizations, zdr, data_collection}` |
 | `fallbackModels` | Gateway `models`, OpenRouter `models` (model fallback chain) |
+| `openRouterVariant` | OpenRouter model suffixes `:nitro`, `:exacto`, `:floor` on `ai.model()` / `ai.modelById()` |
 | `tags` | Gateway `tags` (spend reporting). Ignored elsewhere. |
 | `webSearch` | OpenRouter `plugins: [{ id: "web", ... }]`. For Gateway, wire `gateway.tools.parallelSearch()` / `perplexitySearch()` via AI SDK `tools`. |
 | `responseHealing` | OpenRouter `plugins: [{ id: "response-healing" }]` (auto-repair JSON for `generateObject`). |
@@ -124,7 +146,13 @@ await generateText({
 });
 ```
 
-`routing.prefer` accepts `"auto"`, `"cheapest"`, `"fastest"`, or `"highest-throughput"`.
+`routing.prefer` accepts `"auto"`, `"cheapest"`, `"fastest"`, `"highest-throughput"`,
+or `"highest-quality"`.
+For OpenRouter, `highest-throughput` maps to `provider.sort: "throughput"`;
+`highest-quality` maps to OpenRouter's Exacto-style quality/tool-calling
+routing, and `cheapest` maps to price-sorted routing. You can also use
+`openRouterVariant: "nitro"`, `"exacto"`, or `"floor"` to send the official
+OpenRouter model suffixes explicitly.
 `routing.privacy` accepts any combination of `"no-retention"`, `"no-training"`, `"hipaa"`.
 `routing.maxCost` (OpenRouter only) takes USD-per-million-token ceilings:
 `{ promptPerMillion, completionPerMillion, requestUsd }`.
@@ -195,7 +223,7 @@ input/output is a baseline requirement for every default language model.
 |------|--------------|---------------|-------------------------------|----------|
 | `nano` | `openai/gpt-5.4-nano` | `openai/gpt-5.4-nano` | `google/gemini-3.1-flash-lite-preview` | Premium low-cost text plus lightweight Gemini vision |
 | `fast` | `google/gemini-3.1-flash-lite-preview` | `google/gemini-3.1-flash-lite-preview` | `google/gemini-3.1-flash-lite-preview` | Fast premium Gemini calls across text, tools, and vision |
-| `standard` | `google/gemini-3-flash-preview` | `google/gemini-3-flash-preview` | `google/gemini-3-flash-preview` | Everyday tasks, chat, coding, vision, 1M context |
+| `standard` | `google/gemini-3.5-flash` | `google/gemini-3.5-flash` | `google/gemini-3.5-flash` | Everyday tasks, chat, coding, vision, 1M context |
 | `powerful` | `google/gemini-3.1-pro-preview` | `google/gemini-3.1-pro-preview` | `google/gemini-3.1-pro-preview` | High-quality premium Gemini reasoning and multimodal work |
 | `reasoning` | `anthropic/claude-opus-4.7` | `anthropic/claude-opus-4.7` | `anthropic/claude-opus-4.7` | Frontier quality and deep multi-step reasoning |
 
@@ -217,8 +245,8 @@ over the same tier/capability shape.
 ai.model("fast", { task: "coding", tools: true }); // GLM 4.7
 ai.model("standard", { task: "coding" }); // GPT-5.3 Codex
 ai.model("fast", { task: "agentic", tools: true }); // GLM 4.7
-ai.model("standard", { task: "vision", vision: true }); // Gemini 3 Flash Preview
-ai.model("standard", { task: "longContext" }); // Gemini 3 Flash Preview
+ai.model("standard", { task: "vision", vision: true }); // Gemini 3.5 Flash
+ai.model("standard", { task: "longContext" }); // Gemini 3.5 Flash
 ```
 
 Available tasks: `general`, `coding`, `agentic`, `chat`, `bulk`, `vision`,
@@ -240,6 +268,11 @@ true` fails locally because DeepSeek's selected models are not vision-capable.
 | `multimodalEmbed` | `voyage-multimodal-3.5` | `gemini-embedding-2-preview` | Text + image embeddings |
 | `rerank` | `rerank-2.5` | n/a | Search result reranking |
 
+OpenRouter embedding defaults are also available through the same slots:
+`openai/text-embedding-3-small` for text and
+`google/gemini-embedding-2-preview` for multimodal inputs. The OpenRouter
+catalogue is intentionally curated to OpenAI and Gemini embedding models.
+
 ## Overriding Models
 
 Override any tier variant or retrieval model per project:
@@ -249,6 +282,7 @@ import {
   ANTHROPIC_MODELS,
   createAI,
   GOOGLE_EMBED_MODELS,
+  OPENROUTER_EMBED_MODELS,
   VOYAGE_MODELS,
 } from "@howells/ai";
 
@@ -281,10 +315,12 @@ const ai = createAI({
     embed: {
       voyage: VOYAGE_MODELS.VOYAGE_3,
       gemini: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2,
+      openrouter: OPENROUTER_EMBED_MODELS.OPENAI_TEXT_EMBEDDING_3_SMALL,
     },
     multimodalEmbed: {
       voyage: VOYAGE_MODELS.MULTIMODAL_3_5,
       gemini: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2,
+      openrouter: OPENROUTER_EMBED_MODELS.GEMINI_EMBEDDING_2,
     },
   },
 });
@@ -308,6 +344,12 @@ const imageModel = ai.embeddingModel({ input: "image", provider: "voyage" });
 // Google Gemini text embeddings (for benchmarking)
 const { embedding: g } = await embed({
   model: ai.embeddingModel({ input: "text", provider: "gemini" }),
+  value: "some text",
+});
+
+// OpenRouter text embeddings using the curated OpenAI default
+const { embedding: openRouterEmbedding } = await embed({
+  model: ai.embeddingModel({ input: "text", provider: "openrouter" }),
   value: "some text",
 });
 
@@ -365,6 +407,7 @@ one provider-specific helper.
 | `qwen` | yes | yes | no | no | no |
 | `zai` | yes | yes | no | no | no |
 | `moonshotai` | yes | yes | no | no | no |
+| `groq` | yes | yes | no | no | no |
 
 For OpenRouter direct HTTP clients, request an OpenRouter model config and pass
 `user` in the request body:
@@ -404,6 +447,8 @@ Route through OpenRouter or direct providers when needed:
 
 ```typescript
 ai.model("standard", { provider: "openrouter" });
+ai.model("standard", { provider: "openrouter", openRouterVariant: "exacto" });
+ai.modelById("openai/gpt-5.4", { provider: "openrouter", openRouterVariant: "nitro" });
 ai.model("standard", { free: true }); // always provider: "openrouter"
 ai.modelById("claude-sonnet-4-6", { provider: "anthropic" });
 ai.modelById("x-ai/grok-4.3", { provider: "xai" });
@@ -411,9 +456,9 @@ ai.modelById("moonshotai/kimi-k2.6", { provider: "moonshotai" });
 ```
 
 Constants use normalized package IDs. `createAI()` translates known provider
-mismatches at runtime, such as Anthropic's direct `4-6` IDs, OpenRouter and
-Google direct `google/gemini-3-flash-preview` IDs for Gemini 3 Flash,
-Gateway's `google/gemini-3-flash` alias, and Alibaba-hosted Qwen IDs.
+mismatches at runtime, such as Anthropic's direct `4-6` IDs, direct Google
+Gemini IDs without the `google/` prefix, legacy Gemini 3 Flash aliases, and
+Alibaba-hosted Qwen IDs.
 DeepSeek, xAI, Qwen, Z.ai, and Moonshot/Kimi are direct OpenAI-compatible
 routes when their keys are configured. Other catalog services such as MiniMax,
 StepFun, Xiaomi, Inception, and Nex AGI route through Gateway or OpenRouter.
@@ -436,6 +481,7 @@ import {
   ANTHROPIC_MODELS,
   DEEPSEEK_MODELS,
   GLM_MODELS,
+  GROQ_MODELS,
   GOOGLE_EMBED_MODELS,
   GOOGLE_MODELS,
   INCEPTION_MODELS,
@@ -473,8 +519,12 @@ KIMI_MODELS.KIMI_K2_6                   // "moonshotai/kimi-k2.6"
 KIMI_MODELS.KIMI_K2_5                   // "moonshotai/kimi-k2.5"
 KIMI_MODELS.KIMI_K2_THINKING            // "moonshotai/kimi-k2-thinking"
 
+// Groq
+GROQ_MODELS.GPT_OSS_120B                // "openai/gpt-oss-120b"
+GROQ_MODELS.GPT_OSS_20B                 // "openai/gpt-oss-20b"
+
 // Google language models
-GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW    // "google/gemini-3-flash-preview"
+GOOGLE_MODELS.GEMINI_3_5_FLASH          // "google/gemini-3.5-flash"
 GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW    // "google/gemini-3.1-pro-preview"
 GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW
 
@@ -523,6 +573,12 @@ VOYAGE_MODELS.RERANK_2_5_LITE     // "rerank-2.5-lite"
 // Google
 GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2  // "gemini-embedding-2-preview"
 GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_1  // "gemini-embedding-001"
+
+// OpenRouter embeddings
+OPENROUTER_EMBED_MODELS.OPENAI_TEXT_EMBEDDING_3_SMALL // "openai/text-embedding-3-small"
+OPENROUTER_EMBED_MODELS.OPENAI_TEXT_EMBEDDING_3_LARGE // "openai/text-embedding-3-large"
+OPENROUTER_EMBED_MODELS.GEMINI_EMBEDDING_2            // "google/gemini-embedding-2-preview"
+OPENROUTER_EMBED_MODELS.GEMINI_EMBEDDING_1            // "google/gemini-embedding-001"
 ```
 
 ## Environment Variables
@@ -540,6 +596,7 @@ GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_1  // "gemini-embedding-001"
 | `QWEN_API_KEY` | Only if using `provider: "qwen"` | Qwen direct provider |
 | `ZAI_API_KEY` | Only if using `provider: "zai"` | Z.ai / GLM direct provider |
 | `MOONSHOT_API_KEY` | Only if using `provider: "moonshotai"` | Moonshot / Kimi direct provider |
+| `GROQ_API_KEY` | Only if using `provider: "groq"` | Groq direct provider |
 
 Keys can also be passed directly to `createAI()`:
 
@@ -550,6 +607,7 @@ const ai = createAI({
   voyageKey: "pa-...",
   googleKey: "...",
   xaiKey: "...",
+  groqKey: "...",
   moonshotKey: "...",
   serviceKeys: {
     zai: "...",

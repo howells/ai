@@ -43,6 +43,7 @@ export type ModelService =
   | "anthropic"
   | "openai"
   | "google"
+  | "groq"
   | "deepseek"
   | "inception"
   | "minimax"
@@ -77,7 +78,7 @@ export interface LanguageModelCatalogEntry {
 }
 
 /** Provider routes for embedding models. */
-export type EmbeddingProviderRoute = "voyage" | "gemini";
+export type EmbeddingProviderRoute = "voyage" | "gemini" | "openrouter";
 
 /** Slots that return embedding models. */
 export type EmbeddingModelSlot = "embed" | "multimodalEmbed";
@@ -85,6 +86,7 @@ export type EmbeddingModelSlot = "embed" | "multimodalEmbed";
 /** Slots that return retrieval support models. */
 export type RetrievalModelSlot = EmbeddingModelSlot | "rerank";
 
+/** Any named model slot that can be overridden in the model matrix. */
 export type ModelSlot = ModelTier | RetrievalModelSlot;
 
 /** Provider-specific model IDs for one embedding slot. */
@@ -153,6 +155,8 @@ export interface AIConfig {
   zaiKey?: string;
   /** Moonshot/Kimi API key. Defaults to process.env.MOONSHOT_API_KEY. */
   moonshotKey?: string;
+  /** Groq API key. Defaults to process.env.GROQ_API_KEY. */
+  groqKey?: string;
   /** Underlying service API keys for provider-routed model authors. */
   serviceKeys?: Partial<Record<ModelService, string>>;
   /** Vercel AI Gateway API key. Defaults to process.env.AI_GATEWAY_API_KEY. Auto-authenticates on Vercel. */
@@ -176,6 +180,7 @@ export interface AIConfig {
  * - "qwen"       — direct Qwen OpenAI-compatible API
  * - "zai"        — direct Z.ai OpenAI-compatible API
  * - "moonshotai" — direct Moonshot/Kimi OpenAI-compatible API
+ * - "groq"       — direct Groq OpenAI-compatible API
  */
 export type ProviderRoute =
   | "openrouter"
@@ -187,7 +192,8 @@ export type ProviderRoute =
   | "xai"
   | "qwen"
   | "zai"
-  | "moonshotai";
+  | "moonshotai"
+  | "groq";
 
 /** Input family for provider-neutral embedding model selection. */
 export type EmbeddingInputKind = "text" | "image";
@@ -225,6 +231,16 @@ export interface ModelOptions {
    */
   free?: boolean;
   /**
+   * OpenRouter virtual model variant.
+   *
+   * - `nitro` sorts backing providers by throughput.
+   * - `exacto` uses OpenRouter's quality/tool-calling optimized routing.
+   * - `floor` sorts backing providers by price.
+   *
+   * Only valid with provider "openrouter".
+   */
+  openRouterVariant?: OpenRouterModelVariant;
+  /**
    * Override the provider route for this call.
    * Defaults to "gateway" (Vercel AI Gateway). Use "openrouter" for
    * OpenRouter proxying, or "anthropic", "openai", and "google" for direct
@@ -235,6 +251,9 @@ export interface ModelOptions {
    */
   provider?: ProviderRoute;
 }
+
+/** OpenRouter model-suffix variants such as `model:nitro`. */
+export type OpenRouterModelVariant = "nitro" | "exacto" | "floor";
 
 /** Normalized reasoning budget for generation calls. */
 export type ReasoningEffort =
@@ -285,7 +304,8 @@ export type RoutePreference =
   | "auto"
   | "cheapest"
   | "fastest"
-  | "highest-throughput";
+  | "highest-throughput"
+  | "highest-quality";
 
 /** Privacy / compliance constraints applied to provider routing. */
 export type PrivacyConstraint = "no-retention" | "no-training" | "hipaa";
@@ -323,8 +343,10 @@ export interface RoutingMaxCost {
  */
 export interface RoutingOptions {
   /**
-   * Sort upstream providers by cost, latency, or throughput.
+   * Sort upstream providers by cost, latency, throughput, or quality.
    * Maps to Vercel Gateway `sort` and OpenRouter `provider.sort`.
+   * `highest-quality` currently maps to OpenRouter Exacto-style routing;
+   * providers without a quality-routing primitive ignore it.
    */
   prefer?: RoutePreference;
   /**

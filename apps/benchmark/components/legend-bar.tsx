@@ -10,7 +10,7 @@ interface LegendBarProps {
   stale: boolean;
 }
 
-/*
+/**
  * Bottom status bar — V7 product idiom: soft tinted status pills explain the
  * cell semantics, with `·` dot separators in between. Stays calm so the data
  * above can do the talking.

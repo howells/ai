@@ -1,6 +1,6 @@
 {
   "name": "@howells/ai",
-  "version": "0.1.16",
+  "version": "0.1.18",
   "type": "module",
   "description": "Unified AI client for all projects — Gateway, OpenRouter, direct providers, tiered language models, and retrieval models.",
   "license": "MIT",
@@ -48,9 +48,11 @@
     "@ai-sdk/google": "^3.0.64",
     "@ai-sdk/openai": "^3.0.53",
     "@ai-sdk/react": "3.0.118",
+    "@howells/envy": "^0.3.7",
     "@openrouter/ai-sdk-provider": "^2.9.0",
     "ai": "6.0.116",
-    "voyage-ai-provider": "^3.0.0"
+    "voyage-ai-provider": "^3.0.0",
+    "zod": "^4.4.3"
   },
   "publishConfig": {
     "access": "public"

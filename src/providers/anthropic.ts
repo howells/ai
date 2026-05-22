@@ -10,6 +10,7 @@
 
 import { createAnthropic } from "@ai-sdk/anthropic";
 import type { LanguageModel } from "ai";
+import { envValue } from "../env";
 import type { ModelOptions } from "../types";
 
 /** Minimal direct Anthropic provider adapter used by the AI client. */
@@ -29,7 +30,7 @@ export function createAnthropicProvider(
   function getClient() {
     if (client) return client;
 
-    const key = apiKey ?? process.env.ANTHROPIC_API_KEY;
+    const key = apiKey ?? envValue("ANTHROPIC_API_KEY");
     if (!key) {
       throw new Error(
         "ANTHROPIC_API_KEY is required for direct Anthropic access. " +

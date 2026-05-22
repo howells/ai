@@ -12,6 +12,7 @@ import {
   TIER_DESCRIPTIONS,
 } from "../lib/models";
 
+/** Active filter state controlled by the benchmark toolbar. */
 export interface ToolbarFilters {
   search: string;
   tiers: Set<ModelTier>;
@@ -37,6 +38,7 @@ interface BenchmarkToolbarProps {
   onClearSelection: () => void;
 }
 
+/** Filter and selection toolbar for the benchmark model table. */
 export function BenchmarkToolbar({
   filters,
   onFiltersChange,

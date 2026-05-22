@@ -19,6 +19,7 @@ function runCli(...args: string[]) {
       QWEN_API_KEY: "",
       ZAI_API_KEY: "",
       MOONSHOT_API_KEY: "",
+      GROQ_API_KEY: "",
       VERCEL_ENV: "",
     },
   });
@@ -60,7 +61,7 @@ describe("CLI", () => {
     expect(data.every((row) => row.provider === "openrouter")).toBe(true);
     expect(data.every((row) => row.task === "general")).toBe(true);
     expect(
-      data.some((row) => row.resolved === "google/gemini-3-flash-preview"),
+      data.some((row) => row.resolved === "google/gemini-3.5-flash"),
     ).toBe(true);
   });
 
@@ -117,6 +118,9 @@ describe("CLI", () => {
       true,
     );
     expect(data.providers.some((provider) => provider.provider === "moonshotai")).toBe(
+      true,
+    );
+    expect(data.providers.some((provider) => provider.provider === "groq")).toBe(
       true,
     );
     expect(data.services.some((service) => service.service === "moonshotai")).toBe(

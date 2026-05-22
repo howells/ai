@@ -1,19 +1,32 @@
 import type {
   GenerationOptions,
+  OpenRouterModelVariant,
   PrivacyConstraint,
   ProviderRoute,
   Quantization,
   ReasoningEffort,
   RoutePreference,
+  ServiceTier,
 } from "@howells/ai";
 
+/** Prompt-cache modes exposed by the benchmark advanced controls. */
 export type BenchmarkCacheMode = "off" | "ephemeral" | "ephemeral-5m" | "ephemeral-1h";
+/** Reasoning mode selector, including the UI's provider-default sentinel. */
 export type BenchmarkReasoningMode = "default" | ReasoningEffort;
+/** Web-search mode selector for providers that expose native or plugin search. */
 export type BenchmarkWebSearchMode = "off" | "auto" | "native" | "exa";
+/** Logprobs selector used to request no, basic, or top-k token logprobs. */
 export type BenchmarkLogprobsMode = "off" | "basic" | "top5";
+/** OpenRouter virtual model suffix selector used by the benchmark UI. */
+export type BenchmarkOpenRouterVariant = "off" | OpenRouterModelVariant;
+/** Service-tier selector, including the UI's provider-default sentinel. */
+export type BenchmarkServiceTier = "default" | ServiceTier;
 
+/** Complete advanced generation option state collected by the benchmark UI. */
 export interface BenchmarkAdvancedOptions {
   routePreference: RoutePreference;
+  openRouterVariant: BenchmarkOpenRouterVariant;
+  serviceTier: BenchmarkServiceTier;
   privacy: PrivacyConstraint[];
   allowProviders: string[];
   denyProviders: string[];
@@ -34,6 +47,7 @@ export interface BenchmarkAdvancedOptions {
   tags: string[];
 }
 
+/** Inputs required to convert benchmark UI state into generation options. */
 export interface BenchmarkGenerationInput {
   provider: ProviderRoute;
   modelId: string;
@@ -41,8 +55,11 @@ export interface BenchmarkGenerationInput {
   options?: BenchmarkAdvancedOptions;
 }
 
+/** Default advanced option values for benchmark requests and sandbox runs. */
 export const DEFAULT_ADVANCED_OPTIONS: BenchmarkAdvancedOptions = {
   routePreference: "auto",
+  openRouterVariant: "off",
+  serviceTier: "default",
   privacy: [],
   allowProviders: [],
   denyProviders: [],
@@ -59,6 +76,7 @@ export const DEFAULT_ADVANCED_OPTIONS: BenchmarkAdvancedOptions = {
   tags: [],
 };
 
+/** User-facing route preference options. */
 export const ROUTE_PREFERENCES: readonly {
   value: RoutePreference;
   label: string;
@@ -67,8 +85,71 @@ export const ROUTE_PREFERENCES: readonly {
   { value: "cheapest", label: "Cheapest" },
   { value: "fastest", label: "Fastest" },
   { value: "highest-throughput", label: "Throughput" },
+  { value: "highest-quality", label: "Quality" },
 ];
 
+/** OpenRouter model-suffix options with labels for the advanced controls. */
+export const OPENROUTER_VARIANTS: readonly {
+  value: BenchmarkOpenRouterVariant;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "off",
+    label: "None",
+    description: "Use OpenRouter's default provider routing.",
+  },
+  {
+    value: "nitro",
+    label: "Nitro",
+    description: "Append :nitro and sort providers by throughput.",
+  },
+  {
+    value: "exacto",
+    label: "Exacto",
+    description: "Append :exacto for quality-first tool-use routing.",
+  },
+  {
+    value: "floor",
+    label: "Floor",
+    description: "Append :floor and sort providers by price.",
+  },
+];
+
+/** Service-tier options with provider-neutral UI labels. */
+export const SERVICE_TIERS: readonly {
+  value: BenchmarkServiceTier;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "default",
+    label: "Provider default",
+    description: "Omit service tier and let the selected provider decide.",
+  },
+  {
+    value: "auto",
+    label: "Auto",
+    description: "Use provider automatic tier selection where supported.",
+  },
+  {
+    value: "standard",
+    label: "Standard",
+    description: "Prefer the standard paid service tier where supported.",
+  },
+  {
+    value: "flex",
+    label: "Flex",
+    description: "Prefer lower-cost, slower processing where supported.",
+  },
+  {
+    value: "priority",
+    label: "Priority",
+    description: "Prefer prioritized processing where supported.",
+  },
+];
+
+/** Privacy constraints available through provider routing options. */
 export const PRIVACY_OPTIONS: readonly {
   value: PrivacyConstraint;
   label: string;
@@ -78,6 +159,7 @@ export const PRIVACY_OPTIONS: readonly {
   { value: "hipaa", label: "HIPAA" },
 ];
 
+/** Quantization filters available through provider routing options. */
 export const QUANTIZATION_OPTIONS: readonly Quantization[] = [
   "int4",
   "int8",
@@ -89,6 +171,7 @@ export const QUANTIZATION_OPTIONS: readonly Quantization[] = [
   "fp32",
 ];
 
+/** Parse a comma- or newline-separated textarea value into a compact list. */
 export function parseList(value: string): string[] {
   return value
     .split(/[\n,]/)
@@ -96,10 +179,12 @@ export function parseList(value: string): string[] {
     .filter(Boolean);
 }
 
+/** Format a list back into the textarea representation used by the UI. */
 export function formatList(value: readonly string[]): string {
   return value.join(", ");
 }
 
+/** Add or remove a value from an immutable set-like array. */
 export function setMembership<T extends string>(
   values: readonly T[],
   value: T,
@@ -114,6 +199,7 @@ export function setMembership<T extends string>(
   return [...next];
 }
 
+/** Convert benchmark-specific option state into provider-neutral generation options. */
 export function buildBenchmarkGenerationOptions({
   provider,
   modelId,
@@ -151,6 +237,9 @@ export function buildBenchmarkGenerationOptions({
   };
 
   if (Object.keys(routing).length > 0) generation.routing = routing;
+  if (options.serviceTier !== "default") {
+    generation.serviceTier = options.serviceTier;
+  }
   if (options.fallbackModels.length > 0) {
     generation.fallbackModels = options.fallbackModels;
   }

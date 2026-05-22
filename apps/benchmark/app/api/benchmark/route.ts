@@ -1,18 +1,22 @@
 import {
   createAI,
   streamText,
+  visionMessage,
   type ModelService,
   type ProviderRoute,
 } from "@howells/ai";
 import { type NextRequest, NextResponse } from "next/server";
 import {
   type BenchmarkAdvancedOptions,
+  type BenchmarkReasoningMode,
   buildBenchmarkGenerationOptions,
+  DEFAULT_ADVANCED_OPTIONS,
 } from "../../../lib/benchmark-options";
 import {
   benchmarkOptionsHash,
   persistBenchmarkResult,
 } from "../../../lib/benchmark-history";
+import { loadBenchmarkEnv } from "../../../lib/server-env";
 
 /** Allow benchmark streams to run for up to five minutes. */
 export const maxDuration = 300;
@@ -21,11 +25,17 @@ interface RunDef {
   model: string;
   provider: ProviderRoute;
   label?: string;
+  /** Optional OpenRouter backing provider slug for this specific run. */
+  routeProvider?: string;
+  /** Optional reasoning mode override for this specific run. */
+  reasoning?: BenchmarkReasoningMode;
 }
 
 interface BenchmarkRequest {
   /** Single prompt (legacy) or array of prompts for multi-round averaging. */
   prompt: string | string[];
+  /** Optional image URLs or data URLs applied to every prompt round. */
+  images?: string[];
   runs: RunDef[];
   maxTokens?: number;
   options?: BenchmarkAdvancedOptions;
@@ -50,7 +60,10 @@ interface BenchmarkResult {
   averaged?: boolean;
 }
 
+/** Return configured providers and services for benchmark UI availability checks. */
 export function GET() {
+  loadBenchmarkEnv();
+
   const ai = createAI({
     app: { name: "Howells AI Benchmark", url: "https://github.com/howells/ai" },
   });
@@ -65,6 +78,7 @@ async function executeRun(
   ai: ReturnType<typeof createAI>,
   run: RunDef,
   prompt: string,
+  images: readonly string[],
   maxTokens: number,
   region: string,
   options?: BenchmarkAdvancedOptions,
@@ -72,18 +86,50 @@ async function executeRun(
 ): Promise<BenchmarkResult> {
   const label = run.label ?? `${run.provider}/${run.model}`;
   const start = performance.now();
+  const openRouterVariant =
+    run.provider === "openrouter" && options?.openRouterVariant !== "off"
+      ? options?.openRouterVariant
+      : undefined;
+  const resultModel =
+    openRouterVariant && !run.model.endsWith(`:${openRouterVariant}`)
+      ? `${run.model.replace(/:(nitro|exacto|floor)$/, "")}:${openRouterVariant}`
+      : run.model;
+  const resultLabel =
+    openRouterVariant && !label.endsWith(`:${openRouterVariant}`)
+      ? `${label} :${openRouterVariant}`
+      : label;
 
   try {
-    const model = ai.modelById(run.model, { provider: run.provider });
+    const model = ai.modelById(run.model, {
+      provider: run.provider,
+      ...(images.length > 0 ? { vision: true } : {}),
+      ...(openRouterVariant ? { openRouterVariant } : {}),
+    });
+    const runOptions: BenchmarkAdvancedOptions | undefined =
+      (run.routeProvider && run.provider === "openrouter") || run.reasoning
+        ? {
+            ...(options ?? DEFAULT_ADVANCED_OPTIONS),
+            ...(run.routeProvider && run.provider === "openrouter"
+              ? {
+                  allowProviders: [run.routeProvider],
+                  fallbacks: false,
+                }
+              : {}),
+            ...(run.reasoning ? { reasoning: run.reasoning } : {}),
+          }
+        : options;
+
     const result = streamText({
       model,
-      prompt,
+      ...(images.length > 0
+        ? { messages: [visionMessage(prompt, images)] }
+        : { prompt }),
       ...ai.generationOptions(
         buildBenchmarkGenerationOptions({
           provider: run.provider,
           modelId: run.model,
           maxTokens,
-          options,
+          options: runOptions,
         }),
       ),
     });
@@ -108,9 +154,9 @@ async function executeRun(
     const costUsd = extractCostUsd(providerMetadata) ?? extractCostUsd(usage);
 
     return {
-      model: run.model,
+      model: resultModel,
       provider: run.provider,
-      label,
+      label: resultLabel,
       ttft: Math.round(ttft ?? totalTime),
       totalTime: Math.round(totalTime),
       outputTokens: outTokens,
@@ -127,9 +173,9 @@ async function executeRun(
   } catch (err) {
     const totalTime = performance.now() - start;
     return {
-      model: run.model,
+      model: resultModel,
       provider: run.provider,
-      label,
+      label: resultLabel,
       ttft: 0,
       totalTime: Math.round(totalTime),
       outputTokens: 0,
@@ -230,10 +276,13 @@ function averageResults(results: BenchmarkResult[]): BenchmarkResult {
  * summary for multi-round requests.
  */
 export async function POST(request: NextRequest) {
+  loadBenchmarkEnv();
+
   const body = (await request.json()) as BenchmarkRequest;
   const { runs, maxTokens = 200, options } = body;
 
   const prompts = Array.isArray(body.prompt) ? body.prompt : [body.prompt];
+  const images = (body.images ?? []).map((image) => image.trim()).filter(Boolean);
 
   const firstPrompt = prompts[0];
 
@@ -250,7 +299,7 @@ export async function POST(request: NextRequest) {
 
   const region = process.env.VERCEL_REGION ?? process.env.AWS_REGION ?? "local";
   const multiRound = prompts.length > 1;
-  const optionsHash = benchmarkOptionsHash({ maxTokens, options });
+  const optionsHash = benchmarkOptionsHash({ maxTokens, options, images });
   const pendingHistoryWrites: Promise<void>[] = [];
 
   const encoder = new TextEncoder();
@@ -273,9 +322,15 @@ export async function POST(request: NextRequest) {
         // Single prompt - fire all runs in parallel (original behavior)
         await Promise.all(
           runs.map((run) =>
-            executeRun(ai, run, firstPrompt, maxTokens, region, options).then(
-              (result) => send(result, firstPrompt),
-            ),
+            executeRun(
+              ai,
+              run,
+              firstPrompt,
+              images,
+              maxTokens,
+              region,
+              options,
+            ).then((result) => send(result, firstPrompt)),
           ),
         );
       } else {
@@ -290,6 +345,7 @@ export async function POST(request: NextRequest) {
                 ai,
                 run,
                 promptForRound,
+                images,
                 maxTokens,
                 region,
                 options,

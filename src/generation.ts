@@ -216,7 +216,7 @@ function toOpenRouterMaxPrice(
 }
 
 const PREFER_TO_GATEWAY: Record<
-  Exclude<RoutingOptions["prefer"], "auto" | undefined>,
+  Exclude<RoutingOptions["prefer"], "auto" | "highest-quality" | undefined>,
   "cost" | "ttft" | "tps"
 > = {
   cheapest: "cost",
@@ -226,11 +226,12 @@ const PREFER_TO_GATEWAY: Record<
 
 const PREFER_TO_OPENROUTER: Record<
   Exclude<RoutingOptions["prefer"], "auto" | undefined>,
-  "price" | "latency" | "throughput"
+  "price" | "latency" | "throughput" | "exacto"
 > = {
   cheapest: "price",
   fastest: "latency",
   "highest-throughput": "throughput",
+  "highest-quality": "exacto",
 };
 
 function gatewayPrivacyFlags(routing: RoutingOptions | undefined): {
@@ -479,7 +480,9 @@ function applyGatewayOptions(
 ): void {
   const routing = options.routing;
   const sort =
-    routing?.prefer && routing.prefer !== "auto"
+    routing?.prefer &&
+    routing.prefer !== "auto" &&
+    routing.prefer !== "highest-quality"
       ? PREFER_TO_GATEWAY[routing.prefer]
       : undefined;
   const privacy = gatewayPrivacyFlags(routing);

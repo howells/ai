@@ -49,6 +49,7 @@ export { createAI } from "./client";
 
 // Generation config resolver
 export { resolveGenerationOptions } from "./generation";
+export { imagePart, visionMessage, visionPrompt } from "./vision";
 
 // Default model matrix and provider constants
 export {
@@ -61,6 +62,7 @@ export {
   GOOGLE_EMBED_MODELS,
   GOOGLE_MODELS,
   GLM_MODELS,
+  GROQ_MODELS,
   getLanguageModelCapabilities,
   inferModelService,
   inferProvider,
@@ -75,6 +77,7 @@ export {
   MINIMAX_MODELS,
   NEX_AGI_MODELS,
   OPENAI_MODELS,
+  OPENROUTER_EMBED_MODELS,
   OPENROUTER_FREE_MODELS,
   OPENROUTER_MODELS,
   PROVIDER_CONFIG_CAPABILITIES,
@@ -113,6 +116,7 @@ export type {
   ModelMatrix,
   ModelOptions,
   ModelOverrides,
+  OpenRouterModelVariant,
   ModelService,
   ModelSlot,
   ModelTask,
@@ -140,5 +144,6 @@ export type {
   WebSearchEngine,
   WebSearchOptions,
 } from "./types";
+export type { VisionImageData, VisionInput, VisionPrompt } from "./vision";
 
 export type { GatewayIntrospection } from "./providers/gateway";

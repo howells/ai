@@ -12,11 +12,13 @@ const fraunces = Fraunces({
   display: "swap",
 });
 
+/** Static metadata for the benchmark Next.js app. */
 export const metadata: Metadata = {
   title: "Howells AI Benchmark",
   description: "Compare provider route latency for @howells/ai models.",
 };
 
+/** Root document shell that installs benchmark typography and global CSS. */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html

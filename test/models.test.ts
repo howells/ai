@@ -10,6 +10,7 @@ import {
   GOOGLE_EMBED_MODELS,
   GOOGLE_MODELS,
   GLM_MODELS,
+  GROQ_MODELS,
   inferModelService,
   inferProvider,
   INCEPTION_MODELS,
@@ -23,6 +24,7 @@ import {
   MINIMAX_MODELS,
   NEX_AGI_MODELS,
   OPENAI_MODELS,
+  OPENROUTER_EMBED_MODELS,
   OPENROUTER_MODELS,
   PROVIDER_DEFAULT_MODELS,
   PROVIDER_TASK_DEFAULT_MODELS,
@@ -62,6 +64,7 @@ const PROVIDERS = [
   "qwen",
   "zai",
   "moonshotai",
+  "groq",
 ] as const;
 
 const GATEWAY_MODEL_IDS_USED = new Set([
@@ -78,6 +81,7 @@ const GATEWAY_MODEL_IDS_USED = new Set([
   "zai/glm-4.6v",
   "google/gemini-3.1-flash-lite-preview",
   "google/gemini-3.1-pro-preview",
+  "google/gemini-3.5-flash",
   "google/gemini-3-flash",
   "moonshotai/kimi-k2.6",
   "moonshotai/kimi-k2.5",
@@ -116,13 +120,13 @@ describe("model matrix", () => {
       GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
     );
     expect(DEFAULT_MODELS.standard.text).toBe(
-      GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
+      GOOGLE_MODELS.GEMINI_3_5_FLASH,
     );
     expect(DEFAULT_MODELS.standard.tools).toBe(
-      GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
+      GOOGLE_MODELS.GEMINI_3_5_FLASH,
     );
     expect(DEFAULT_MODELS.standard.vision).toBe(
-      GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
+      GOOGLE_MODELS.GEMINI_3_5_FLASH,
     );
     expect(DEFAULT_MODELS.powerful.text).toBe(
       GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW,
@@ -142,6 +146,9 @@ describe("model matrix", () => {
     expect(ANTHROPIC_MODELS.CLAUDE_HAIKU_4_5).toBe(
       "anthropic/claude-haiku-4.5",
     );
+    expect(GOOGLE_MODELS.GEMINI_3_5_FLASH).toBe(
+      "google/gemini-3.5-flash",
+    );
     expect(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW).toBe(
       "google/gemini-3-flash-preview",
     );
@@ -152,11 +159,25 @@ describe("model matrix", () => {
     expect(DEFAULT_MODELS.embed).toEqual({
       voyage: "voyage-3",
       gemini: "gemini-embedding-2-preview",
+      openrouter: "openai/text-embedding-3-small",
     });
     expect(DEFAULT_MODELS.multimodalEmbed).toEqual({
       voyage: "voyage-multimodal-3.5",
       gemini: "gemini-embedding-2-preview",
+      openrouter: "google/gemini-embedding-2-preview",
     });
+    expect(OPENROUTER_EMBED_MODELS.OPENAI_TEXT_EMBEDDING_3_SMALL).toBe(
+      "openai/text-embedding-3-small",
+    );
+    expect(OPENROUTER_EMBED_MODELS.OPENAI_TEXT_EMBEDDING_3_LARGE).toBe(
+      "openai/text-embedding-3-large",
+    );
+    expect(OPENROUTER_EMBED_MODELS.GEMINI_EMBEDDING_2).toBe(
+      "google/gemini-embedding-2-preview",
+    );
+    expect(OPENROUTER_EMBED_MODELS.GEMINI_EMBEDDING_1).toBe(
+      "google/gemini-embedding-001",
+    );
     expect(VOYAGE_MODELS.VOYAGE_3_5_LITE).toBe("voyage-3.5-lite");
     expect(VOYAGE_MODELS.MULTIMODAL_3).toBe("voyage-multimodal-3");
     expect(QWEN_MODELS.QWEN_3_235B_A22B_2507).toBe(
@@ -166,6 +187,7 @@ describe("model matrix", () => {
     expect(GLM_MODELS.GLM_4_7_FLASH).toBe("z-ai/glm-4.7-flash");
     expect(KIMI_MODELS.KIMI_K2_6).toBe("moonshotai/kimi-k2.6");
     expect(OPENROUTER_MODELS.FREE).toBe("openrouter/free");
+    expect(GROQ_MODELS.GPT_OSS_20B).toBe("openai/gpt-oss-20b");
     expect(XAI_MODELS.GROK_4_3).toBe("x-ai/grok-4.3");
     expect(MINIMAX_MODELS.MINIMAX_M2_7).toBe("minimax/minimax-m2.7");
     expect(STEPFUN_MODELS.STEP_3_5_FLASH).toBe("stepfun/step-3.5-flash");
@@ -178,6 +200,7 @@ describe("model matrix", () => {
       ...Object.values(DEEPSEEK_MODELS),
       ...Object.values(GLM_MODELS),
       ...Object.values(GOOGLE_MODELS),
+      ...Object.values(GROQ_MODELS),
       ...Object.values(INCEPTION_MODELS),
       ...Object.values(KIMI_MODELS),
       ...Object.values(MINIMAX_MODELS),
@@ -243,7 +266,7 @@ describe("model matrix", () => {
         "openrouter",
         "vision",
       ),
-    ).toBe(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW);
+    ).toBe(GOOGLE_MODELS.GEMINI_3_5_FLASH);
     expect(
       resolveProviderLanguageModelId(
         DEFAULT_MODELS,
@@ -372,9 +395,11 @@ describe("model matrix", () => {
       embed: {
         voyage: VOYAGE_MODELS.VOYAGE_3_LITE,
         gemini: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_1,
+        openrouter: OPENROUTER_EMBED_MODELS.OPENAI_TEXT_EMBEDDING_3_LARGE,
       },
       multimodalEmbed: {
         gemini: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2,
+        openrouter: OPENROUTER_EMBED_MODELS.GEMINI_EMBEDDING_1,
       },
       standard: {
         text: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,
@@ -384,8 +409,12 @@ describe("model matrix", () => {
 
     expect(models.embed.voyage).toBe("voyage-3-lite");
     expect(models.embed.gemini).toBe("gemini-embedding-001");
+    expect(models.embed.openrouter).toBe("openai/text-embedding-3-large");
     expect(models.multimodalEmbed.voyage).toBe("voyage-multimodal-3.5");
     expect(models.multimodalEmbed.gemini).toBe("gemini-embedding-2-preview");
+    expect(models.multimodalEmbed.openrouter).toBe(
+      "google/gemini-embedding-001",
+    );
     expect(models.standard.text).toBe(ANTHROPIC_MODELS.CLAUDE_SONNET_4_6);
     expect(models.standard.tools).toBe(ANTHROPIC_MODELS.CLAUDE_SONNET_4_6);
     expect(models.standard.vision).toBe(DEFAULT_MODELS.standard.vision);
@@ -433,12 +462,13 @@ describe("provider helpers", () => {
   test("infers known direct providers only", () => {
     expect(inferProvider("anthropic/claude-sonnet-4.6")).toBe("anthropic");
     expect(inferProvider("openai/gpt-5-nano")).toBe("openai");
-    expect(inferProvider("google/gemini-3-flash-preview")).toBe("google");
+    expect(inferProvider("google/gemini-3.5-flash")).toBe("google");
     expect(inferProvider("deepseek/deepseek-v3.2")).toBe("deepseek");
     expect(inferProvider("x-ai/grok-4.3")).toBe("xai");
     expect(inferProvider("qwen/qwen3.6-plus")).toBe("qwen");
     expect(inferProvider("z-ai/glm-5")).toBe("zai");
     expect(inferProvider("moonshotai/kimi-k2.6")).toBe("moonshotai");
+    expect(inferProvider("groq/compound")).toBe("groq");
     expect(inferProvider("minimax/minimax-m2.7")).toBeUndefined();
     expect(inferProvider("gpt-5-nano")).toBeUndefined();
   });
@@ -448,10 +478,12 @@ describe("provider helpers", () => {
     expect(inferModelService(GLM_MODELS.GLM_5)).toBe("zai");
     expect(inferModelService(XAI_MODELS.GROK_4_3)).toBe("xai");
     expect(inferModelService(QWEN_MODELS.QWEN_3_6_PLUS)).toBe("qwen");
+    expect(inferModelService("groq/compound")).toBe("groq");
     expect(inferModelService(MINIMAX_MODELS.MINIMAX_M2_7)).toBe("minimax");
     expect(MODEL_SERVICE_ENV_VARS.moonshotai).toBe("MOONSHOT_API_KEY");
     expect(MODEL_SERVICE_ENV_VARS.zai).toBe("ZAI_API_KEY");
     expect(MODEL_SERVICE_ENV_VARS.xai).toBe("XAI_API_KEY");
+    expect(MODEL_SERVICE_ENV_VARS.groq).toBe("GROQ_API_KEY");
     expect(MODEL_SERVICE_ENV_VARS.minimax).toBeUndefined();
   });
 
@@ -472,6 +504,15 @@ describe("provider helpers", () => {
       resolveProviderModelId(ANTHROPIC_MODELS.CLAUDE_HAIKU_4_5, "anthropic"),
     ).toBe("claude-haiku-4-5-20251001");
 
+    expect(
+      resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_5_FLASH, "openrouter"),
+    ).toBe("google/gemini-3.5-flash");
+    expect(
+      resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_5_FLASH, "gateway"),
+    ).toBe("google/gemini-3.5-flash");
+    expect(
+      resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_5_FLASH, "google"),
+    ).toBe("gemini-3.5-flash");
     expect(
       resolveProviderModelId(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW, "openrouter"),
     ).toBe("google/gemini-3-flash-preview");
@@ -518,6 +559,9 @@ describe("provider helpers", () => {
     );
     expect(resolveProviderModelId(KIMI_MODELS.KIMI_K2_6, "moonshotai")).toBe(
       "kimi-k2.6",
+    );
+    expect(resolveProviderModelId(GROQ_MODELS.GPT_OSS_20B, "groq")).toBe(
+      "openai/gpt-oss-20b",
     );
   });
 
@@ -584,6 +628,7 @@ describe("provider helpers", () => {
     );
     expect(canRouteModelToProvider(GLM_MODELS.GLM_5, "zai")).toBe(true);
     expect(canRouteModelToProvider(QWEN_MODELS.QWEN_3_6_PLUS, "qwen")).toBe(true);
+    expect(canRouteModelToProvider(GROQ_MODELS.GPT_OSS_20B, "groq")).toBe(true);
     expect(canRouteModelToProvider(DEEPSEEK_MODELS.DEEPSEEK_V3_2, "deepseek")).toBe(
       true,
     );

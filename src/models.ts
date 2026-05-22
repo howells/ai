@@ -30,6 +30,7 @@ type ProviderTaskModelMatrix = Partial<
   Record<ProviderRoute, PartialTaskModelMatrix>
 >;
 
+/** Ordered language model quality/cost tiers exposed by createAI(). */
 export const MODEL_TIERS = [
   "nano",
   "fast",
@@ -38,6 +39,7 @@ export const MODEL_TIERS = [
   "reasoning",
 ] as const satisfies readonly ModelTier[];
 
+/** Ordered capability variants available inside each language tier. */
 export const LANGUAGE_MODEL_VARIANTS = [
   "text",
   "tools",
@@ -45,6 +47,7 @@ export const LANGUAGE_MODEL_VARIANTS = [
   "visionTools",
 ] as const satisfies readonly LanguageModelVariant[];
 
+/** Ordered workload hints used by task-optimized model defaults. */
 export const LANGUAGE_MODEL_TASKS = [
   "general",
   "coding",
@@ -97,11 +100,13 @@ export const GLM_MODELS = {
 
 /** Supported Google model IDs for language model tiers. */
 export const GOOGLE_MODELS = {
+  /** Latest high-quality multimodal default with strong quality/cost balance. */
+  GEMINI_3_5_FLASH: "google/gemini-3.5-flash",
   /** Latest lightweight Gemini model for fastest vision/tool routing. */
   GEMINI_3_1_FLASH_LITE_PREVIEW: "google/gemini-3.1-flash-lite-preview",
   /** Latest high-capability Gemini model for powerful/reasoning routing. */
   GEMINI_3_1_PRO_PREVIEW: "google/gemini-3.1-pro-preview",
-  /** High-quality multimodal default with strong quality/cost balance. */
+  /** Legacy Gemini 3 Flash alias kept for explicit caller compatibility. */
   GEMINI_3_FLASH_PREVIEW: "google/gemini-3-flash-preview",
 } as const;
 
@@ -115,6 +120,14 @@ export const OPENAI_MODELS = {
   GPT_5_4: "openai/gpt-5.4",
   /** Best OpenAI coding-specialist comparison point. */
   GPT_5_3_CODEX: "openai/gpt-5.3-codex",
+} as const;
+
+/** Supported Groq model IDs for direct high-throughput routing. */
+export const GROQ_MODELS = {
+  /** OpenAI open-weight 120B model served directly by Groq. */
+  GPT_OSS_120B: "openai/gpt-oss-120b",
+  /** Fast OpenAI open-weight 20B model served directly by Groq. */
+  GPT_OSS_20B: "openai/gpt-oss-20b",
 } as const;
 
 /** Supported xAI model IDs for language model tier variants. */
@@ -158,11 +171,13 @@ export const MINIMAX_MODELS = {
   MINIMAX_M2_5: "minimax/minimax-m2.5",
 } as const;
 
+/** Supported StepFun model IDs for Gateway/OpenRouter routing. */
 export const STEPFUN_MODELS = {
   /** OpenRouter-only high-value flash model. */
   STEP_3_5_FLASH: "stepfun/step-3.5-flash",
 } as const;
 
+/** Supported Xiaomi model IDs for Gateway/OpenRouter routing. */
 export const XIAOMI_MODELS = {
   /** Very cheap, fast structured/tool model. */
   MIMO_V2_FLASH: "xiaomi/mimo-v2-flash",
@@ -170,11 +185,13 @@ export const XIAOMI_MODELS = {
   MIMO_V2_PRO: "xiaomi/mimo-v2-pro",
 } as const;
 
+/** Supported Inception Labs model IDs for extreme-throughput routing. */
 export const INCEPTION_MODELS = {
   /** Extreme-throughput Mercury model for latency stress testing. */
   MERCURY_2: "inception/mercury-2",
 } as const;
 
+/** Supported Nex AGI model IDs for OpenRouter-only value routing. */
 export const NEX_AGI_MODELS = {
   /** OpenRouter-only DeepSeek derivative from the cheap-quality shelf. */
   DEEPSEEK_V3_1_NEX_N1: "nex-agi/deepseek-v3.1-nex-n1",
@@ -247,6 +264,12 @@ export const LANGUAGE_MODEL_CATALOG = [
     name: "GLM 4.6V",
     service: "zai",
     tasks: ["vision", "longContext"],
+  },
+  {
+    id: GOOGLE_MODELS.GEMINI_3_5_FLASH,
+    name: "Gemini 3.5 Flash",
+    service: "google",
+    tasks: ["general", "vision", "chat", "coding", "longContext"],
   },
   {
     id: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
@@ -333,6 +356,18 @@ export const LANGUAGE_MODEL_CATALOG = [
     tasks: ["coding", "agentic"],
   },
   {
+    id: GROQ_MODELS.GPT_OSS_120B,
+    name: "GPT-OSS 120B",
+    service: "groq",
+    tasks: ["general", "reasoning", "agentic", "chat"],
+  },
+  {
+    id: GROQ_MODELS.GPT_OSS_20B,
+    name: "GPT-OSS 20B",
+    service: "groq",
+    tasks: ["general", "bulk", "chat"],
+  },
+  {
     id: OPENROUTER_MODELS.FREE,
     name: "OpenRouter Free Router",
     tasks: ["general", "coding", "agentic", "chat", "bulk", "vision"],
@@ -414,6 +449,20 @@ export const GOOGLE_EMBED_MODELS = {
   GEMINI_EMBEDDING_1: "gemini-embedding-001",
 } as const;
 
+// ── OpenRouter embedding model constants ──────────────────────────────
+
+/** Curated OpenRouter embedding model IDs. Limited to OpenAI and Gemini. */
+export const OPENROUTER_EMBED_MODELS = {
+  /** Best default cost/quality pick among OpenAI and Gemini via OpenRouter. */
+  OPENAI_TEXT_EMBEDDING_3_SMALL: "openai/text-embedding-3-small",
+  /** Higher-quality OpenAI text embedding option when cost is less important. */
+  OPENAI_TEXT_EMBEDDING_3_LARGE: "openai/text-embedding-3-large",
+  /** Latest Gemini embedding model on OpenRouter, including multimodal inputs. */
+  GEMINI_EMBEDDING_2: "google/gemini-embedding-2-preview",
+  /** Stable Gemini text embedding model on OpenRouter. */
+  GEMINI_EMBEDDING_1: "google/gemini-embedding-001",
+} as const;
+
 // ── Default matrix ────────────────────────────────────────────────────
 
 /** Default tier/capability model mapping used by `createAI()` when no override exists. */
@@ -432,10 +481,10 @@ export const DEFAULT_MODELS: ModelMatrix = {
     visionTools: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
   },
   standard: {
-    text: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW, // high-quality multimodal default
-    tools: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
-    vision: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
-    visionTools: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
+    text: GOOGLE_MODELS.GEMINI_3_5_FLASH, // high-quality multimodal default
+    tools: GOOGLE_MODELS.GEMINI_3_5_FLASH,
+    vision: GOOGLE_MODELS.GEMINI_3_5_FLASH,
+    visionTools: GOOGLE_MODELS.GEMINI_3_5_FLASH,
   },
   powerful: {
     text: GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW,
@@ -454,10 +503,12 @@ export const DEFAULT_MODELS: ModelMatrix = {
   embed: {
     voyage: VOYAGE_MODELS.VOYAGE_3, // 1024d text embeddings
     gemini: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2,
+    openrouter: OPENROUTER_EMBED_MODELS.OPENAI_TEXT_EMBEDDING_3_SMALL,
   },
   multimodalEmbed: {
     voyage: VOYAGE_MODELS.MULTIMODAL_3_5, // 1024d text + images in same space
     gemini: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2,
+    openrouter: OPENROUTER_EMBED_MODELS.GEMINI_EMBEDDING_2,
   },
   rerank: VOYAGE_MODELS.RERANK_2_5, // standard reranker (Voyage AI)
 } as const;
@@ -498,8 +549,8 @@ export const DEFAULT_TASK_MODELS: TaskModelMatrix = {
       tools: GLM_MODELS.GLM_4_7,
     },
     standard: {
-      text: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
-      tools: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
+      text: GOOGLE_MODELS.GEMINI_3_5_FLASH,
+      tools: GOOGLE_MODELS.GEMINI_3_5_FLASH,
     },
     powerful: {
       text: KIMI_MODELS.KIMI_K2_6,
@@ -518,7 +569,7 @@ export const DEFAULT_TASK_MODELS: TaskModelMatrix = {
       text: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
     },
     standard: {
-      text: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
+      text: GOOGLE_MODELS.GEMINI_3_5_FLASH,
     },
   },
   bulk: {
@@ -531,8 +582,8 @@ export const DEFAULT_TASK_MODELS: TaskModelMatrix = {
       tools: GLM_MODELS.GLM_4_7_FLASH,
     },
     standard: {
-      text: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
-      tools: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
+      text: GOOGLE_MODELS.GEMINI_3_5_FLASH,
+      tools: GOOGLE_MODELS.GEMINI_3_5_FLASH,
     },
   },
   vision: {
@@ -541,8 +592,8 @@ export const DEFAULT_TASK_MODELS: TaskModelMatrix = {
       visionTools: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
     },
     standard: {
-      vision: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
-      visionTools: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
+      vision: GOOGLE_MODELS.GEMINI_3_5_FLASH,
+      visionTools: GOOGLE_MODELS.GEMINI_3_5_FLASH,
     },
     powerful: {
       vision: GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW,
@@ -569,8 +620,8 @@ export const DEFAULT_TASK_MODELS: TaskModelMatrix = {
   },
   longContext: {
     standard: {
-      text: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
-      tools: GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
+      text: GOOGLE_MODELS.GEMINI_3_5_FLASH,
+      tools: GOOGLE_MODELS.GEMINI_3_5_FLASH,
     },
     powerful: {
       text: GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW,
@@ -647,8 +698,8 @@ export const PROVIDER_DEFAULT_MODELS: ProviderLanguageModelMatrix = {
   },
   google: {
     nano: everyVariant(GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW),
-    fast: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
-    standard: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
+    fast: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
+    standard: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
     powerful: everyVariant(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW),
     reasoning: everyVariant(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW),
   },
@@ -707,6 +758,13 @@ export const PROVIDER_DEFAULT_MODELS: ProviderLanguageModelMatrix = {
     standard: everyVariant(KIMI_MODELS.KIMI_K2_6),
     powerful: everyVariant(KIMI_MODELS.KIMI_K2_6),
     reasoning: everyVariant(KIMI_MODELS.KIMI_K2_6),
+  },
+  groq: {
+    nano: everyVariant(GROQ_MODELS.GPT_OSS_20B),
+    fast: everyVariant(GROQ_MODELS.GPT_OSS_20B),
+    standard: everyVariant(GROQ_MODELS.GPT_OSS_120B),
+    powerful: everyVariant(GROQ_MODELS.GPT_OSS_120B),
+    reasoning: everyVariant(GROQ_MODELS.GPT_OSS_120B),
   },
 } as const;
 
@@ -790,24 +848,24 @@ export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
   },
   google: {
     coding: {
-      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
+      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
       powerful: everyVariant(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW),
     },
     agentic: {
-      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
+      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
       powerful: everyVariant(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW),
     },
     chat: {
-      fast: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
-      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
+      fast: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
+      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
     },
     bulk: {
       nano: everyVariant(GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW),
       fast: everyVariant(GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW),
     },
     vision: {
-      fast: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
-      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
+      fast: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
+      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
       powerful: everyVariant(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW),
     },
     reasoning: {
@@ -815,11 +873,11 @@ export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
       reasoning: everyVariant(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW),
     },
     longContext: {
-      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
+      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
       powerful: everyVariant(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW),
     },
     creative: {
-      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW),
+      standard: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
       powerful: everyVariant(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW),
     },
   },
@@ -996,8 +1054,30 @@ export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
       powerful: everyVariant(KIMI_MODELS.KIMI_K2_6),
     },
   },
+  groq: {
+    agentic: {
+      standard: everyVariant(GROQ_MODELS.GPT_OSS_120B),
+      powerful: everyVariant(GROQ_MODELS.GPT_OSS_120B),
+    },
+    chat: {
+      nano: everyVariant(GROQ_MODELS.GPT_OSS_20B),
+      fast: everyVariant(GROQ_MODELS.GPT_OSS_20B),
+      standard: everyVariant(GROQ_MODELS.GPT_OSS_120B),
+    },
+    bulk: {
+      nano: everyVariant(GROQ_MODELS.GPT_OSS_20B),
+      fast: everyVariant(GROQ_MODELS.GPT_OSS_20B),
+      standard: everyVariant(GROQ_MODELS.GPT_OSS_20B),
+    },
+    reasoning: {
+      standard: everyVariant(GROQ_MODELS.GPT_OSS_120B),
+      powerful: everyVariant(GROQ_MODELS.GPT_OSS_120B),
+      reasoning: everyVariant(GROQ_MODELS.GPT_OSS_120B),
+    },
+  },
 } as const;
 
+/** Capability requirements associated with each model variant. */
 export const LANGUAGE_MODEL_CAPABILITIES: Record<
   LanguageModelVariant,
   LanguageModelCapabilities
@@ -1039,6 +1119,7 @@ const LANGUAGE_MODEL_FEATURES: Record<
         ANTHROPIC_MODELS.CLAUDE_HAIKU_4_5,
         GLM_MODELS.GLM_5V_TURBO,
         GLM_MODELS.GLM_4_6V,
+        GOOGLE_MODELS.GEMINI_3_5_FLASH,
         GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
         GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW,
         GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
@@ -1056,6 +1137,7 @@ const LANGUAGE_MODEL_FEATURES: Record<
   ]),
 );
 
+/** Return known runtime capabilities for a catalogued language model. */
 export function getLanguageModelCapabilities(
   modelId: string,
 ): LanguageModelCapabilities | undefined {
@@ -1068,6 +1150,7 @@ export function getLanguageModelCapabilities(
   };
 }
 
+/** Throw when a selected model cannot satisfy a requested capability variant. */
 export function assertLanguageModelCompatible(
   modelId: string,
   variant: LanguageModelVariant,
@@ -1090,6 +1173,7 @@ export function assertLanguageModelCompatible(
   }
 }
 
+/** Resolve tool and vision booleans into the package's model variant key. */
 export function resolveLanguageModelVariant(options?: {
   tools?: boolean;
   vision?: boolean;
@@ -1100,6 +1184,12 @@ export function resolveLanguageModelVariant(options?: {
   return "text";
 }
 
+/**
+ * Resolve the concrete model ID to use for a tier, variant, provider, and task.
+ *
+ * This keeps provider-pinned requests on provider-native defaults whenever the
+ * global task model cannot be routed through the requested provider.
+ */
 export function resolveProviderLanguageModelId(
   models: ModelMatrix,
   tier: ModelTier,
@@ -1136,6 +1226,7 @@ export function resolveProviderLanguageModelId(
   return PROVIDER_DEFAULT_MODELS[provider][tier][variant];
 }
 
+/** Return the managed OpenRouter free-router model ID for a tier and variant. */
 export function resolveOpenRouterFreeModelId(
   tier: ModelTier,
   variant: LanguageModelVariant,
@@ -1228,6 +1319,7 @@ const PROVIDER_PREFIXES: Record<string, ProviderRoute> = {
   "z-ai": "zai",
   zai: "zai",
   moonshotai: "moonshotai",
+  groq: "groq",
 };
 
 const DIRECT_PROVIDER_PREFIXES: Record<string, ProviderRoute> = {
@@ -1241,12 +1333,15 @@ const DIRECT_PROVIDER_PREFIXES: Record<string, ProviderRoute> = {
   "z-ai": "zai",
   zai: "zai",
   moonshotai: "moonshotai",
+  groq: "groq",
 };
 
+/** Environment variable names used to configure direct model services. */
 export const MODEL_SERVICE_ENV_VARS: Partial<Record<ModelService, string>> = {
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
   google: "GOOGLE_GEMINI_API_KEY",
+  groq: "GROQ_API_KEY",
   deepseek: "DEEPSEEK_API_KEY",
   xai: "XAI_API_KEY",
   qwen: "QWEN_API_KEY",
@@ -1258,6 +1353,7 @@ const MODEL_SERVICE_PREFIXES: Record<string, ModelService> = {
   anthropic: "anthropic",
   openai: "openai",
   google: "google",
+  groq: "groq",
   deepseek: "deepseek",
   inception: "inception",
   minimax: "minimax",
@@ -1304,6 +1400,9 @@ const PROVIDER_MODEL_IDS: Record<
     gateway: "anthropic/claude-haiku-4.5",
     anthropic: "claude-haiku-4-5-20251001",
   },
+  "google/gemini-3.5-flash": {
+    google: "gemini-3.5-flash",
+  },
   "google/gemini-3-flash-preview": {
     gateway: "google/gemini-3-flash",
     google: "gemini-3-flash-preview",
@@ -1335,6 +1434,12 @@ const PROVIDER_MODEL_IDS: Record<
     gateway: "xai/grok-4.3",
     xai: "grok-4.3",
   },
+  "openai/gpt-oss-120b": {
+    groq: "openai/gpt-oss-120b",
+  },
+  "openai/gpt-oss-20b": {
+    groq: "openai/gpt-oss-20b",
+  },
   "qwen/qwen3.6-plus": {
     gateway: "alibaba/qwen3.6-plus",
   },
@@ -1357,12 +1462,15 @@ const PROVIDER_MODEL_IDS: Record<
 
 const GATEWAY_UNAVAILABLE_MODEL_IDS = new Set<string>([
   NEX_AGI_MODELS.DEEPSEEK_V3_1_NEX_N1,
+  GROQ_MODELS.GPT_OSS_120B,
+  GROQ_MODELS.GPT_OSS_20B,
   OPENROUTER_MODELS.FREE,
   QWEN_MODELS.QWEN_3_235B_A22B_2507,
   QWEN_MODELS.QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE,
   STEPFUN_MODELS.STEP_3_5_FLASH,
 ]);
 
+/** Request configuration fields supported by each provider route. */
 export const PROVIDER_CONFIG_CAPABILITIES: Record<
   ProviderRoute,
   ProviderConfigCapabilities
@@ -1440,6 +1548,14 @@ export const PROVIDER_CONFIG_CAPABILITIES: Record<
     agentAttribution: false,
   },
   moonshotai: {
+    modelId: true,
+    apiKey: true,
+    baseURL: true,
+    headers: false,
+    appAttribution: false,
+    agentAttribution: false,
+  },
+  groq: {
     modelId: true,
     apiKey: true,
     baseURL: true,
@@ -1542,6 +1658,7 @@ export function canRouteModelToProvider(
 ): boolean {
   if (provider === "openrouter") return true;
   if (provider === "gateway") return !GATEWAY_UNAVAILABLE_MODEL_IDS.has(modelId);
+  if (PROVIDER_MODEL_IDS[modelId]?.[provider]) return true;
   if (!modelId.includes("/")) return true;
 
   const prefix = modelId.slice(0, modelId.indexOf("/"));

@@ -21,6 +21,7 @@ interface FacetMenuProps<T extends string> {
   width?: number;
 }
 
+/** Reusable popover menu for multi-select benchmark filters. */
 export function FacetMenu<T extends string>({
   label,
   options,

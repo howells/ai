@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { loadDotenv } from "@howells/envy/dotenv";
 import { createAI, generateText, streamText } from "./index";
+import { envValue, type RuntimeEnvKey } from "./env";
 import {
   canRouteModelToProvider,
   LANGUAGE_MODEL_CATALOG,
@@ -74,6 +75,7 @@ const LANGUAGE_PROVIDERS = [
   "qwen",
   "zai",
   "moonshotai",
+  "groq",
 ] as const satisfies readonly ProviderRoute[];
 
 const DEFAULT_PROMPT = "Reply with exactly OK.";
@@ -92,33 +94,16 @@ function printError(message: string): void {
   process.stderr.write(`${message}\n`);
 }
 
-function unquoteEnvValue(value: string): string {
-  const trimmed = value.trim();
-  if (
-    (trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-    (trimmed.startsWith("'") && trimmed.endsWith("'"))
-  ) {
-    return trimmed.slice(1, -1);
-  }
-  return trimmed;
+function loadLocalEnv(): void {
+  loadDotenv(ENV_FILES, { skipMissing: true });
 }
 
-function loadLocalEnv(): void {
-  for (const file of ENV_FILES) {
-    if (!existsSync(file)) continue;
+function hasEnv(key: RuntimeEnvKey): boolean {
+  return Boolean(envValue(key));
+}
 
-    for (const line of readFileSync(file, "utf8").split(/\r?\n/)) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
-
-      const equalsIndex = trimmed.indexOf("=");
-      if (equalsIndex === -1) continue;
-
-      const key = trimmed.slice(0, equalsIndex).trim();
-      const value = unquoteEnvValue(trimmed.slice(equalsIndex + 1));
-      process.env[key] ??= value;
-    }
-  }
+function envSource(key: RuntimeEnvKey): string {
+  return envValue(key) ? key : "-";
 }
 
 function readFlag(args: readonly string[], name: string): string | undefined {
@@ -345,62 +330,67 @@ function providerStatuses(): ProviderStatus[] {
   return [
     {
       provider: "gateway",
-      configured: Boolean(process.env.AI_GATEWAY_API_KEY ?? process.env.VERCEL_ENV),
-      source: process.env.AI_GATEWAY_API_KEY
+      configured: hasEnv("AI_GATEWAY_API_KEY") || hasEnv("VERCEL_ENV"),
+      source: hasEnv("AI_GATEWAY_API_KEY")
         ? "AI_GATEWAY_API_KEY"
-        : process.env.VERCEL_ENV
+        : hasEnv("VERCEL_ENV")
           ? "VERCEL_ENV"
           : "-",
     },
     {
       provider: "openrouter",
-      configured: Boolean(process.env.OPENROUTER_API_KEY),
-      source: process.env.OPENROUTER_API_KEY ? "OPENROUTER_API_KEY" : "-",
+      configured: hasEnv("OPENROUTER_API_KEY"),
+      source: envSource("OPENROUTER_API_KEY"),
     },
     {
       provider: "anthropic",
-      configured: Boolean(process.env.ANTHROPIC_API_KEY),
-      source: process.env.ANTHROPIC_API_KEY ? "ANTHROPIC_API_KEY" : "-",
+      configured: hasEnv("ANTHROPIC_API_KEY"),
+      source: envSource("ANTHROPIC_API_KEY"),
     },
     {
       provider: "openai",
-      configured: Boolean(process.env.OPENAI_API_KEY),
-      source: process.env.OPENAI_API_KEY ? "OPENAI_API_KEY" : "-",
+      configured: hasEnv("OPENAI_API_KEY"),
+      source: envSource("OPENAI_API_KEY"),
     },
     {
       provider: "google",
-      configured: Boolean(process.env.GOOGLE_GEMINI_API_KEY),
-      source: process.env.GOOGLE_GEMINI_API_KEY ? "GOOGLE_GEMINI_API_KEY" : "-",
+      configured: hasEnv("GOOGLE_GEMINI_API_KEY"),
+      source: envSource("GOOGLE_GEMINI_API_KEY"),
     },
     {
       provider: "deepseek",
-      configured: Boolean(process.env.DEEPSEEK_API_KEY),
-      source: process.env.DEEPSEEK_API_KEY ? "DEEPSEEK_API_KEY" : "-",
+      configured: hasEnv("DEEPSEEK_API_KEY"),
+      source: envSource("DEEPSEEK_API_KEY"),
     },
     {
       provider: "xai",
-      configured: Boolean(process.env.XAI_API_KEY),
-      source: process.env.XAI_API_KEY ? "XAI_API_KEY" : "-",
+      configured: hasEnv("XAI_API_KEY"),
+      source: envSource("XAI_API_KEY"),
     },
     {
       provider: "qwen",
-      configured: Boolean(process.env.QWEN_API_KEY),
-      source: process.env.QWEN_API_KEY ? "QWEN_API_KEY" : "-",
+      configured: hasEnv("QWEN_API_KEY"),
+      source: envSource("QWEN_API_KEY"),
     },
     {
       provider: "zai",
-      configured: Boolean(process.env.ZAI_API_KEY),
-      source: process.env.ZAI_API_KEY ? "ZAI_API_KEY" : "-",
+      configured: hasEnv("ZAI_API_KEY"),
+      source: envSource("ZAI_API_KEY"),
     },
     {
       provider: "moonshotai",
-      configured: Boolean(process.env.MOONSHOT_API_KEY),
-      source: process.env.MOONSHOT_API_KEY ? "MOONSHOT_API_KEY" : "-",
+      configured: hasEnv("MOONSHOT_API_KEY"),
+      source: envSource("MOONSHOT_API_KEY"),
+    },
+    {
+      provider: "groq",
+      configured: hasEnv("GROQ_API_KEY"),
+      source: envSource("GROQ_API_KEY"),
     },
     {
       provider: "voyage",
-      configured: Boolean(process.env.VOYAGE_API_KEY),
-      source: process.env.VOYAGE_API_KEY ? "VOYAGE_API_KEY" : "-",
+      configured: hasEnv("VOYAGE_API_KEY"),
+      source: envSource("VOYAGE_API_KEY"),
     },
   ];
 }
@@ -408,8 +398,8 @@ function providerStatuses(): ProviderStatus[] {
 function serviceStatuses(): ServiceStatus[] {
   return Object.entries(MODEL_SERVICE_ENV_VARS).map(([service, envVar]) => ({
     service: service as ModelService,
-    configured: Boolean(process.env[envVar]),
-    source: process.env[envVar] ? envVar : "-",
+    configured: hasEnv(envVar as RuntimeEnvKey),
+    source: envSource(envVar as RuntimeEnvKey),
   }));
 }
 

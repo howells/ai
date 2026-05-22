@@ -9,6 +9,7 @@
 
 import { createOpenAI } from "@ai-sdk/openai";
 import type { LanguageModel } from "ai";
+import { envValue } from "../env";
 import type { ModelOptions } from "../types";
 
 /** Minimal direct OpenAI provider adapter used by the AI client. */
@@ -28,7 +29,7 @@ export function createOpenAIProvider(
   function getClient() {
     if (client) return client;
 
-    const key = apiKey ?? process.env.OPENAI_API_KEY;
+    const key = apiKey ?? envValue("OPENAI_API_KEY");
     if (!key) {
       throw new Error(
         "OPENAI_API_KEY is required for direct OpenAI access. " +
