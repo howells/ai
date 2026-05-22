@@ -1,6 +1,7 @@
 import type { ProviderRoute } from "@howells/ai";
 import type { MetricKey } from "./format";
 
+/** Minimal result shape needed to compare providers for one benchmark metric. */
 export interface BenchmarkMetricResult {
   provider: ProviderRoute;
   label: string;
@@ -10,14 +11,17 @@ export interface BenchmarkMetricResult {
   tokensPerSecond: number;
 }
 
+/** Median-normalized provider score for matched model runs. */
 export interface ProviderComparison {
   /** Median-normalized score. Lower is better for every metric. */
   score: number;
   matchedModels: number;
 }
 
+/** Provider comparison map keyed by provider route. */
 export type ProviderComparisons = Partial<Record<ProviderRoute, ProviderComparison>>;
 
+/** Read the selected metric value from a benchmark result. */
 export function resultMetricValue(
   result: BenchmarkMetricResult,
   metric: MetricKey,
@@ -25,6 +29,7 @@ export function resultMetricValue(
   return result[metric];
 }
 
+/** Compare two metric values using the correct win direction for the metric. */
 export function isBetterMetric(
   candidate: number,
   incumbent: number,
@@ -35,12 +40,14 @@ export function isBetterMetric(
     : candidate < incumbent;
 }
 
+/** Format a normalized provider score for compact UI display. */
 export function formatProviderScore(score: number): string {
   if (score < 0.01) return "<0.01x";
   if (score < 10) return `${score.toFixed(2)}x`;
   return `${score.toFixed(1)}x`;
 }
 
+/** Build median-normalized provider comparisons across shared model labels. */
 export function getProviderComparisons(
   results: readonly BenchmarkMetricResult[],
   metric: MetricKey,
@@ -95,6 +102,7 @@ export function getProviderComparisons(
   return comparisons;
 }
 
+/** Pick the best provider comparison, respecting an optional provider order. */
 export function bestProviderComparison(
   comparisons: ProviderComparisons,
   providers?: readonly ProviderRoute[],

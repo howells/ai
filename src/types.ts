@@ -86,6 +86,7 @@ export type EmbeddingModelSlot = "embed" | "multimodalEmbed";
 /** Slots that return retrieval support models. */
 export type RetrievalModelSlot = EmbeddingModelSlot | "rerank";
 
+/** Any named model slot that can be overridden in the model matrix. */
 export type ModelSlot = ModelTier | RetrievalModelSlot;
 
 /** Provider-specific model IDs for one embedding slot. */

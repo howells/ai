@@ -28,12 +28,14 @@ interface BenchmarkHistoryResult extends BenchmarkMetricResult {
   averaged?: boolean;
 }
 
+/** Inputs persisted for one benchmark result row. */
 export interface PersistBenchmarkResultInput {
   prompt: string;
   optionsHash: string;
   result: BenchmarkHistoryResult;
 }
 
+/** Database row shape returned from benchmark_results queries. */
 export interface BenchmarkHistoryRow {
   created_at: string | Date;
   model: string;
@@ -56,18 +58,22 @@ type SqlClient = NeonQueryFunction<false, false>;
 
 let schemaReady: Promise<boolean> | null = null;
 
+/** Return whether a configured database URL is available for history storage. */
 export function benchmarkHistoryAvailable(): boolean {
   return Boolean(getDatabaseUrl());
 }
 
+/** Hash benchmark prompt or option text for stable grouping. */
 export function hashBenchmarkText(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
+/** Hash structured benchmark options with stable key ordering. */
 export function benchmarkOptionsHash(value: unknown): string {
   return hashBenchmarkText(stableStringify(value));
 }
 
+/** Persist one benchmark result if database history is configured. */
 export async function persistBenchmarkResult({
   prompt,
   optionsHash,
@@ -120,6 +126,7 @@ export async function persistBenchmarkResult({
   `;
 }
 
+/** Load recent benchmark history for the requested model/provider filters. */
 export async function loadBenchmarkHistory({
   models,
   providers,
@@ -160,6 +167,7 @@ export async function loadBenchmarkHistory({
   };
 }
 
+/** Summarize raw benchmark rows into per-provider historical comparisons. */
 export function summarizeBenchmarkHistory(
   rows: readonly BenchmarkHistoryRow[],
   {

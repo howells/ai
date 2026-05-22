@@ -17,6 +17,7 @@ interface OpenRouterEndpointResponse {
   };
 }
 
+/** Cache OpenRouter endpoint metadata briefly to keep sandbox validation responsive. */
 export const revalidate = 60;
 
 function endpointUrl(modelId: string): string {
@@ -25,6 +26,7 @@ function endpointUrl(modelId: string): string {
   return `https://openrouter.ai/api/v1/models/${encodedModelId}/endpoints`;
 }
 
+/** Proxy OpenRouter endpoint metadata for one model ID. */
 export async function GET(request: NextRequest) {
   const model = request.nextUrl.searchParams.get("model")?.trim();
 

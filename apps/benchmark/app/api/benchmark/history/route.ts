@@ -2,8 +2,10 @@ import type { ProviderRoute } from "@howells/ai";
 import { NextResponse, type NextRequest } from "next/server";
 import { loadBenchmarkHistory } from "../../../../lib/benchmark-history";
 
+/** Allow history aggregation enough time for remote serverless databases. */
 export const maxDuration = 60;
 
+/** Return historical benchmark summaries for the requested model/provider filters. */
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const models = parseCsv(searchParams.get("models"));

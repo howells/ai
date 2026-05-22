@@ -42,6 +42,7 @@ import { Tooltip } from "./tooltip";
 
 export type { MetricKey };
 
+/** Streamed benchmark result displayed in provider/model table cells. */
 export interface BenchmarkResult {
   model: string;
   provider: ProviderRoute;
@@ -76,6 +77,7 @@ interface BenchmarkTableProps {
   openRouterVariant?: string;
 }
 
+/** Interactive model/provider matrix with route status and benchmark results. */
 export function BenchmarkTable({
   rows,
   visibleProviders,

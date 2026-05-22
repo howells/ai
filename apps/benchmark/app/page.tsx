@@ -115,6 +115,7 @@ const INITIAL_SELECTION: RowSelectionState = (() => {
   return next;
 })();
 
+/** Main benchmark dashboard for matrix-style provider and model comparison. */
 export default function BenchmarkPage() {
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   const [imageInputs, setImageInputs] = useState("");

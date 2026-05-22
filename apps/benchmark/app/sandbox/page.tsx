@@ -303,6 +303,7 @@ function validateRoute({
   };
 }
 
+/** Four-column model sandbox for sending one prompt to comparable routes. */
 export default function SandboxPage() {
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   const [maxTokens, setMaxTokens] = useState(180);

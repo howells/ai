@@ -19,8 +19,10 @@ import type {
   ProviderRoute,
 } from "@howells/ai";
 
+/** UI grouping applied to catalogue rows in the benchmark table. */
 export type ModelGroup = "defaults" | "task-optimized" | "provider-optimized";
 
+/** Benchmark table row derived from the package model catalogue and defaults. */
 export interface ModelRow {
   id: string;
   name: string;
@@ -32,6 +34,7 @@ export interface ModelRow {
   defaultTier?: ModelTier;
 }
 
+/** Provider routes displayed by the benchmark UI. */
 export const ALL_PROVIDERS: ProviderRoute[] = [
   "openrouter",
   "gateway",
@@ -46,9 +49,12 @@ export const ALL_PROVIDERS: ProviderRoute[] = [
   "groq",
 ];
 
+/** Model tiers displayed by the benchmark UI. */
 export const ALL_TIERS: readonly ModelTier[] = MODEL_TIERS;
+/** Workload tasks displayed by the benchmark UI. */
 export const ALL_TASKS: readonly ModelTask[] = LANGUAGE_MODEL_TASKS;
 
+/** Format a language model variant for compact slot labels. */
 export function formatVariant(variant: LanguageModelVariant): string {
   switch (variant) {
     case "text":
@@ -200,6 +206,7 @@ function serviceForEntry(
     : inferServiceForRow(entry.id);
 }
 
+/** Benchmark-visible model rows built from catalogued models that fill a slot. */
 export const MODEL_ROWS: ModelRow[] = LANGUAGE_MODEL_CATALOG.filter((entry) =>
   OFFERED_MODEL_IDS.has(entry.id),
 ).map((entry) => {
@@ -235,28 +242,33 @@ export const MODEL_ROWS: ModelRow[] = LANGUAGE_MODEL_CATALOG.filter((entry) =>
   return a.name.localeCompare(b.name);
 });
 
+/** Services represented by benchmark-visible model rows. */
 export const ALL_SERVICES: ModelService[] = Array.from(
   new Set(MODEL_ROWS.map((row) => row.service)),
 );
 
+/** Human-readable labels for model row groups. */
 export const GROUP_LABELS: Record<ModelGroup, string> = {
   defaults: "Defaults",
   "task-optimized": "Task-optimized",
   "provider-optimized": "Provider-optimized",
 };
 
+/** Tooltip descriptions for model row groups. */
 export const GROUP_DESCRIPTIONS: Record<ModelGroup, string> = {
   defaults: "Models wired into a global or provider default slot.",
   "task-optimized": "Models chosen for a specific workload.",
   "provider-optimized": "Models reached by pinning a provider.",
 };
 
+/** Ordered model row groups for rendering grouped table sections. */
 export const GROUPS: ModelGroup[] = [
   "defaults",
   "task-optimized",
   "provider-optimized",
 ];
 
+/** Return all tiers mentioned by a model row's default or task slots. */
 export function tiersForRow(row: ModelRow): ModelTier[] {
   const tiers = new Set<ModelTier>();
   for (const slot of row.defaultSlots) {
@@ -271,11 +283,13 @@ export function tiersForRow(row: ModelRow): ModelTier[] {
   return [...tiers];
 }
 
+/** Per-provider route status for a single model row. */
 export interface RouteCell {
   status: "ready" | "missing-key" | "no-route" | "result" | "running";
   providerModelId?: string;
 }
 
+/** Resolve route availability and concrete provider model ID for a table cell. */
 export function routeCellFor(
   row: ModelRow,
   provider: ProviderRoute,
@@ -296,6 +310,7 @@ export function routeCellFor(
   };
 }
 
+/** Return the display name for a provider route. */
 export function providerLabel(p: ProviderRoute): string {
   switch (p) {
     case "openrouter":
@@ -323,6 +338,7 @@ export function providerLabel(p: ProviderRoute): string {
   }
 }
 
+/** Return a short all-caps provider handle for dense cells. */
 export function providerShort(p: ProviderRoute): string {
   switch (p) {
     case "openrouter":
@@ -350,7 +366,7 @@ export function providerShort(p: ProviderRoute): string {
   }
 }
 
-/*
+/**
  * Provider accent — V7 product UI keeps tabular data calm and monochrome.
  * The handle is a secondary identifier; the provider name does the labelling.
  * We render every handle in the faint text colour so the data column wins.
@@ -359,6 +375,7 @@ export function providerAccent(_p: ProviderRoute): string {
   return "text-[var(--color-text-faint)]";
 }
 
+/** Return the display label for an underlying model service. */
 export function serviceLabel(service: ModelService): string {
   switch (service) {
     case "anthropic":
@@ -392,15 +409,18 @@ export function serviceLabel(service: ModelService): string {
   }
 }
 
+/** Return the display label for a model tier. */
 export function tierLabel(tier: ModelTier): string {
   return tier;
 }
 
+/** Return the display label for a workload task. */
 export function taskLabel(task: ModelTask): string {
   if (task === "longContext") return "long context";
   return task;
 }
 
+/** Tooltip descriptions for each language model tier. */
 export const TIER_DESCRIPTIONS: Record<ModelTier, string> = {
   nano: "Smallest, cheapest, fastest. Used for trivial classification or routing.",
   fast: "Speed-optimised mid-tier. Daily-driver for chat and short generations.",
@@ -409,6 +429,7 @@ export const TIER_DESCRIPTIONS: Record<ModelTier, string> = {
   reasoning: "Chain-of-thought / thinking models. Slow but stronger at multi-step problems.",
 };
 
+/** Tooltip descriptions for each workload task. */
 export const TASK_DESCRIPTIONS: Record<ModelTask, string> = {
   general: "Default for any unspecified task.",
   coding: "Optimised for code generation, completion, and refactoring.",
@@ -421,5 +442,6 @@ export const TASK_DESCRIPTIONS: Record<ModelTask, string> = {
   creative: "Tuned for narrative, copywriting, and creative writing.",
 };
 
+/** Explanation shown near slot labels in the benchmark UI. */
 export const SLOT_LEGEND =
   "Slots are (tier × variant) defaults this model fills. Pick a slot via createAI({ tier, variant }) and the model resolves automatically.";

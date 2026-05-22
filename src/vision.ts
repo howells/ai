@@ -1,7 +1,9 @@
 import type { ImagePart, TextPart, UserModelMessage } from "ai";
 
+/** Image payload shape accepted by the package vision helpers. */
 export type VisionImageData = string | URL | Uint8Array | ArrayBuffer | Buffer;
 
+/** Image input accepted by visionPrompt and visionMessage. */
 export type VisionInput =
   | VisionImageData
   | {
@@ -13,6 +15,7 @@ export type VisionInput =
       mediaType?: `image/${string}`;
     };
 
+/** AI SDK multimodal prompt content built from text plus image parts. */
 export type VisionPrompt = Array<TextPart | ImagePart>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -43,6 +46,7 @@ function mediaTypeFromDataUrl(value: VisionImageData): `image/${string}` | undef
     : undefined;
 }
 
+/** Convert a supported image input into an AI SDK image content part. */
 export function imagePart(input: VisionInput): ImagePart {
   if (isRecord(input)) {
     if ("url" in input) {
@@ -76,6 +80,7 @@ export function imagePart(input: VisionInput): ImagePart {
   };
 }
 
+/** Build AI SDK user-message content from text and one or more images. */
 export function visionPrompt(text: string, images: readonly VisionInput[]): VisionPrompt {
   return [
     { type: "text", text },
@@ -83,6 +88,7 @@ export function visionPrompt(text: string, images: readonly VisionInput[]): Visi
   ];
 }
 
+/** Build a complete AI SDK user message for multimodal generation calls. */
 export function visionMessage(
   text: string,
   images: readonly VisionInput[],

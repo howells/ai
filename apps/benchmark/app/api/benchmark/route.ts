@@ -60,6 +60,7 @@ interface BenchmarkResult {
   averaged?: boolean;
 }
 
+/** Return configured providers and services for benchmark UI availability checks. */
 export function GET() {
   loadBenchmarkEnv();
 

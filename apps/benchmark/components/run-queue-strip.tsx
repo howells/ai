@@ -41,7 +41,7 @@ interface RunQueueStripProps {
   onRun: () => void;
 }
 
-/*
+/**
  * The single editorial moment of the app. The big numeral renders in Fraunces
  * (display serif), surrounded by calm sentence-case meta. Slots have fixed
  * minimum widths so geometry doesn't reflow as the strip cycles through

@@ -30,6 +30,7 @@ type ProviderTaskModelMatrix = Partial<
   Record<ProviderRoute, PartialTaskModelMatrix>
 >;
 
+/** Ordered language model quality/cost tiers exposed by createAI(). */
 export const MODEL_TIERS = [
   "nano",
   "fast",
@@ -38,6 +39,7 @@ export const MODEL_TIERS = [
   "reasoning",
 ] as const satisfies readonly ModelTier[];
 
+/** Ordered capability variants available inside each language tier. */
 export const LANGUAGE_MODEL_VARIANTS = [
   "text",
   "tools",
@@ -45,6 +47,7 @@ export const LANGUAGE_MODEL_VARIANTS = [
   "visionTools",
 ] as const satisfies readonly LanguageModelVariant[];
 
+/** Ordered workload hints used by task-optimized model defaults. */
 export const LANGUAGE_MODEL_TASKS = [
   "general",
   "coding",
@@ -168,11 +171,13 @@ export const MINIMAX_MODELS = {
   MINIMAX_M2_5: "minimax/minimax-m2.5",
 } as const;
 
+/** Supported StepFun model IDs for Gateway/OpenRouter routing. */
 export const STEPFUN_MODELS = {
   /** OpenRouter-only high-value flash model. */
   STEP_3_5_FLASH: "stepfun/step-3.5-flash",
 } as const;
 
+/** Supported Xiaomi model IDs for Gateway/OpenRouter routing. */
 export const XIAOMI_MODELS = {
   /** Very cheap, fast structured/tool model. */
   MIMO_V2_FLASH: "xiaomi/mimo-v2-flash",
@@ -180,11 +185,13 @@ export const XIAOMI_MODELS = {
   MIMO_V2_PRO: "xiaomi/mimo-v2-pro",
 } as const;
 
+/** Supported Inception Labs model IDs for extreme-throughput routing. */
 export const INCEPTION_MODELS = {
   /** Extreme-throughput Mercury model for latency stress testing. */
   MERCURY_2: "inception/mercury-2",
 } as const;
 
+/** Supported Nex AGI model IDs for OpenRouter-only value routing. */
 export const NEX_AGI_MODELS = {
   /** OpenRouter-only DeepSeek derivative from the cheap-quality shelf. */
   DEEPSEEK_V3_1_NEX_N1: "nex-agi/deepseek-v3.1-nex-n1",
@@ -1070,6 +1077,7 @@ export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
   },
 } as const;
 
+/** Capability requirements associated with each model variant. */
 export const LANGUAGE_MODEL_CAPABILITIES: Record<
   LanguageModelVariant,
   LanguageModelCapabilities
@@ -1129,6 +1137,7 @@ const LANGUAGE_MODEL_FEATURES: Record<
   ]),
 );
 
+/** Return known runtime capabilities for a catalogued language model. */
 export function getLanguageModelCapabilities(
   modelId: string,
 ): LanguageModelCapabilities | undefined {
@@ -1141,6 +1150,7 @@ export function getLanguageModelCapabilities(
   };
 }
 
+/** Throw when a selected model cannot satisfy a requested capability variant. */
 export function assertLanguageModelCompatible(
   modelId: string,
   variant: LanguageModelVariant,
@@ -1163,6 +1173,7 @@ export function assertLanguageModelCompatible(
   }
 }
 
+/** Resolve tool and vision booleans into the package's model variant key. */
 export function resolveLanguageModelVariant(options?: {
   tools?: boolean;
   vision?: boolean;
@@ -1173,6 +1184,12 @@ export function resolveLanguageModelVariant(options?: {
   return "text";
 }
 
+/**
+ * Resolve the concrete model ID to use for a tier, variant, provider, and task.
+ *
+ * This keeps provider-pinned requests on provider-native defaults whenever the
+ * global task model cannot be routed through the requested provider.
+ */
 export function resolveProviderLanguageModelId(
   models: ModelMatrix,
   tier: ModelTier,
@@ -1209,6 +1226,7 @@ export function resolveProviderLanguageModelId(
   return PROVIDER_DEFAULT_MODELS[provider][tier][variant];
 }
 
+/** Return the managed OpenRouter free-router model ID for a tier and variant. */
 export function resolveOpenRouterFreeModelId(
   tier: ModelTier,
   variant: LanguageModelVariant,
@@ -1318,6 +1336,7 @@ const DIRECT_PROVIDER_PREFIXES: Record<string, ProviderRoute> = {
   groq: "groq",
 };
 
+/** Environment variable names used to configure direct model services. */
 export const MODEL_SERVICE_ENV_VARS: Partial<Record<ModelService, string>> = {
   anthropic: "ANTHROPIC_API_KEY",
   openai: "OPENAI_API_KEY",
@@ -1451,6 +1470,7 @@ const GATEWAY_UNAVAILABLE_MODEL_IDS = new Set<string>([
   STEPFUN_MODELS.STEP_3_5_FLASH,
 ]);
 
+/** Request configuration fields supported by each provider route. */
 export const PROVIDER_CONFIG_CAPABILITIES: Record<
   ProviderRoute,
   ProviderConfigCapabilities
