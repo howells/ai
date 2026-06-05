@@ -1,15 +1,13 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import type { LanguageModel } from "ai";
-import { envValue, type RuntimeEnvKey } from "../env";
+import { envValue } from "../env";
+import type { RuntimeEnvKey } from "../env";
 import type { ModelOptions, ModelService, ProviderRoute } from "../types";
 
 /** Configuration needed to create a direct OpenAI-compatible provider client. */
 export interface OpenAICompatibleProviderConfig {
   /** Public provider route represented by this compatible client. */
-  provider: Extract<
-    ProviderRoute,
-    "deepseek" | "xai" | "qwen" | "zai" | "moonshotai" | "groq"
-  >;
+  provider: Extract<ProviderRoute, "deepseek" | "xai" | "qwen" | "zai" | "moonshotai" | "groq">;
   /** Underlying service key used for availability and service reporting. */
   service: ModelService;
   /** Explicit API key passed to createAI, if one was supplied. */
@@ -32,10 +30,7 @@ export interface OpenAICompatibleProvider {
   };
 }
 
-const GROQ_HIDDEN_REASONING_MODELS = new Set([
-  "openai/gpt-oss-120b",
-  "openai/gpt-oss-20b",
-]);
+const GROQ_HIDDEN_REASONING_MODELS = new Set(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
 
 function withGroqHiddenReasoning(
   input: Parameters<typeof fetch>[0],
@@ -89,7 +84,9 @@ export function createOpenAICompatibleProvider(
   }
 
   function getClient() {
-    if (client) return client;
+    if (client) {
+      return client;
+    }
 
     client = createOpenAI({
       apiKey: getApiKey(),

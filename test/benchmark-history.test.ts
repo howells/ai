@@ -1,8 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import {
-  summarizeBenchmarkHistory,
-  type BenchmarkHistoryRow,
-} from "../apps/benchmark/lib/benchmark-history";
+import { summarizeBenchmarkHistory } from "../apps/benchmark/lib/benchmark-history";
+import type { BenchmarkHistoryRow } from "../apps/benchmark/lib/benchmark-history";
 
 describe("benchmark history aggregation", () => {
   test("scores historical providers using matched model comparisons", () => {
@@ -19,9 +17,7 @@ describe("benchmark history aggregation", () => {
     expect(gateway?.runCount).toBe(1);
     expect(openrouter?.scores.ttft?.matchedModels).toBe(1);
     expect(gateway?.scores.ttft?.matchedModels).toBe(1);
-    expect(openrouter?.scores.ttft?.score).toBeLessThan(
-      gateway?.scores.ttft?.score ?? 0,
-    );
+    expect(openrouter?.scores.ttft?.score).toBeLessThan(gateway?.scores.ttft?.score ?? 0);
   });
 
   test("returns raw provider medians without using them as route scores", () => {
@@ -51,20 +47,20 @@ function row(
   }>,
 ): BenchmarkHistoryRow {
   return {
+    averaged: false,
+    cost_usd: null,
     created_at: "2026-05-04T00:00:00.000Z",
+    error: null,
+    input_tokens: 10,
     model: `${provider}/${modelLabel.toLowerCase().replaceAll(" ", "-")}`,
     model_label: modelLabel,
-    provider,
-    route_model_id: `${provider}/${modelLabel}`,
-    ttft: values.ttft ?? 100,
-    total_time: values.totalTime ?? 1000,
     output_tokens: 20,
-    input_tokens: 10,
-    tokens_per_second: values.tokensPerSecond ?? 10,
-    cost_usd: null,
+    provider,
     region: "test",
     round: null,
-    averaged: false,
-    error: null,
+    route_model_id: `${provider}/${modelLabel}`,
+    tokens_per_second: values.tokensPerSecond ?? 10,
+    total_time: values.totalTime ?? 1000,
+    ttft: values.ttft ?? 100,
   };
 }

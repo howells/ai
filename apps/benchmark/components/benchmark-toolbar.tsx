@@ -54,10 +54,7 @@ export function BenchmarkToolbar({
   onSelectAll,
   onClearSelection,
 }: BenchmarkToolbarProps) {
-  function update<K extends keyof ToolbarFilters>(
-    key: K,
-    value: ToolbarFilters[K],
-  ) {
+  function update<K extends keyof ToolbarFilters>(key: K, value: ToolbarFilters[K]) {
     onFiltersChange({ ...filters, [key]: value });
   }
 
@@ -86,6 +83,7 @@ export function BenchmarkToolbar({
         </svg>
         <input
           type="text"
+          aria-label="Filter models"
           value={filters.search}
           onChange={(event) => update("search", event.target.value)}
           placeholder="Filter"
@@ -98,10 +96,10 @@ export function BenchmarkToolbar({
         selected={filters.tiers}
         onChange={(next) => update("tiers", next)}
         options={ALL_TIERS.map((tier) => ({
-          value: tier,
-          label: tier,
           count: tierCounts[tier],
           description: TIER_DESCRIPTIONS[tier],
+          label: tier,
+          value: tier,
         }))}
         width={300}
       />
@@ -111,10 +109,10 @@ export function BenchmarkToolbar({
         selected={filters.tasks}
         onChange={(next) => update("tasks", next)}
         options={ALL_TASKS.map((task) => ({
-          value: task,
-          label: taskLabel(task),
           count: taskCounts[task],
           description: TASK_DESCRIPTIONS[task],
+          label: taskLabel(task),
+          value: task,
         }))}
         width={320}
       />
@@ -124,9 +122,9 @@ export function BenchmarkToolbar({
         selected={filters.services}
         onChange={(next) => update("services", next)}
         options={allServices.map((service) => ({
-          value: service,
-          label: serviceLabel(service),
           count: serviceCounts[service],
+          label: serviceLabel(service),
+          value: service,
         }))}
       />
 
@@ -135,10 +133,9 @@ export function BenchmarkToolbar({
         selected={filters.providers}
         onChange={(next) => update("providers", next)}
         options={allProviders.map((provider) => ({
-          value: provider,
+          disabled: filters.configuredOnly && !availableProviders.includes(provider),
           label: providerLabel(provider),
-          disabled:
-            filters.configuredOnly && !availableProviders.includes(provider),
+          value: provider,
         }))}
         width={220}
       />
@@ -149,9 +146,7 @@ export function BenchmarkToolbar({
       />
 
       <span className="ml-auto whitespace-nowrap text-[12px] text-[var(--color-text-muted)]">
-        <span className="data tabular-nums text-[var(--color-text)]">
-          {filteredCount}
-        </span>
+        <span className="data tabular-nums text-[var(--color-text)]">{filteredCount}</span>
         <span className="text-[var(--color-text-faint)]">/{modelCount}</span>
         <span className="mx-1 text-[var(--color-text-faint)]">·</span>
         <span className="data tabular-nums text-[var(--color-text)]">
@@ -184,12 +179,12 @@ export function BenchmarkToolbar({
           type="button"
           onClick={() =>
             onFiltersChange({
-              search: "",
-              tiers: new Set(),
-              tasks: new Set(),
-              services: new Set(),
-              providers: new Set(),
               configuredOnly: true,
+              providers: new Set(),
+              search: "",
+              services: new Set(),
+              tasks: new Set(),
+              tiers: new Set(),
             })
           }
           className="cursor-pointer whitespace-nowrap rounded-[var(--radius-pill)] px-2.5 py-1 text-[12px] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
@@ -205,13 +200,7 @@ export function BenchmarkToolbar({
  * Plain pill toggle: "Configured" when active, "All providers" when inactive.
  * No checkbox icon and no overflow badge — the label states the world.
  */
-function ConfiguredToggle({
-  active,
-  onToggle,
-}: {
-  active: boolean;
-  onToggle: () => void;
-}) {
+function ConfiguredToggle({ active, onToggle }: { active: boolean; onToggle: () => void }) {
   return (
     <button
       type="button"

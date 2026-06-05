@@ -46,8 +46,8 @@ function result(
   return {
     label,
     provider,
-    ttft: values.ttft ?? 100,
-    totalTime: values.totalTime ?? 1000,
     tokensPerSecond: values.tokensPerSecond ?? 10,
+    totalTime: values.totalTime ?? 1000,
+    ttft: values.ttft ?? 100,
   };
 }

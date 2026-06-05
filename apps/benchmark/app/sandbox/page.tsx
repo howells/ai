@@ -1,6 +1,7 @@
 "use client";
 
 import type { ProviderRoute } from "@howells/ai";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Streamdown } from "streamdown";
 import type { BenchmarkReasoningMode } from "../../lib/benchmark-options";
@@ -68,8 +69,8 @@ const MODEL_OPTIONS: ModelOption[] = [
     label: "GLM 4.7 - Cerebras",
     model: "z-ai/glm-4.7",
     provider: "openrouter",
-    routeProvider: "cerebras",
     reasoning: "off",
+    routeProvider: "cerebras",
   },
   {
     label: "GPT-OSS 20B - Groq direct",
@@ -87,29 +88,29 @@ const MODEL_OPTIONS: ModelOption[] = [
     label: "GPT-OSS 120B - Cerebras",
     model: "openai/gpt-oss-120b",
     provider: "openrouter",
-    routeProvider: "cerebras",
     reasoning: "minimal",
+    routeProvider: "cerebras",
   },
   {
     label: "GPT-OSS 20B - OpenRouter Groq",
     model: "openai/gpt-oss-20b",
     provider: "openrouter",
-    routeProvider: "groq",
     reasoning: "minimal",
+    routeProvider: "groq",
   },
   {
     label: "GPT-OSS 120B - OpenRouter Groq",
     model: "openai/gpt-oss-120b",
     provider: "openrouter",
-    routeProvider: "groq",
     reasoning: "minimal",
+    routeProvider: "groq",
   },
   {
     label: "Llama 4 Scout - Groq",
     model: "meta-llama/llama-4-scout",
     provider: "openrouter",
-    routeProvider: "groq",
     reasoning: "off",
+    routeProvider: "groq",
   },
   {
     label: "GLM 4.7 Flash",
@@ -119,12 +120,10 @@ const MODEL_OPTIONS: ModelOption[] = [
   },
 ];
 
-const DEFAULT_COLUMNS: ColumnState[] = MODEL_OPTIONS.slice(0, 4).map(
-  (option, index) => ({
-    id: `column-${index}`,
-    ...option,
-  }),
-);
+const DEFAULT_COLUMNS: ColumnState[] = MODEL_OPTIONS.slice(0, 4).map((option, index) => ({
+  id: `column-${index}`,
+  ...option,
+}));
 
 const DEFAULT_PROMPT =
   "For a consumer app, explain one tradeoff between speed and answer quality in two sentences.";
@@ -139,7 +138,9 @@ function metric(value: number, suffix: string): string {
 
 function applyOption(column: ColumnState, label: string): ColumnState {
   const option = MODEL_OPTIONS.find((item) => item.label === label);
-  if (!option) return column;
+  if (!option) {
+    return column;
+  }
   return { id: column.id, ...option };
 }
 
@@ -151,9 +152,9 @@ function normalizeRouteSlug(value: string): string {
   return value
     .trim()
     .toLowerCase()
-    .replace(/&/g, "and")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replaceAll("&", "and")
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/^-+|-+$/g, "");
 }
 
 function routeSlugForEndpoint(endpoint: OpenRouterEndpoint): string {
@@ -161,10 +162,7 @@ function routeSlugForEndpoint(endpoint: OpenRouterEndpoint): string {
   return normalizeRouteSlug(tagBase || endpoint.provider_name || "");
 }
 
-function endpointMatchesRoute(
-  endpoint: OpenRouterEndpoint,
-  routeProvider: string,
-): boolean {
+function endpointMatchesRoute(endpoint: OpenRouterEndpoint, routeProvider: string): boolean {
   const route = normalizeRouteSlug(routeProvider);
   const slugs = [
     routeSlugForEndpoint(endpoint),
@@ -190,16 +188,18 @@ function endpointSummary(endpoints: readonly OpenRouterEndpoint[]): string {
 
 function routeOptions(
   status: OpenRouterEndpointStatus | undefined,
-): Array<{ value: string; label: string }> {
+): { value: string; label: string }[] {
   const options = new Map<string, string>();
   for (const endpoint of status?.endpoints ?? []) {
     const value = routeSlugForEndpoint(endpoint);
-    if (!value || options.has(value)) continue;
+    if (!value || options.has(value)) {
+      continue;
+    }
     options.set(value, endpoint.provider_name ?? value);
   }
   return [...options]
-    .map(([value, label]) => ({ value, label }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+    .map(([value, label]) => ({ label, value }))
+    .toSorted((a, b) => a.label.localeCompare(b.label));
 }
 
 function validateRoute({
@@ -289,9 +289,7 @@ function validateRoute({
       canRun: false,
       label: "route down",
       pillClass: "pill--warn",
-      title: `${endpointLabel(endpoint)} exists but is not healthy (status ${
-        endpoint.status
-      }).`,
+      title: `${endpointLabel(endpoint)} exists but is not healthy (status ${endpoint.status}).`,
     };
   }
 
@@ -308,19 +306,15 @@ export default function SandboxPage() {
   const [prompt, setPrompt] = useState(DEFAULT_PROMPT);
   const [maxTokens, setMaxTokens] = useState(180);
   const [columns, setColumns] = useState<ColumnState[]>(DEFAULT_COLUMNS);
-  const [availableProviders, setAvailableProviders] = useState<ProviderRoute[]>(
-    [],
-  );
+  const [availableProviders, setAvailableProviders] = useState<ProviderRoute[]>([]);
   const [results, setResults] = useState<Record<string, SandboxResult>>({});
-  const [runningColumnIds, setRunningColumnIds] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const [runningColumnIds, setRunningColumnIds] = useState<Set<string>>(() => new Set());
   const [openRouterStatuses, setOpenRouterStatuses] = useState<
     Record<string, OpenRouterEndpointStatus>
   >({});
-  const [checkingOpenRouterModels, setCheckingOpenRouterModels] = useState<
-    Set<string>
-  >(() => new Set());
+  const [checkingOpenRouterModels, setCheckingOpenRouterModels] = useState<Set<string>>(
+    () => new Set(),
+  );
   const checkingOpenRouterModelsRef = useRef(new Set<string>());
   const [error, setError] = useState<string | null>(null);
 
@@ -329,12 +323,16 @@ export default function SandboxPage() {
     void (async () => {
       try {
         const response = await fetch("/api/benchmark");
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
         const config = (await response.json()) as BenchmarkConfig;
-        if (!cancelled) setAvailableProviders(config.availableProviders);
-      } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err));
+          setAvailableProviders(config.availableProviders);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setError(error instanceof Error ? error.message : String(error));
         }
       }
     })();
@@ -343,10 +341,7 @@ export default function SandboxPage() {
     };
   }, []);
 
-  const configured = useMemo(
-    () => new Set(availableProviders),
-    [availableProviders],
-  );
+  const configured = useMemo(() => new Set(availableProviders), [availableProviders]);
   const running = runningColumnIds.size > 0;
 
   useEffect(() => {
@@ -358,19 +353,21 @@ export default function SandboxPage() {
       ),
     ].filter(
       (model) =>
-        model &&
-        !openRouterStatuses[model] &&
-        !checkingOpenRouterModelsRef.current.has(model),
+        model && !openRouterStatuses[model] && !checkingOpenRouterModelsRef.current.has(model),
     );
 
-    if (modelsToCheck.length === 0) return;
+    if (modelsToCheck.length === 0) {
+      return;
+    }
 
     for (const model of modelsToCheck) {
       checkingOpenRouterModelsRef.current.add(model);
     }
     setCheckingOpenRouterModels((current) => {
       const next = new Set(current);
-      for (const model of modelsToCheck) next.add(model);
+      for (const model of modelsToCheck) {
+        next.add(model);
+      }
       return next;
     });
 
@@ -380,19 +377,21 @@ export default function SandboxPage() {
           const response = await fetch(
             `/api/openrouter/endpoints?model=${encodeURIComponent(model)}`,
           );
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
           const status = (await response.json()) as OpenRouterEndpointStatus;
           setOpenRouterStatuses((current) => ({
             ...current,
             [model]: status,
           }));
-        } catch (err) {
+        } catch (error) {
           setOpenRouterStatuses((current) => ({
             ...current,
             [model]: {
-              model,
               endpoints: [],
-              error: err instanceof Error ? err.message : String(err),
+              error: error instanceof Error ? error.message : String(error),
+              model,
             },
           }));
         } finally {
@@ -412,7 +411,9 @@ export default function SandboxPage() {
     setRunningColumnIds(targetIds);
     setError(null);
     setResults((current) => {
-      if (clearAll) return {};
+      if (clearAll) {
+        return {};
+      }
       const next = { ...current };
       for (const column of targetColumns) {
         delete next[resultKey(column)];
@@ -422,39 +423,38 @@ export default function SandboxPage() {
 
     try {
       const response = await fetch("/api/benchmark", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt,
           maxTokens,
+          options: {
+            allowProviders: [],
+            cache: "off",
+            denyProviders: [],
+            fallbackModels: [],
+            fallbacks: true,
+            includeCost: true,
+            logprobs: "off",
+            openRouterVariant: "off",
+            privacy: [],
+            providerOrder: [],
+            quantizations: [],
+            reasoning: "default",
+            responseHealing: false,
+            routePreference: "auto",
+            serviceTier: "default",
+            tags: ["sandbox"],
+            webSearch: "off",
+          },
+          prompt,
           runs: targetColumns.map((column) => ({
             model: column.model,
             provider: column.provider,
             label: column.label,
             routeProvider: column.routeProvider,
-            reasoning:
-              column.reasoning === "default" ? undefined : column.reasoning,
+            reasoning: column.reasoning === "default" ? undefined : column.reasoning,
           })),
-          options: {
-            routePreference: "auto",
-            openRouterVariant: "off",
-            serviceTier: "default",
-            privacy: [],
-            allowProviders: [],
-            denyProviders: [],
-            providerOrder: [],
-            fallbacks: true,
-            quantizations: [],
-            fallbackModels: [],
-            cache: "off",
-            reasoning: "default",
-            webSearch: "off",
-            responseHealing: false,
-            includeCost: true,
-            logprobs: "off",
-            tags: ["sandbox"],
-          },
         }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
       });
 
       if (!response.ok || !response.body) {
@@ -467,19 +467,23 @@ export default function SandboxPage() {
 
       while (true) {
         const { done, value } = await reader.read();
-        if (done) break;
+        if (done) {
+          break;
+        }
         buffer += decoder.decode(value, { stream: true });
 
         const events = buffer.split("\n\n");
         buffer = events.pop() ?? "";
 
         for (const event of events) {
-          const line = event
-            .split("\n")
-            .find((part) => part.startsWith("data: "));
-          if (!line) continue;
+          const line = event.split("\n").find((part) => part.startsWith("data: "));
+          if (!line) {
+            continue;
+          }
           const payload = line.slice("data: ".length);
-          if (payload === "[DONE]") continue;
+          if (payload === "[DONE]") {
+            continue;
+          }
           const result = JSON.parse(payload) as SandboxResult;
           const column = targetColumns.find(
             (item) =>
@@ -487,19 +491,23 @@ export default function SandboxPage() {
               item.provider === result.provider &&
               item.model === result.model,
           );
-          if (!column) continue;
+          if (!column) {
+            continue;
+          }
           setResults((current) => ({
             ...current,
             [resultKey(column)]: result,
           }));
         }
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
     } finally {
       setRunningColumnIds((current) => {
         const next = new Set(current);
-        for (const id of targetIds) next.delete(id);
+        for (const id of targetIds) {
+          next.delete(id);
+        }
         return next;
       });
     }
@@ -512,12 +520,12 @@ export default function SandboxPage() {
           <div className="eyebrow">Howells AI</div>
           <h1 className="text-xl font-medium">Model sandbox</h1>
         </div>
-        <a
+        <Link
           className="rounded-[var(--radius-control)] border border-border px-3 py-1.5 text-sm text-text-muted hover:bg-raised"
           href="/"
         >
           Benchmark table
-        </a>
+        </Link>
       </header>
 
       <section className="border-b border-border bg-raised px-5 py-4">
@@ -525,6 +533,7 @@ export default function SandboxPage() {
           <label className="grid gap-1">
             <span className="eyebrow">Shared prompt</span>
             <textarea
+              aria-label="Shared prompt"
               className="min-h-24 resize-none rounded-[var(--radius-control)] border border-border bg-surface p-3 text-sm leading-6"
               value={prompt}
               onChange={(event) => setPrompt(event.target.value)}
@@ -533,6 +542,7 @@ export default function SandboxPage() {
           <label className="grid gap-1">
             <span className="eyebrow">Max tokens</span>
             <input
+              aria-label="Max tokens"
               className="rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2 text-sm"
               min={32}
               max={4096}
@@ -561,21 +571,16 @@ export default function SandboxPage() {
           const openRouterModelId = canonicalModelId(column.model);
           const openRouterStatus = openRouterStatuses[openRouterModelId];
           const routeValidation = validateRoute({
+            checking:
+              column.provider === "openrouter" && checkingOpenRouterModels.has(openRouterModelId),
             column,
             providerReady,
-            status:
-              column.provider === "openrouter" ? openRouterStatus : undefined,
-            checking:
-              column.provider === "openrouter" &&
-              checkingOpenRouterModels.has(openRouterModelId),
+            status: column.provider === "openrouter" ? openRouterStatus : undefined,
           });
           const availableRouteOptions = routeOptions(openRouterStatus);
 
           return (
-            <article
-              className="flex min-h-[520px] flex-col bg-surface"
-              key={column.id}
-            >
+            <article className="flex min-h-[520px] flex-col bg-surface" key={column.id}>
               <div className="border-b border-border p-4">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <span className="eyebrow">Column {index + 1}</span>
@@ -588,9 +593,7 @@ export default function SandboxPage() {
                     </span>
                     <button
                       className="rounded-[var(--radius-control)] border border-border px-2.5 py-1 text-xs font-medium text-text-muted hover:bg-raised disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={
-                        running || !prompt.trim() || !routeValidation.canRun
-                      }
+                      disabled={running || !prompt.trim() || !routeValidation.canRun}
                       onClick={() => void runSandbox([column], false)}
                       type="button"
                     >
@@ -607,9 +610,7 @@ export default function SandboxPage() {
                     onChange={(event) =>
                       setColumns((current) =>
                         current.map((item) =>
-                          item.id === column.id
-                            ? applyOption(item, event.target.value)
-                            : item,
+                          item.id === column.id ? applyOption(item, event.target.value) : item,
                         ),
                       )
                     }
@@ -666,8 +667,7 @@ export default function SandboxPage() {
                             item.id === column.id
                               ? {
                                   ...item,
-                                  routeProvider:
-                                    event.target.value || undefined,
+                                  routeProvider: event.target.value || undefined,
                                 }
                               : item,
                           ),
@@ -684,9 +684,7 @@ export default function SandboxPage() {
                       !availableRouteOptions.some(
                         (option) => option.value === column.routeProvider,
                       ) ? (
-                        <option value={column.routeProvider}>
-                          {column.routeProvider}
-                        </option>
+                        <option value={column.routeProvider}>{column.routeProvider}</option>
                       ) : null}
                     </select>
                   </label>
@@ -695,14 +693,13 @@ export default function SandboxPage() {
                 <label className="mt-3 grid gap-1">
                   <span className="eyebrow-sm">Model ID</span>
                   <input
+                    aria-label={`Model ID for ${column.label}`}
                     className="rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2 font-mono text-xs"
                     value={column.model}
                     onChange={(event) =>
                       setColumns((current) =>
                         current.map((item) =>
-                          item.id === column.id
-                            ? { ...item, model: event.target.value }
-                            : item,
+                          item.id === column.id ? { ...item, model: event.target.value } : item,
                         ),
                       )
                     }
@@ -711,14 +708,8 @@ export default function SandboxPage() {
               </div>
 
               <div className="grid grid-cols-3 gap-px bg-border text-center">
-                <MetricBox
-                  label="TTFT"
-                  value={metric(currentResult?.ttft ?? 0, "ms")}
-                />
-                <MetricBox
-                  label="Total"
-                  value={metric(currentResult?.totalTime ?? 0, "ms")}
-                />
+                <MetricBox label="TTFT" value={metric(currentResult?.ttft ?? 0, "ms")} />
+                <MetricBox label="Total" value={metric(currentResult?.totalTime ?? 0, "ms")} />
                 <MetricBox
                   label="Tok/s"
                   value={
@@ -731,9 +722,7 @@ export default function SandboxPage() {
 
               <div className="min-h-0 flex-1 overflow-auto p-4">
                 {columnRunning && !currentResult ? (
-                  <p className="text-sm text-text-muted">
-                    Waiting for response...
-                  </p>
+                  <p className="text-sm text-text-muted">Waiting for response...</p>
                 ) : currentResult?.error ? (
                   <pre className="whitespace-pre-wrap rounded-[var(--radius-control)] bg-error-bg p-3 text-xs text-error-fg">
                     {currentResult.error}
@@ -741,8 +730,8 @@ export default function SandboxPage() {
                 ) : currentResult ? (
                   <div className="space-y-3">
                     <p className="eyebrow-sm">
-                      {currentResult.inputTokens} input tokens /{" "}
-                      {currentResult.outputTokens} output tokens
+                      {currentResult.inputTokens} input tokens / {currentResult.outputTokens} output
+                      tokens
                     </p>
                     <Streamdown
                       className="streamdown-output text-sm leading-6"

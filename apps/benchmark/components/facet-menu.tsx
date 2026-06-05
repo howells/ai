@@ -35,7 +35,9 @@ export function FacetMenu<T extends string>({
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
 
     function handleClick(event: MouseEvent) {
       if (!ref.current?.contains(event.target as Node)) {
@@ -43,7 +45,9 @@ export function FacetMenu<T extends string>({
       }
     }
     function handleKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key === "Escape") {
+        setOpen(false);
+      }
     }
 
     document.addEventListener("mousedown", handleClick);
@@ -56,8 +60,11 @@ export function FacetMenu<T extends string>({
 
   function toggle(value: T) {
     const next = new Set(selected);
-    if (next.has(value)) next.delete(value);
-    else next.add(value);
+    if (next.has(value)) {
+      next.delete(value);
+    } else {
+      next.add(value);
+    }
     onChange(next);
   }
 
@@ -81,7 +88,7 @@ export function FacetMenu<T extends string>({
     selected.size === 0
       ? null
       : selected.size === 1
-        ? options.find((o) => selected.has(o.value))?.label ?? null
+        ? (options.find((o) => selected.has(o.value))?.label ?? null)
         : String(selected.size);
 
   // Reserve "emptyMeansAll = false" for callers that need a different empty

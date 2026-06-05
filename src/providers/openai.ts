@@ -21,13 +21,13 @@ export interface OpenAIProvider {
  * Create an OpenAI provider instance.
  * Each createAI() call gets its own instance — no shared state.
  */
-export function createOpenAIProvider(
-  apiKey: string | undefined,
-): OpenAIProvider {
+export function createOpenAIProvider(apiKey: string | undefined): OpenAIProvider {
   let client: ReturnType<typeof createOpenAI> | null = null;
 
   function getClient() {
-    if (client) return client;
+    if (client) {
+      return client;
+    }
 
     const key = apiKey ?? envValue("OPENAI_API_KEY");
     if (!key) {

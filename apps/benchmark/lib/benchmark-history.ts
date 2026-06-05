@@ -1,16 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { ProviderRoute } from "@howells/ai";
-import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
+import { neon } from "@neondatabase/serverless";
+import type { NeonQueryFunction } from "@neondatabase/serverless";
 import type { MetricKey } from "./format";
-import type {
-  BenchmarkHistoryResponse,
-  HistoricalProviderSummary,
-} from "./history-types";
-import {
-  getProviderComparisons,
-  resultMetricValue,
-  type BenchmarkMetricResult,
-} from "./result-insights";
+import type { BenchmarkHistoryResponse, HistoricalProviderSummary } from "./history-types";
+import { getProviderComparisons, resultMetricValue } from "./result-insights";
+import type { BenchmarkMetricResult } from "./result-insights";
 
 const HISTORY_METRICS = ["ttft", "totalTime", "tokensPerSecond"] as const;
 const HISTORY_WINDOW_DAYS = 90;
@@ -80,7 +75,9 @@ export async function persistBenchmarkResult({
   result,
 }: PersistBenchmarkResultInput): Promise<void> {
   const sql = await getReadySql();
-  if (!sql) return;
+  if (!sql) {
+    return;
+  }
 
   await sql`
     INSERT INTO benchmark_results (
@@ -135,7 +132,9 @@ export async function loadBenchmarkHistory({
   providers: readonly ProviderRoute[];
 }): Promise<BenchmarkHistoryResponse> {
   const sql = await getReadySql();
-  if (!sql) return { available: false, providers: [] };
+  if (!sql) {
+    return { available: false, providers: [] };
+  }
 
   const rows = (await sql`
     SELECT
@@ -181,8 +180,12 @@ export function summarizeBenchmarkHistory(
   const modelSet = models?.length ? new Set(models) : null;
   const providerSet = providers?.length ? new Set(providers) : null;
   const filtered = rows.filter((row) => {
-    if (modelSet && !modelSet.has(row.model_label)) return false;
-    if (providerSet && !providerSet.has(row.provider)) return false;
+    if (modelSet && !modelSet.has(row.model_label)) {
+      return false;
+    }
+    if (providerSet && !providerSet.has(row.provider)) {
+      return false;
+    }
     return true;
   });
 
@@ -196,15 +199,15 @@ export function summarizeBenchmarkHistory(
 
   for (const row of filtered) {
     const createdAt =
-      row.created_at instanceof Date
-        ? row.created_at.toISOString()
-        : row.created_at;
+      row.created_at instanceof Date ? row.created_at.toISOString() : row.created_at;
     const current = byProvider.get(row.provider) ?? {
-      rows: [],
       lastSeen: createdAt,
+      rows: [],
     };
     current.rows.push(row);
-    if (createdAt > current.lastSeen) current.lastSeen = createdAt;
+    if (createdAt > current.lastSeen) {
+      current.lastSeen = createdAt;
+    }
     byProvider.set(row.provider, current);
   }
 
@@ -215,15 +218,11 @@ export function summarizeBenchmarkHistory(
   for (const metric of HISTORY_METRICS) {
     comparisonsByMetric.set(
       metric,
-      getProviderComparisons(
-        filtered.map(historyRowToMetricResult),
-        metric,
-        providers,
-      ),
+      getProviderComparisons(filtered.map(historyRowToMetricResult), metric, providers),
     );
   }
 
-  return Array.from(byProvider.entries())
+  return [...byProvider.entries()]
     .map(([provider, value]) => {
       const medians: HistoricalProviderSummary["medians"] = {};
       const scores: HistoricalProviderSummary["scores"] = {};
@@ -232,28 +231,34 @@ export function summarizeBenchmarkHistory(
           .filter((row) => !row.error)
           .map((row) => historyMetricValue(row, metric))
           .filter((n) => Number.isFinite(n) && n > 0)
-          .sort((a, b) => a - b);
+          .toSorted((a, b) => a - b);
         const medianValue = median(metricValues);
-        if (medianValue !== undefined) medians[metric] = medianValue;
+        if (medianValue !== undefined) {
+          medians[metric] = medianValue;
+        }
 
         const comparison = comparisonsByMetric.get(metric)?.[provider];
-        if (comparison) scores[metric] = comparison;
+        if (comparison) {
+          scores[metric] = comparison;
+        }
       }
 
       return {
-        provider,
-        scores,
-        medians,
-        runCount: value.rows.length,
         lastSeen: value.lastSeen,
+        medians,
+        provider,
+        runCount: value.rows.length,
+        scores,
       };
     })
-    .sort((a, b) => a.provider.localeCompare(b.provider));
+    .toSorted((a, b) => a.provider.localeCompare(b.provider));
 }
 
 async function getReadySql(): Promise<SqlClient | null> {
   const connectionString = getDatabaseUrl();
-  if (!connectionString) return null;
+  if (!connectionString) {
+    return null;
+  }
   const sql = neon(connectionString);
   schemaReady ??= ensureBenchmarkHistorySchema(sql);
   const ready = await schemaReady;
@@ -315,12 +320,12 @@ function getDatabaseUrl(): string | undefined {
 
 function historyRowToMetricResult(row: BenchmarkHistoryRow): BenchmarkMetricResult {
   return {
-    provider: row.provider,
-    label: row.model_label,
     error: row.error ?? undefined,
-    ttft: row.ttft,
-    totalTime: row.total_time,
+    label: row.model_label,
+    provider: row.provider,
     tokensPerSecond: row.tokens_per_second,
+    totalTime: row.total_time,
+    ttft: row.ttft,
   };
 }
 
@@ -329,17 +334,25 @@ function historyMetricValue(row: BenchmarkHistoryRow, metric: MetricKey): number
 }
 
 function median(values: readonly number[]): number | undefined {
-  if (values.length === 0) return undefined;
+  if (values.length === 0) {
+    return undefined;
+  }
   const middle = Math.floor(values.length / 2);
-  if (values.length % 2 === 1) return values[middle];
+  if (values.length % 2 === 1) {
+    return values[middle];
+  }
   return ((values[middle - 1] ?? 0) + (values[middle] ?? 0)) / 2;
 }
 
 function stableStringify(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(",")}]`;
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map(stableStringify).join(",")}]`;
+  }
   return `{${Object.entries(value)
-    .sort(([a], [b]) => a.localeCompare(b))
+    .toSorted(([a], [b]) => a.localeCompare(b))
     .map(([key, child]) => `${JSON.stringify(key)}:${stableStringify(child)}`)
     .join(",")}}`;
 }

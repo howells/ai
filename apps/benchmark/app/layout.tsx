@@ -6,25 +6,22 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 const fraunces = Fraunces({
-  subsets: ["latin"],
-  variable: "--font-fraunces",
   axes: ["opsz", "SOFT"],
   display: "swap",
+  subsets: ["latin"],
+  variable: "--font-fraunces",
 });
 
 /** Static metadata for the benchmark Next.js app. */
 export const metadata: Metadata = {
-  title: "Howells AI Benchmark",
   description: "Compare provider route latency for @howells/ai models.",
+  title: "Howells AI Benchmark",
 };
 
 /** Root document shell that installs benchmark typography and global CSS. */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`${GeistSans.variable} ${GeistMono.variable} ${fraunces.variable}`}
-    >
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} ${fraunces.variable}`}>
       <body>{children}</body>
     </html>
   );

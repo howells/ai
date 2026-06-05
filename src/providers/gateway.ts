@@ -55,13 +55,13 @@ export interface GatewayProvider {
  * The gateway uses the AI_GATEWAY_API_KEY env var for authentication
  * when running outside Vercel. On Vercel, it authenticates automatically.
  */
-export function createGatewayProvider(
-  apiKey: string | undefined,
-): GatewayProvider {
+export function createGatewayProvider(apiKey: string | undefined): GatewayProvider {
   let client: ReturnType<typeof createGateway> | null = null;
 
   function getClient() {
-    if (client) return client;
+    if (client) {
+      return client;
+    }
 
     // The SDK reads AI_GATEWAY_API_KEY from process.env automatically.
     // Only pass apiKey explicitly if one was provided to createAI().
@@ -71,18 +71,18 @@ export function createGatewayProvider(
 
   const introspection: GatewayIntrospection = {
     credits: () => getClient().getCredits(),
-    spend: (params) => getClient().getSpendReport(params),
     generationInfo: (id) => getClient().getGenerationInfo({ id }),
     listModels: async () => {
       const response = await getClient().getAvailableModels();
       return response.models;
     },
+    spend: (params) => getClient().getSpendReport(params),
   };
 
   return {
+    introspection,
     model(modelId, _options) {
       return getClient()(modelId);
     },
-    introspection,
   };
 }

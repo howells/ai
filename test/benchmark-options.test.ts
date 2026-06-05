@@ -10,89 +10,89 @@ describe("benchmark advanced options", () => {
   test("builds minimal generation options for a run", () => {
     expect(
       buildBenchmarkGenerationOptions({
-        provider: "gateway",
-        modelId: "anthropic/claude-sonnet-4.6",
         maxTokens: 200,
+        modelId: "anthropic/claude-sonnet-4.6",
+        provider: "gateway",
       }),
     ).toEqual({
-      provider: "gateway",
-      modelId: "anthropic/claude-sonnet-4.6",
-      maxOutputTokens: 200,
       includeCost: true,
+      maxOutputTokens: 200,
+      modelId: "anthropic/claude-sonnet-4.6",
+      provider: "gateway",
     });
   });
 
   test("normalizes routing, privacy, cost, fallback, and reporting knobs", () => {
     const options = buildBenchmarkGenerationOptions({
-      provider: "openrouter",
-      modelId: "anthropic/claude-sonnet-4.6",
       maxTokens: 300,
+      modelId: "anthropic/claude-sonnet-4.6",
       options: {
         ...DEFAULT_ADVANCED_OPTIONS,
-        routePreference: "fastest",
-        serviceTier: "priority",
-        privacy: ["no-retention", "no-training"],
         allowProviders: ["anthropic"],
         denyProviders: ["openai"],
-        providerOrder: ["anthropic", "google-vertex"],
-        fallbacks: false,
-        quantizations: ["fp8", "bf16"],
         fallbackModels: ["anthropic/claude-haiku-4.5"],
-        maxPromptCost: 3,
+        fallbacks: false,
         maxCompletionCost: 15,
+        maxPromptCost: 3,
         maxRequestCost: 0.1,
+        privacy: ["no-retention", "no-training"],
+        providerOrder: ["anthropic", "google-vertex"],
+        quantizations: ["fp8", "bf16"],
+        routePreference: "fastest",
+        serviceTier: "priority",
         tags: ["bench:routing"],
       },
+      provider: "openrouter",
     });
 
     expect(options).toMatchObject({
-      provider: "openrouter",
-      modelId: "anthropic/claude-sonnet-4.6",
+      fallbackModels: ["anthropic/claude-haiku-4.5"],
       maxOutputTokens: 300,
-      serviceTier: "priority",
+      modelId: "anthropic/claude-sonnet-4.6",
+      provider: "openrouter",
       routing: {
-        prefer: "fastest",
-        privacy: ["no-retention", "no-training"],
         allow: ["anthropic"],
         deny: ["openai"],
-        order: ["anthropic", "google-vertex"],
         fallbacks: false,
-        quantizations: ["fp8", "bf16"],
         maxCost: {
-          promptPerMillion: 3,
           completionPerMillion: 15,
+          promptPerMillion: 3,
           requestUsd: 0.1,
         },
+        order: ["anthropic", "google-vertex"],
+        prefer: "fastest",
+        privacy: ["no-retention", "no-training"],
+        quantizations: ["fp8", "bf16"],
       },
-      fallbackModels: ["anthropic/claude-haiku-4.5"],
+      serviceTier: "priority",
       tags: ["bench:routing"],
     });
   });
 
   test("normalizes reasoning, cache, search, healing, cost, and logprobs knobs", () => {
     const options = buildBenchmarkGenerationOptions({
-      provider: "openrouter",
-      modelId: "openai/gpt-5.4",
       maxTokens: 100,
+      modelId: "openai/gpt-5.4",
       options: {
         ...DEFAULT_ADVANCED_OPTIONS,
         cache: "ephemeral-1h",
-        reasoning: "high",
-        reasoningTokens: 4096,
-        webSearch: "exa",
-        responseHealing: true,
         includeCost: true,
         logprobs: "top5",
+        reasoning: "high",
+        reasoningTokens: 4096,
+        responseHealing: true,
+        webSearch: "exa",
       },
+      provider: "openrouter",
     });
 
     expect(options).toMatchObject({
       cache: { ttl: "1h" },
-      reasoning: { effort: "high", maxTokens: 4096 },
-      webSearch: { engine: "exa" },
-      responseHealing: true,
       includeCost: true,
       logprobs: 5,
+      reasoning: { effort: "high", maxTokens: 4096 },
+      responseHealing: true,
+      webSearch: { engine: "exa" },
     });
   });
 

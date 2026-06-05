@@ -1,12 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "bun:test";
-import {
-  createAI,
-  generateText,
-  type GenerationOptions,
-  type ProviderRoute,
-} from "../src";
+import { createAI, generateText } from "../src";
+import type { GenerationOptions, ProviderRoute } from "../src";
 import {
   canRouteModelToProvider,
   LANGUAGE_MODEL_CATALOG,
@@ -36,14 +32,20 @@ function unquoteEnvValue(value: string): string {
 
 function loadLocalEnv(): void {
   for (const file of ENV_FILES) {
-    if (!existsSync(file)) continue;
+    if (!existsSync(file)) {
+      continue;
+    }
 
-    for (const line of readFileSync(file, "utf8").split(/\r?\n/)) {
+    for (const line of readFileSync(file, "utf-8").split(/\r?\n/)) {
       const trimmed = line.trim();
-      if (!trimmed || trimmed.startsWith("#")) continue;
+      if (!trimmed || trimmed.startsWith("#")) {
+        continue;
+      }
 
       const equalsIndex = trimmed.indexOf("=");
-      if (equalsIndex === -1) continue;
+      if (equalsIndex === -1) {
+        continue;
+      }
 
       const key = trimmed.slice(0, equalsIndex).trim();
       const value = unquoteEnvValue(trimmed.slice(equalsIndex + 1));
@@ -59,9 +61,7 @@ const ai = createAI({
 });
 
 const configuredLanguageProviders = ai.availableProviders.filter((provider) =>
-  ["gateway", "openrouter", "anthropic", "openai", "google"].includes(
-    provider,
-  ),
+  ["gateway", "openrouter", "anthropic", "openai", "google"].includes(provider),
 );
 
 interface LiveModelRun {
@@ -76,13 +76,15 @@ function createLanguageMatrix(): LiveModelRun[] {
 
   for (const model of LANGUAGE_MODEL_CATALOG) {
     for (const provider of configuredLanguageProviders) {
-      if (!canRouteModelToProvider(model.id, provider)) continue;
+      if (!canRouteModelToProvider(model.id, provider)) {
+        continue;
+      }
 
       runs.push({
-        provider,
         canonicalModelId: model.id,
-        providerModelId: resolveProviderModelId(model.id, provider),
         label: model.name,
+        provider,
+        providerModelId: resolveProviderModelId(model.id, provider),
       });
     }
   }
@@ -95,16 +97,15 @@ function assertLiveTestsAreConfigured(): void {
 }
 
 async function assertGenerationWorks(run: LiveModelRun): Promise<void> {
-  const needsExplicitReasoning =
-    run.canonicalModelId === "openai/gpt-5-nano";
+  const needsExplicitReasoning = run.canonicalModelId === "openai/gpt-5-nano";
 
   const result = await generateText({
     model: ai.modelById(run.providerModelId, { provider: run.provider }),
     prompt: "Reply with exactly OK.",
     ...ai.generationOptions({
-      provider: run.provider,
-      modelId: run.canonicalModelId,
       maxOutputTokens: 256,
+      modelId: run.canonicalModelId,
+      provider: run.provider,
       temperature: null,
       tools: "none",
       ...(needsExplicitReasoning ? { reasoning: "minimal" } : {}),
@@ -114,74 +115,74 @@ async function assertGenerationWorks(run: LiveModelRun): Promise<void> {
   expect(result.text.trim().length).toBeGreaterThan(0);
 }
 
-const CONFIG_MATRIX: Array<{
+const CONFIG_MATRIX: {
   provider: ProviderRoute;
   modelId: string;
   label: string;
   options: GenerationOptions;
-}> = [
+}[] = [
   {
-    provider: "gateway",
-    modelId: "openai/gpt-5.4-mini",
     label: "Gateway with inferred OpenAI options",
+    modelId: "openai/gpt-5.4-mini",
     options: {
-      provider: "gateway",
       modelId: "openai/gpt-5.4-mini",
+      provider: "gateway",
       reasoning: "minimal",
-      verbosity: "low",
       user: "live-test",
+      verbosity: "low",
     },
+    provider: "gateway",
   },
   {
-    provider: "openrouter",
-    modelId: "anthropic/claude-haiku-4.5",
     label: "OpenRouter reasoning/cache/user options",
+    modelId: "anthropic/claude-haiku-4.5",
     options: {
+      cache: "ephemeral",
+      parallelTools: true,
       provider: "openrouter",
       reasoning: "off",
-      parallelTools: true,
-      cache: "ephemeral",
       user: "live-test",
     },
+    provider: "openrouter",
   },
   {
-    provider: "anthropic",
-    modelId: "anthropic/claude-haiku-4.5",
     label: "Anthropic thinking/cache/structured options",
+    modelId: "anthropic/claude-haiku-4.5",
     options: {
+      cache: "ephemeral",
+      parallelTools: false,
       provider: "anthropic",
       reasoning: "off",
       structured: "auto",
-      parallelTools: false,
-      cache: "ephemeral",
       user: "live-test",
     },
+    provider: "anthropic",
   },
   {
-    provider: "openai",
-    modelId: "openai/gpt-5.4-mini",
     label: "OpenAI reasoning/verbosity/structured options",
+    modelId: "openai/gpt-5.4-mini",
     options: {
-      provider: "openai",
       modelId: "openai/gpt-5.4-mini",
-      reasoning: "minimal",
-      verbosity: "low",
-      structured: "strict",
       parallelTools: false,
+      provider: "openai",
+      reasoning: "minimal",
       serviceTier: "auto",
+      structured: "strict",
       user: "live-test",
+      verbosity: "low",
     },
+    provider: "openai",
   },
   {
-    provider: "google",
-    modelId: "google/gemini-3.1-flash-lite",
     label: "Google thinking/structured/service-tier options",
+    modelId: "google/gemini-3.1-flash-lite",
     options: {
       provider: "google",
       reasoning: "low",
-      structured: "strict",
       serviceTier: "standard",
+      structured: "strict",
     },
+    provider: "google",
   },
 ];
 
@@ -218,14 +219,15 @@ describe("live provider matrix", () => {
       const failures: string[] = [];
 
       for (const config of CONFIG_MATRIX) {
-        if (!configuredLanguageProviders.includes(config.provider)) continue;
-        if (!canRouteModelToProvider(config.modelId, config.provider)) continue;
+        if (!configuredLanguageProviders.includes(config.provider)) {
+          continue;
+        }
+        if (!canRouteModelToProvider(config.modelId, config.provider)) {
+          continue;
+        }
 
         try {
-          const providerModelId = resolveProviderModelId(
-            config.modelId,
-            config.provider,
-          );
+          const providerModelId = resolveProviderModelId(config.modelId, config.provider);
           const result = await generateText({
             model: ai.modelById(providerModelId, {
               provider: config.provider,
@@ -233,8 +235,8 @@ describe("live provider matrix", () => {
             prompt: "Reply with exactly OK.",
             ...ai.generationOptions({
               ...config.options,
-              modelId: config.modelId,
               maxOutputTokens: 256,
+              modelId: config.modelId,
               temperature: null,
               tools: "none",
             }),

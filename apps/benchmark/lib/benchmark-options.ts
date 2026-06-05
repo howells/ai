@@ -57,23 +57,23 @@ export interface BenchmarkGenerationInput {
 
 /** Default advanced option values for benchmark requests and sandbox runs. */
 export const DEFAULT_ADVANCED_OPTIONS: BenchmarkAdvancedOptions = {
-  routePreference: "auto",
-  openRouterVariant: "off",
-  serviceTier: "default",
-  privacy: [],
   allowProviders: [],
-  denyProviders: [],
-  providerOrder: [],
-  fallbacks: true,
-  quantizations: [],
-  fallbackModels: [],
   cache: "off",
-  reasoning: "default",
-  webSearch: "off",
-  responseHealing: false,
+  denyProviders: [],
+  fallbackModels: [],
+  fallbacks: true,
   includeCost: true,
   logprobs: "off",
+  openRouterVariant: "off",
+  privacy: [],
+  providerOrder: [],
+  quantizations: [],
+  reasoning: "default",
+  responseHealing: false,
+  routePreference: "auto",
+  serviceTier: "default",
   tags: [],
+  webSearch: "off",
 };
 
 /** User-facing route preference options. */
@@ -81,11 +81,11 @@ export const ROUTE_PREFERENCES: readonly {
   value: RoutePreference;
   label: string;
 }[] = [
-  { value: "auto", label: "Auto" },
-  { value: "cheapest", label: "Cheapest" },
-  { value: "fastest", label: "Fastest" },
-  { value: "highest-throughput", label: "Throughput" },
-  { value: "highest-quality", label: "Quality" },
+  { label: "Auto", value: "auto" },
+  { label: "Cheapest", value: "cheapest" },
+  { label: "Fastest", value: "fastest" },
+  { label: "Throughput", value: "highest-throughput" },
+  { label: "Quality", value: "highest-quality" },
 ];
 
 /** OpenRouter model-suffix options with labels for the advanced controls. */
@@ -95,24 +95,24 @@ export const OPENROUTER_VARIANTS: readonly {
   description: string;
 }[] = [
   {
-    value: "off",
-    label: "None",
     description: "Use OpenRouter's default provider routing.",
+    label: "None",
+    value: "off",
   },
   {
-    value: "nitro",
-    label: "Nitro",
     description: "Append :nitro and sort providers by throughput.",
+    label: "Nitro",
+    value: "nitro",
   },
   {
-    value: "exacto",
-    label: "Exacto",
     description: "Append :exacto for quality-first tool-use routing.",
+    label: "Exacto",
+    value: "exacto",
   },
   {
-    value: "floor",
-    label: "Floor",
     description: "Append :floor and sort providers by price.",
+    label: "Floor",
+    value: "floor",
   },
 ];
 
@@ -123,29 +123,29 @@ export const SERVICE_TIERS: readonly {
   description: string;
 }[] = [
   {
-    value: "default",
-    label: "Provider default",
     description: "Omit service tier and let the selected provider decide.",
+    label: "Provider default",
+    value: "default",
   },
   {
-    value: "auto",
-    label: "Auto",
     description: "Use provider automatic tier selection where supported.",
+    label: "Auto",
+    value: "auto",
   },
   {
-    value: "standard",
-    label: "Standard",
     description: "Prefer the standard paid service tier where supported.",
+    label: "Standard",
+    value: "standard",
   },
   {
-    value: "flex",
-    label: "Flex",
     description: "Prefer lower-cost, slower processing where supported.",
+    label: "Flex",
+    value: "flex",
   },
   {
-    value: "priority",
-    label: "Priority",
     description: "Prefer prioritized processing where supported.",
+    label: "Priority",
+    value: "priority",
   },
 ];
 
@@ -154,9 +154,9 @@ export const PRIVACY_OPTIONS: readonly {
   value: PrivacyConstraint;
   label: string;
 }[] = [
-  { value: "no-retention", label: "No retention" },
-  { value: "no-training", label: "No training" },
-  { value: "hipaa", label: "HIPAA" },
+  { label: "No retention", value: "no-retention" },
+  { label: "No training", value: "no-training" },
+  { label: "HIPAA", value: "hipaa" },
 ];
 
 /** Quantization filters available through provider routing options. */
@@ -211,12 +211,24 @@ export function buildBenchmarkGenerationOptions({
   if (options.routePreference !== "auto") {
     routing.prefer = options.routePreference;
   }
-  if (options.privacy.length > 0) routing.privacy = options.privacy;
-  if (options.allowProviders.length > 0) routing.allow = options.allowProviders;
-  if (options.denyProviders.length > 0) routing.deny = options.denyProviders;
-  if (options.providerOrder.length > 0) routing.order = options.providerOrder;
-  if (!options.fallbacks) routing.fallbacks = false;
-  if (options.quantizations.length > 0) routing.quantizations = options.quantizations;
+  if (options.privacy.length > 0) {
+    routing.privacy = options.privacy;
+  }
+  if (options.allowProviders.length > 0) {
+    routing.allow = options.allowProviders;
+  }
+  if (options.denyProviders.length > 0) {
+    routing.deny = options.denyProviders;
+  }
+  if (options.providerOrder.length > 0) {
+    routing.order = options.providerOrder;
+  }
+  if (!options.fallbacks) {
+    routing.fallbacks = false;
+  }
+  if (options.quantizations.length > 0) {
+    routing.quantizations = options.quantizations;
+  }
 
   const maxCost: NonNullable<GenerationOptions["routing"]>["maxCost"] = {};
   if (options.maxPromptCost !== undefined) {
@@ -228,30 +240,41 @@ export function buildBenchmarkGenerationOptions({
   if (options.maxRequestCost !== undefined) {
     maxCost.requestUsd = options.maxRequestCost;
   }
-  if (Object.keys(maxCost).length > 0) routing.maxCost = maxCost;
+  if (Object.keys(maxCost).length > 0) {
+    routing.maxCost = maxCost;
+  }
 
   const generation: GenerationOptions = {
-    provider,
-    modelId,
     maxOutputTokens: maxTokens,
+    modelId,
+    provider,
   };
 
-  if (Object.keys(routing).length > 0) generation.routing = routing;
+  if (Object.keys(routing).length > 0) {
+    generation.routing = routing;
+  }
   if (options.serviceTier !== "default") {
     generation.serviceTier = options.serviceTier;
   }
   if (options.fallbackModels.length > 0) {
     generation.fallbackModels = options.fallbackModels;
   }
-  if (options.tags.length > 0) generation.tags = options.tags;
+  if (options.tags.length > 0) {
+    generation.tags = options.tags;
+  }
 
-  if (options.cache === "ephemeral") generation.cache = "ephemeral";
-  if (options.cache === "ephemeral-5m") generation.cache = { ttl: "5m" };
-  if (options.cache === "ephemeral-1h") generation.cache = { ttl: "1h" };
+  if (options.cache === "ephemeral") {
+    generation.cache = "ephemeral";
+  }
+  if (options.cache === "ephemeral-5m") {
+    generation.cache = { ttl: "5m" };
+  }
+  if (options.cache === "ephemeral-1h") {
+    generation.cache = { ttl: "1h" };
+  }
 
   if (options.reasoning !== "default" || options.reasoningTokens !== undefined) {
-    const reasoningEffort =
-      options.reasoning === "default" ? undefined : options.reasoning;
+    const reasoningEffort = options.reasoning === "default" ? undefined : options.reasoning;
     generation.reasoning =
       options.reasoningTokens !== undefined
         ? {
@@ -261,15 +284,25 @@ export function buildBenchmarkGenerationOptions({
         : reasoningEffort;
   }
 
-  if (options.webSearch === "auto") generation.webSearch = true;
+  if (options.webSearch === "auto") {
+    generation.webSearch = true;
+  }
   if (options.webSearch === "native" || options.webSearch === "exa") {
     generation.webSearch = { engine: options.webSearch };
   }
 
-  if (options.responseHealing) generation.responseHealing = true;
-  if (options.includeCost) generation.includeCost = true;
-  if (options.logprobs === "basic") generation.logprobs = true;
-  if (options.logprobs === "top5") generation.logprobs = 5;
+  if (options.responseHealing) {
+    generation.responseHealing = true;
+  }
+  if (options.includeCost) {
+    generation.includeCost = true;
+  }
+  if (options.logprobs === "basic") {
+    generation.logprobs = true;
+  }
+  if (options.logprobs === "top5") {
+    generation.logprobs = 5;
+  }
 
   return generation;
 }

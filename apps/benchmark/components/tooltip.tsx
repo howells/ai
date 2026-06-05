@@ -1,13 +1,7 @@
 "use client";
 
-import {
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 interface TooltipProps {
@@ -32,36 +26,47 @@ export function Tooltip({
 }: TooltipProps) {
   const triggerRef = useRef<HTMLSpanElement | null>(null);
   const [open, setOpen] = useState(false);
-  const [coords, setCoords] = useState<{ top: number; left: number } | null>(
-    null,
-  );
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
 
   const updatePosition = useCallback(() => {
     const el = triggerRef.current;
-    if (!el) return;
+    if (!el) {
+      return;
+    }
     const rect = el.getBoundingClientRect();
     const margin = 6;
-    const top =
-      side === "top" ? rect.top - margin : rect.bottom + margin;
+    const top = side === "top" ? rect.top - margin : rect.bottom + margin;
     let left: number;
-    if (align === "start") left = rect.left;
-    else if (align === "end") left = rect.right - width;
-    else left = rect.left + rect.width / 2 - width / 2;
+    if (align === "start") {
+      ({ left } = rect);
+    } else if (align === "end") {
+      left = rect.right - width;
+    } else {
+      left = rect.left + rect.width / 2 - width / 2;
+    }
     // Clamp to viewport so the tooltip stays visible.
     const viewportPad = 8;
     const maxLeft = window.innerWidth - width - viewportPad;
-    if (left < viewportPad) left = viewportPad;
-    if (left > maxLeft) left = maxLeft;
-    setCoords({ top, left });
+    if (left < viewportPad) {
+      left = viewportPad;
+    }
+    if (left > maxLeft) {
+      left = maxLeft;
+    }
+    setCoords({ left, top });
   }, [align, side, width]);
 
   useLayoutEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
     updatePosition();
   }, [open, updatePosition]);
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      return;
+    }
     const handle = () => updatePosition();
     window.addEventListener("scroll", handle, true);
     window.addEventListener("resize", handle);
@@ -87,10 +92,10 @@ export function Tooltip({
               role="tooltip"
               className="pointer-events-none fixed z-[1000] whitespace-normal rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-[11px] leading-snug text-[var(--color-text)] shadow-lg shadow-black/10"
               style={{
-                top: coords.top,
                 left: coords.left,
-                width,
+                top: coords.top,
                 transform: side === "top" ? "translateY(-100%)" : undefined,
+                width,
               }}
             >
               {content}

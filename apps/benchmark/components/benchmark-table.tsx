@@ -1,43 +1,34 @@
 "use client";
 
 import type { ProviderRoute } from "@howells/ai";
-import type { Row } from "@tanstack/react-table";
 import {
-  type ColumnDef,
-  type RowSelectionState,
-  type SortingState,
-  type VisibilityState,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
-import {
-  formatMs,
-  formatTpsWithUnit,
-  formatUsd,
-  METRIC_META,
-  type MetricKey,
-} from "../lib/format";
+import type {
+  ColumnDef,
+  Row,
+  RowSelectionState,
+  SortingState,
+  VisibilityState,
+} from "@tanstack/react-table";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { formatMs, formatTpsWithUnit, formatUsd, METRIC_META } from "../lib/format";
+import type { MetricKey } from "../lib/format";
 import type { HistoricalProviderSummary } from "../lib/history-types";
-import {
-  GROUP_LABELS,
-  GROUPS,
-  type ModelGroup,
-  type ModelRow,
-  providerLabel,
-  routeCellFor,
-} from "../lib/models";
+import { GROUP_LABELS, GROUPS, providerLabel, routeCellFor } from "../lib/models";
+import type { ModelGroup, ModelRow } from "../lib/models";
 import {
   bestProviderComparison,
   formatProviderScore,
   getProviderComparisons,
   isBetterMetric,
   resultMetricValue,
-  type ProviderComparisons,
 } from "../lib/result-insights";
+import type { ProviderComparisons } from "../lib/result-insights";
 import { Tooltip } from "./tooltip";
 
 export type { MetricKey };
@@ -113,15 +104,6 @@ export function BenchmarkTable({
   const columns = useMemo<ColumnDef<ModelRow>[]>(() => {
     const base: ColumnDef<ModelRow>[] = [
       {
-        id: "select",
-        header: ({ table }) => (
-          <Checkbox
-            checked={table.getIsAllRowsSelected()}
-            indeterminate={table.getIsSomeRowsSelected()}
-            onChange={(value) => table.toggleAllRowsSelected(value)}
-            aria-label="Select all rows"
-          />
-        ),
         cell: ({ row }) => (
           <Checkbox
             checked={row.getIsSelected()}
@@ -130,13 +112,22 @@ export function BenchmarkTable({
           />
         ),
         enableSorting: false,
+        header: ({ table }) => (
+          <Checkbox
+            checked={table.getIsAllRowsSelected()}
+            indeterminate={table.getIsSomeRowsSelected()}
+            onChange={(value) => table.toggleAllRowsSelected(value)}
+            aria-label="Select all rows"
+          />
+        ),
+        id: "select",
         size: 36,
       },
       {
-        id: "model",
         accessorKey: "name",
-        header: () => null,
         cell: ({ row }) => <ModelCell row={row.original} density={density} />,
+        header: () => null,
+        id: "model",
         size: 260,
       },
     ];
@@ -153,40 +144,11 @@ export function BenchmarkTable({
             ? "Historical matched route score"
             : undefined;
       const isFastestProvider = resultHighlights.fastestProvider === provider;
-      base.push(      {
-        id: provider,
+      base.push({
         accessorFn: (row) => {
           const cell = getResultCell(results, row.name, provider, metric);
           return cell ?? Number.POSITIVE_INFINITY;
         },
-        header: () => (
-          <Tooltip
-            content={
-              <>
-                <strong className="block pb-1 text-[var(--color-text)]">
-                  {providerLabel(provider)}
-                </strong>
-                Cells show {metricMeta.full.toLowerCase()} ·{" "}
-                {metricMeta.direction === "lower" ? "lower wins" : "higher wins"}.
-                {tooltipComparison && tooltipComparisonLabel && (
-                  <span className="mt-1 block text-[var(--color-text-muted)]">
-                    {tooltipComparisonLabel}:{" "}
-                    {formatProviderScore(tooltipComparison.score)} across{" "}
-                    {tooltipComparison.matchedModels} matched{" "}
-                    {tooltipComparison.matchedModels === 1 ? "model" : "models"}
-                    {isFastestProvider ? " · fastest" : ""}
-                  </span>
-                )}
-              </>
-            }
-            side="bottom"
-            align="end"
-          >
-            <span className="text-[12px] font-medium text-[var(--color-text)]">
-              {providerLabel(provider)}
-            </span>
-          </Tooltip>
-        ),
         cell: ({ row }) => {
           const key = resultKey(row.original.name, provider);
           return (
@@ -204,15 +166,49 @@ export function BenchmarkTable({
             />
           );
         },
+        header: () => (
+          <Tooltip
+            content={
+              <>
+                <strong className="block pb-1 text-[var(--color-text)]">
+                  {providerLabel(provider)}
+                </strong>
+                Cells show {metricMeta.full.toLowerCase()} ·{" "}
+                {metricMeta.direction === "lower" ? "lower wins" : "higher wins"}.
+                {tooltipComparison && tooltipComparisonLabel && (
+                  <span className="mt-1 block text-[var(--color-text-muted)]">
+                    {tooltipComparisonLabel}: {formatProviderScore(tooltipComparison.score)} across{" "}
+                    {tooltipComparison.matchedModels} matched{" "}
+                    {tooltipComparison.matchedModels === 1 ? "model" : "models"}
+                    {isFastestProvider ? " · fastest" : ""}
+                  </span>
+                )}
+              </>
+            }
+            side="bottom"
+            align="end"
+          >
+            <span className="text-[12px] font-medium text-[var(--color-text)]">
+              {providerLabel(provider)}
+            </span>
+          </Tooltip>
+        ),
+        id: provider,
+        size: 110,
         sortingFn: (a, b) => {
           const av = getResultCell(results, a.original.name, provider, metric);
           const bv = getResultCell(results, b.original.name, provider, metric);
-          if (av === undefined && bv === undefined) return 0;
-          if (av === undefined) return 1;
-          if (bv === undefined) return -1;
+          if (av === undefined && bv === undefined) {
+            return 0;
+          }
+          if (av === undefined) {
+            return 1;
+          }
+          if (bv === undefined) {
+            return -1;
+          }
           return av - bv;
         },
-        size: 110,
       });
     }
 
@@ -233,29 +229,28 @@ export function BenchmarkTable({
   ]);
 
   const table = useReactTable({
-    data: rows,
     columns,
-    state: { rowSelection, sorting, columnVisibility },
+    data: rows,
+    enableRowSelection: true,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getRowId: (row) => row.id,
+    getSortedRowModel: getSortedRowModel(),
+    onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: (updater) => {
-      const next =
-        typeof updater === "function" ? updater(rowSelection) : updater;
+      const next = typeof updater === "function" ? updater(rowSelection) : updater;
       onRowSelectionChange(next);
     },
     onSortingChange: setSorting,
-    onColumnVisibilityChange: setColumnVisibility,
-    enableRowSelection: true,
-    getRowId: (row) => row.id,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    state: { columnVisibility, rowSelection, sorting },
   });
 
   const sortedRows = table.getRowModel().rows;
   const groupedRows = useMemo(() => {
     const map: Record<ModelGroup, typeof sortedRows> = {
       defaults: [],
-      "task-optimized": [],
       "provider-optimized": [],
+      "task-optimized": [],
     };
     for (const row of sortedRows) {
       map[row.original.group].push(row);
@@ -282,9 +277,9 @@ export function BenchmarkTable({
               const isProviderCol = idx > 1;
               const sizeStyle = isProviderCol
                 ? {
-                    width: header.column.columnDef.size,
-                    minWidth: header.column.columnDef.size,
                     maxWidth: header.column.columnDef.size,
+                    minWidth: header.column.columnDef.size,
+                    width: header.column.columnDef.size,
                   }
                 : { minWidth: header.column.columnDef.size };
               return (
@@ -299,25 +294,18 @@ export function BenchmarkTable({
                     left: idx === 0 ? 0 : idx === 1 ? 36 : undefined,
                   }}
                 >
-                  {header.isPlaceholder ? null : header.column.getCanSort() &&
-                    idx > 1 ? (
+                  {header.isPlaceholder ? null : header.column.getCanSort() && idx > 1 ? (
                     <button
                       type="button"
                       onClick={header.column.getToggleSortingHandler()}
                       className="flex w-full cursor-pointer items-center justify-end gap-1 text-inherit"
                     >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
+                      {flexRender(header.column.columnDef.header, header.getContext())}
                       <SortIndicator direction={header.column.getIsSorted()} />
                     </button>
                   ) : (
                     <div className="flex w-full items-center justify-between">
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext(),
-                      )}
+                      {flexRender(header.column.columnDef.header, header.getContext())}
                     </div>
                   )}
                 </th>
@@ -326,48 +314,42 @@ export function BenchmarkTable({
           </tr>
         </thead>
 
-        {showGroups
-          ? GROUPS.map((groupKey) => {
-              const groupRows = groupedRows[groupKey];
-              if (groupRows.length === 0) return null;
-              return (
-                <tbody key={groupKey}>
-                  <tr>
-                    <td
-                      colSpan={columns.length}
-                      className="sticky top-9 z-20 border-b border-[var(--color-border)] bg-[var(--color-canvas)] pt-5 pr-4 pb-2 pl-[60px]"
-                    >
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
-                          {GROUP_LABELS[groupKey]}
-                        </span>
-                        <span className="text-[11px] text-[var(--color-text-faint)]">
-                          {groupRows.length}
-                        </span>
-                      </div>
-                    </td>
-                  </tr>
-                  {groupRows.map((row) => (
-                    <BenchmarkTableRow
-                      key={row.id}
-                      row={row}
-                      cellPaddingY={cellPaddingY}
-                    />
-                  ))}
-                </tbody>
-              );
-            })
-          : (
-              <tbody>
-                {sortedRows.map((row) => (
-                  <BenchmarkTableRow
-                    key={row.id}
-                    row={row}
-                    cellPaddingY={cellPaddingY}
-                  />
+        {showGroups ? (
+          GROUPS.map((groupKey) => {
+            const groupRows = groupedRows[groupKey];
+            if (groupRows.length === 0) {
+              return null;
+            }
+            return (
+              <tbody key={groupKey}>
+                <tr>
+                  <td
+                    colSpan={columns.length}
+                    className="sticky top-9 z-20 border-b border-[var(--color-border)] bg-[var(--color-canvas)] pt-5 pr-4 pb-2 pl-[60px]"
+                  >
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[11px] font-medium text-[var(--color-text-muted)]">
+                        {GROUP_LABELS[groupKey]}
+                      </span>
+                      <span className="text-[11px] text-[var(--color-text-faint)]">
+                        {groupRows.length}
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+                {groupRows.map((row) => (
+                  <BenchmarkTableRow key={row.id} row={row} cellPaddingY={cellPaddingY} />
                 ))}
               </tbody>
-            )}
+            );
+          })
+        ) : (
+          <tbody>
+            {sortedRows.map((row) => (
+              <BenchmarkTableRow key={row.id} row={row} cellPaddingY={cellPaddingY} />
+            ))}
+          </tbody>
+        )}
 
         {table.getRowModel().rows.length === 0 && (
           <tbody>
@@ -386,17 +368,9 @@ export function BenchmarkTable({
   );
 }
 
-function BenchmarkTableRow({
-  row,
-  cellPaddingY,
-}: {
-  row: Row<ModelRow>;
-  cellPaddingY: string;
-}) {
+function BenchmarkTableRow({ row, cellPaddingY }: { row: Row<ModelRow>; cellPaddingY: string }) {
   const isSelected = row.getIsSelected();
-  const rowBg = isSelected
-    ? "bg-[var(--color-row-selected)]"
-    : "bg-[var(--color-surface)]";
+  const rowBg = isSelected ? "bg-[var(--color-row-selected)]" : "bg-[var(--color-surface)]";
 
   return (
     <tr
@@ -412,13 +386,11 @@ function BenchmarkTableRow({
             className={`border-[var(--color-border)] border-b px-4 ${cellPaddingY} ${
               idx === 0 ? "" : "align-middle"
             } ${
-              isSticky
-                ? `z-10 ${rowBg} group-hover:bg-[var(--color-row-hover)]`
-                : ""
+              isSticky ? `z-10 ${rowBg} group-hover:bg-[var(--color-row-hover)]` : ""
             } ${isModelCol ? "border-[var(--color-border)] border-r" : ""}`}
             style={{
-              position: isSticky ? "sticky" : undefined,
               left: idx === 0 ? 0 : idx === 1 ? 36 : undefined,
+              position: isSticky ? "sticky" : undefined,
             }}
           >
             {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -436,7 +408,9 @@ function getResultCell(
   metric: MetricKey,
 ): number | undefined {
   const cell = findResult(results, modelName, provider);
-  if (!cell || cell.error) return undefined;
+  if (!cell || cell.error) {
+    return undefined;
+  }
   return cell[metric];
 }
 
@@ -447,8 +421,7 @@ function findResult(
 ): BenchmarkResult | undefined {
   const cell = results.find(
     (r) =>
-      r.provider === provider &&
-      (r.label === modelName || r.label.startsWith(`${modelName} :`)),
+      r.provider === provider && (r.label === modelName || r.label.startsWith(`${modelName} :`)),
   );
   return cell;
 }
@@ -458,9 +431,7 @@ function resultKey(modelName: string, provider: ProviderRoute): string {
 }
 
 function formatMetricValue(value: number, metric: MetricKey): string {
-  return metric === "tokensPerSecond"
-    ? formatTpsWithUnit(value)
-    : formatMs(value);
+  return metric === "tokensPerSecond" ? formatTpsWithUnit(value) : formatMs(value);
 }
 
 function getResultHighlights(
@@ -487,23 +458,15 @@ function getResultHighlights(
   let fastestModelValue: number | null = null;
   for (const result of visibleResults) {
     const value = resultMetricValue(result, metric);
-    if (
-      fastestModelValue === null ||
-      isBetterMetric(value, fastestModelValue, metric)
-    ) {
+    if (fastestModelValue === null || isBetterMetric(value, fastestModelValue, metric)) {
       fastestModelValue = value;
       fastestModelKey = resultKey(baseResultLabel(result.label), result.provider);
     }
   }
 
-  const providerComparisons = getProviderComparisons(
-    visibleResults,
-    metric,
-    visibleProviders,
-  );
+  const providerComparisons = getProviderComparisons(visibleResults, metric, visibleProviders);
   const fastestProvider =
-    bestProviderComparison(providerComparisons, visibleProviders)?.provider ??
-    null;
+    bestProviderComparison(providerComparisons, visibleProviders)?.provider ?? null;
 
   return {
     fastestModelKey,
@@ -519,25 +482,23 @@ function isBestInRow(
   metric: MetricKey,
 ): boolean {
   const here = getResultCell(results, modelName, provider, metric);
-  if (here === undefined) return false;
+  if (here === undefined) {
+    return false;
+  }
 
   const rowValues = results
     .filter((r) => baseResultLabel(r.label) === modelName && !r.error)
     .map((r) => r[metric]);
-  if (rowValues.length < 2) return false;
+  if (rowValues.length < 2) {
+    return false;
+  }
 
   return metric === "tokensPerSecond"
     ? here >= Math.max(...rowValues)
     : here <= Math.min(...rowValues);
 }
 
-function ModelCell({
-  row,
-  density,
-}: {
-  row: ModelRow;
-  density: "comfortable" | "compact";
-}) {
+function ModelCell({ row, density }: { row: ModelRow; density: "comfortable" | "compact" }) {
   const allSlots = [
     ...row.defaultSlots.map((s) => ({ kind: "default" as const, label: s })),
     ...row.taskSlots.map((s) => ({ kind: "task" as const, label: s })),
@@ -551,12 +512,8 @@ function ModelCell({
     <Tooltip
       content={
         <>
-          <strong className="block pb-1 text-[var(--color-text)]">
-            {row.name}
-          </strong>
-          <span className="block pb-1 text-[var(--color-text-faint)]">
-            {row.id}
-          </span>
+          <strong className="block pb-1 text-[var(--color-text)]">{row.name}</strong>
+          <span className="block pb-1 text-[var(--color-text-faint)]">{row.id}</span>
           {visibleSlots.length > 0 && (
             <span className="block text-[var(--color-text-muted)]">
               {visibleSlots.map((s) => s.label).join(" · ")}
@@ -655,24 +612,15 @@ function ProviderCell({
   if (result) {
     const best = isBestInRow(results, row.name, provider, metric);
     const value = formatMetricValue(result[metric], metric);
-    const cost =
-      result.costUsd !== undefined ? formatUsd(result.costUsd) : undefined;
+    const cost = result.costUsd !== undefined ? formatUsd(result.costUsd) : undefined;
     const highlight = best || isFastestModel;
-    const ariaLabel = isFastestModel
-      ? "Fastest model"
-      : best
-        ? "Best in row"
-        : undefined;
+    const ariaLabel = isFastestModel ? "Fastest model" : best ? "Best in row" : undefined;
 
     return (
       <CellShell
         cost={cost}
         stale={stale}
-        title={
-          stale
-            ? "Stale — inputs changed since this run"
-            : result.model || providerModelId
-        }
+        title={stale ? "Stale — inputs changed since this run" : result.model || providerModelId}
       >
         {highlight ? (
           <span
@@ -699,10 +647,7 @@ function ProviderCell({
   if (route.status === "missing-key") {
     return (
       <CellShell>
-        <span
-          title={`Set ${envFor(provider)} to enable this route`}
-          className="pill pill--warn"
-        >
+        <span title={`Set ${envFor(provider)} to enable this route`} className="pill pill--warn">
           <KeyIcon />
           no key
         </span>
@@ -738,10 +683,7 @@ function CellShell({
   title?: string;
 }) {
   return (
-    <div
-      className={`flex flex-col items-end gap-0.5 ${stale ? "opacity-50" : ""}`}
-      title={title}
-    >
+    <div className={`flex flex-col items-end gap-0.5 ${stale ? "opacity-50" : ""}`} title={title}>
       <div className="flex h-5 items-center justify-end">{children}</div>
       <div className="flex h-3 items-center justify-end">
         {cost ? (
@@ -768,28 +710,39 @@ function CellShell({
 
 function envFor(provider: ProviderRoute): string {
   switch (provider) {
-    case "openrouter":
+    case "openrouter": {
       return "OPENROUTER_API_KEY";
-    case "gateway":
+    }
+    case "gateway": {
       return "AI_GATEWAY_API_KEY";
-    case "anthropic":
+    }
+    case "anthropic": {
       return "ANTHROPIC_API_KEY";
-    case "openai":
+    }
+    case "openai": {
       return "OPENAI_API_KEY";
-    case "google":
+    }
+    case "google": {
       return "GOOGLE_GENERATIVE_AI_API_KEY";
-    case "deepseek":
+    }
+    case "deepseek": {
       return "DEEPSEEK_API_KEY";
-    case "xai":
+    }
+    case "xai": {
       return "XAI_API_KEY";
-    case "qwen":
+    }
+    case "qwen": {
       return "DASHSCOPE_API_KEY";
-    case "zai":
+    }
+    case "zai": {
       return "ZAI_API_KEY";
-    case "moonshotai":
+    }
+    case "moonshotai": {
       return "MOONSHOT_API_KEY";
-    case "groq":
+    }
+    case "groq": {
       return "GROQ_API_KEY";
+    }
   }
 }
 
@@ -797,26 +750,37 @@ function Checkbox({
   checked,
   indeterminate,
   onChange,
-  ...rest
+  "aria-label": ariaLabel,
 }: {
   checked: boolean;
   indeterminate?: boolean;
   onChange: (value: boolean) => void;
   "aria-label": string;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.indeterminate = Boolean(indeterminate);
+    }
+  }, [indeterminate]);
+
   return (
-    <button
-      type="button"
-      role="checkbox"
-      aria-checked={indeterminate ? "mixed" : checked}
-      onClick={() => onChange(!checked)}
-      className={`flex h-4 w-4 cursor-pointer items-center justify-center rounded-[3px] border transition-colors ${
+    <span
+      className={`relative flex h-4 w-4 items-center justify-center rounded-[3px] border transition-colors ${
         checked || indeterminate
           ? "border-[var(--color-cta)] bg-[var(--color-cta)]"
           : "border-[var(--color-border-strong)] bg-transparent hover:border-[var(--color-text-faint)]"
       }`}
-      {...rest}
     >
+      <input
+        ref={inputRef}
+        type="checkbox"
+        checked={checked}
+        aria-label={ariaLabel}
+        onChange={(event) => onChange(event.target.checked)}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      />
       {indeterminate ? (
         <span className="h-0.5 w-2 rounded bg-[var(--color-cta-fg)]" />
       ) : checked ? (
@@ -831,7 +795,7 @@ function Checkbox({
           <path d="M2 6.5L5 9.5L10 3.5" />
         </svg>
       ) : null}
-    </button>
+    </span>
   );
 }
 

@@ -1,5 +1,5 @@
 /**
- * @howells/ai — Unified AI client factory.
+ * Howells AI unified AI client factory.
  *
  * Creates a configured client with provider-aware model tiers and retrieval models.
  * Text generation routes through Vercel AI Gateway by default.
@@ -82,46 +82,64 @@ const OPENROUTER_VARIANT_PATTERN = /:(nitro|exacto|floor)$/;
 
 const OPENAI_COMPATIBLE_PROVIDER_CONFIG = {
   deepseek: {
-    service: "deepseek",
-    envVar: "DEEPSEEK_API_KEY",
     baseURL: "https://api.deepseek.com/v1",
-  },
-  xai: {
-    service: "xai",
-    envVar: "XAI_API_KEY",
-    baseURL: "https://api.x.ai/v1",
-  },
-  qwen: {
-    service: "qwen",
-    envVar: "QWEN_API_KEY",
-    baseURL: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-  },
-  zai: {
-    service: "zai",
-    envVar: "ZAI_API_KEY",
-    baseURL: "https://api.z.ai/api/paas/v4",
-  },
-  moonshotai: {
-    service: "moonshotai",
-    envVar: "MOONSHOT_API_KEY",
-    baseURL: "https://api.moonshot.ai/v1",
+    envVar: "DEEPSEEK_API_KEY",
+    service: "deepseek",
   },
   groq: {
-    service: "groq",
-    envVar: "GROQ_API_KEY",
     baseURL: "https://api.groq.com/openai/v1",
+    envVar: "GROQ_API_KEY",
+    service: "groq",
+  },
+  moonshotai: {
+    baseURL: "https://api.moonshot.ai/v1",
+    envVar: "MOONSHOT_API_KEY",
+    service: "moonshotai",
+  },
+  qwen: {
+    baseURL: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+    envVar: "QWEN_API_KEY",
+    service: "qwen",
+  },
+  xai: {
+    baseURL: "https://api.x.ai/v1",
+    envVar: "XAI_API_KEY",
+    service: "xai",
+  },
+  zai: {
+    baseURL: "https://api.z.ai/api/paas/v4",
+    envVar: "ZAI_API_KEY",
+    service: "zai",
   },
 } as const satisfies Record<
-  Extract<
-    ProviderRoute,
-    "deepseek" | "xai" | "qwen" | "zai" | "moonshotai" | "groq"
-  >,
+  Extract<ProviderRoute, "deepseek" | "xai" | "qwen" | "zai" | "moonshotai" | "groq">,
   {
     service: ModelService;
     envVar: string;
     baseURL: string;
   }
 >;
+
+const OPENAI_COMPATIBLE_PROVIDER_ORDER = [
+  "deepseek",
+  "xai",
+  "qwen",
+  "zai",
+  "moonshotai",
+  "groq",
+] as const satisfies readonly (keyof typeof OPENAI_COMPATIBLE_PROVIDER_CONFIG)[];
+
+const MODEL_SERVICE_ORDER = [
+  "anthropic",
+  "openai",
+  "google",
+  "deepseek",
+  "xai",
+  "qwen",
+  "groq",
+  "zai",
+  "moonshotai",
+] as const satisfies readonly ModelService[];
 
 /**
  * Configured Howells AI client.
@@ -233,69 +251,60 @@ export function createAI(config?: AIConfig): AIClient {
   const taskMatrix = resolveTaskModels(config?.models?.tasks);
 
   // Each client gets its own provider instances — no module-level state
-  const openrouter = createOpenRouterProvider(
-    config?.openRouterKey,
-    config?.app,
-  );
+  const openrouter = createOpenRouterProvider(config?.openRouterKey, config?.app);
   const anthropic = createAnthropicProvider(config?.anthropicKey);
   const openai = createOpenAIProvider(config?.openaiKey);
-  const gateway = createGatewayProvider(
-    config?.gatewayKey ?? envValue("AI_GATEWAY_API_KEY"),
-  );
+  const gateway = createGatewayProvider(config?.gatewayKey ?? envValue("AI_GATEWAY_API_KEY"));
   const voyage = createVoyageProvider(config?.voyageKey);
   const google = createGoogleProvider(config?.googleKey);
   const compatibleProviders = {
     deepseek: createOpenAICompatibleProvider({
+      apiKey: getConfiguredServiceApiKey(config, "deepseek"),
+      baseURL: OPENAI_COMPATIBLE_PROVIDER_CONFIG.deepseek.baseURL,
+      envVar: OPENAI_COMPATIBLE_PROVIDER_CONFIG.deepseek.envVar,
       provider: "deepseek",
       service: "deepseek",
-      apiKey: getConfiguredServiceApiKey(config, "deepseek"),
-      envVar: OPENAI_COMPATIBLE_PROVIDER_CONFIG.deepseek.envVar,
-      baseURL: OPENAI_COMPATIBLE_PROVIDER_CONFIG.deepseek.baseURL,
-    }),
-    xai: createOpenAICompatibleProvider({
-      provider: "xai",
-      service: "xai",
-      apiKey: getConfiguredServiceApiKey(config, "xai"),
-      envVar: OPENAI_COMPATIBLE_PROVIDER_CONFIG.xai.envVar,
-      baseURL: OPENAI_COMPATIBLE_PROVIDER_CONFIG.xai.baseURL,
-    }),
-    qwen: createOpenAICompatibleProvider({
-      provider: "qwen",
-      service: "qwen",
-      apiKey: getConfiguredServiceApiKey(config, "qwen"),
-      envVar: OPENAI_COMPATIBLE_PROVIDER_CONFIG.qwen.envVar,
-      baseURL: OPENAI_COMPATIBLE_PROVIDER_CONFIG.qwen.baseURL,
-    }),
-    zai: createOpenAICompatibleProvider({
-      provider: "zai",
-      service: "zai",
-      apiKey: getConfiguredServiceApiKey(config, "zai"),
-      envVar: OPENAI_COMPATIBLE_PROVIDER_CONFIG.zai.envVar,
-      baseURL: OPENAI_COMPATIBLE_PROVIDER_CONFIG.zai.baseURL,
-    }),
-    moonshotai: createOpenAICompatibleProvider({
-      provider: "moonshotai",
-      service: "moonshotai",
-      apiKey: getConfiguredServiceApiKey(config, "moonshotai"),
-      envVar: OPENAI_COMPATIBLE_PROVIDER_CONFIG.moonshotai.envVar,
-      baseURL: OPENAI_COMPATIBLE_PROVIDER_CONFIG.moonshotai.baseURL,
     }),
     groq: createOpenAICompatibleProvider({
+      apiKey: getConfiguredServiceApiKey(config, "groq"),
+      baseURL: OPENAI_COMPATIBLE_PROVIDER_CONFIG.groq.baseURL,
+      envVar: OPENAI_COMPATIBLE_PROVIDER_CONFIG.groq.envVar,
       provider: "groq",
       service: "groq",
-      apiKey: getConfiguredServiceApiKey(config, "groq"),
-      envVar: OPENAI_COMPATIBLE_PROVIDER_CONFIG.groq.envVar,
-      baseURL: OPENAI_COMPATIBLE_PROVIDER_CONFIG.groq.baseURL,
+    }),
+    moonshotai: createOpenAICompatibleProvider({
+      apiKey: getConfiguredServiceApiKey(config, "moonshotai"),
+      baseURL: OPENAI_COMPATIBLE_PROVIDER_CONFIG.moonshotai.baseURL,
+      envVar: OPENAI_COMPATIBLE_PROVIDER_CONFIG.moonshotai.envVar,
+      provider: "moonshotai",
+      service: "moonshotai",
+    }),
+    qwen: createOpenAICompatibleProvider({
+      apiKey: getConfiguredServiceApiKey(config, "qwen"),
+      baseURL: OPENAI_COMPATIBLE_PROVIDER_CONFIG.qwen.baseURL,
+      envVar: OPENAI_COMPATIBLE_PROVIDER_CONFIG.qwen.envVar,
+      provider: "qwen",
+      service: "qwen",
+    }),
+    xai: createOpenAICompatibleProvider({
+      apiKey: getConfiguredServiceApiKey(config, "xai"),
+      baseURL: OPENAI_COMPATIBLE_PROVIDER_CONFIG.xai.baseURL,
+      envVar: OPENAI_COMPATIBLE_PROVIDER_CONFIG.xai.envVar,
+      provider: "xai",
+      service: "xai",
+    }),
+    zai: createOpenAICompatibleProvider({
+      apiKey: getConfiguredServiceApiKey(config, "zai"),
+      baseURL: OPENAI_COMPATIBLE_PROVIDER_CONFIG.zai.baseURL,
+      envVar: OPENAI_COMPATIBLE_PROVIDER_CONFIG.zai.envVar,
+      provider: "zai",
+      service: "zai",
     }),
   };
 
   const available: ProviderRoute[] = [];
   // Gateway uses AI_GATEWAY_API_KEY locally and Vercel OIDC in deployments.
-  if (
-    config?.gatewayKey ??
-    envValue("AI_GATEWAY_API_KEY") ??
-    envValue("VERCEL_ENV")
-  ) {
+  if (config?.gatewayKey ?? envValue("AI_GATEWAY_API_KEY") ?? envValue("VERCEL_ENV")) {
     available.push("gateway");
   }
   if (config?.openRouterKey ?? envValue("OPENROUTER_API_KEY")) {
@@ -310,83 +319,69 @@ export function createAI(config?: AIConfig): AIClient {
   if (config?.googleKey ?? envValue("GOOGLE_GEMINI_API_KEY")) {
     available.push("google");
   }
-  for (const provider of Object.keys(
-    OPENAI_COMPATIBLE_PROVIDER_CONFIG,
-  ) as (keyof typeof OPENAI_COMPATIBLE_PROVIDER_CONFIG)[]) {
-    if (
-      getConfiguredServiceApiKey(
-        config,
-        OPENAI_COMPATIBLE_PROVIDER_CONFIG[provider].service,
-      )
-    ) {
+  for (const provider of OPENAI_COMPATIBLE_PROVIDER_ORDER) {
+    if (getConfiguredServiceApiKey(config, OPENAI_COMPATIBLE_PROVIDER_CONFIG[provider].service)) {
       available.push(provider);
     }
   }
 
   const services: ModelService[] = [];
-  for (const service of Object.keys(MODEL_SERVICE_ENV_VARS) as ModelService[]) {
+  for (const service of MODEL_SERVICE_ORDER) {
     if (getConfiguredServiceApiKey(config, service)) {
       services.push(service);
     }
   }
 
   function resolveRequestedProvider(options?: ModelOptions): ProviderRoute {
-    if (!options?.free) return options?.provider ?? "gateway";
+    if (!options?.free) {
+      return options?.provider ?? "gateway";
+    }
     if (options.provider && options.provider !== "openrouter") {
       throw new Error(
-        "Free model selection is only supported through provider \"openrouter\". " +
-          "Remove free: true or use provider: \"openrouter\".",
+        'Free model selection is only supported through provider "openrouter". ' +
+          'Remove free: true or use provider: "openrouter".',
       );
     }
     return "openrouter";
   }
 
-  function resolveOpenRouterModelId(
-    modelId: string,
-    options?: ModelOptions,
-  ): string {
+  function resolveOpenRouterModelId(modelId: string, options?: ModelOptions): string {
     const resolvedId = resolveProviderModelId(modelId, "openrouter");
     const variant = options?.openRouterVariant;
-    if (!variant) return resolvedId;
+    if (!variant) {
+      return resolvedId;
+    }
     if (!OPENROUTER_VARIANTS.has(variant)) {
       throw new Error(
-        `Unknown OpenRouter model variant "${variant}". ` +
-          'Use "nitro", "exacto", or "floor".',
+        `Unknown OpenRouter model variant "${variant}". Use "nitro", "exacto", or "floor".`,
       );
     }
-    return resolvedId.replace(OPENROUTER_VARIANT_PATTERN, "") + `:${variant}`;
+    return `${resolvedId.replace(OPENROUTER_VARIANT_PATTERN, "")}:${variant}`;
   }
 
-  function assertOpenRouterVariantAllowed(
-    provider: ProviderRoute,
-    options?: ModelOptions,
-  ): void {
-    if (!options?.openRouterVariant || provider === "openrouter") return;
+  function assertOpenRouterVariantAllowed(provider: ProviderRoute, options?: ModelOptions): void {
+    if (!options?.openRouterVariant || provider === "openrouter") {
+      return;
+    }
 
     throw new Error(
-      "OpenRouter model variants are only supported with provider \"openrouter\". " +
-        "Use provider: \"openrouter\" or remove openRouterVariant.",
+      'OpenRouter model variants are only supported with provider "openrouter". ' +
+        'Use provider: "openrouter" or remove openRouterVariant.',
     );
   }
 
-  function assertOpenRouterModelIdAllowed(
-    modelId: string,
-    provider: ProviderRoute,
-  ): void {
+  function assertOpenRouterModelIdAllowed(modelId: string, provider: ProviderRoute): void {
     if (!OPENROUTER_VARIANT_PATTERN.test(modelId) || provider === "openrouter") {
       return;
     }
 
     throw new Error(
       "OpenRouter model suffixes (:nitro, :exacto, :floor) are only supported " +
-        "with provider \"openrouter\".",
+        'with provider "openrouter".',
     );
   }
 
-  function resolveModel(
-    modelId: string,
-    options?: ModelOptions,
-  ): LanguageModel {
+  function resolveModel(modelId: string, options?: ModelOptions): LanguageModel {
     const provider = resolveRequestedProvider(options);
     assertOpenRouterVariantAllowed(provider, options);
     assertOpenRouterModelIdAllowed(modelId, provider);
@@ -405,55 +400,64 @@ export function createAI(config?: AIConfig): AIClient {
     const providerModelId = resolveProviderModelId(modelId, provider);
 
     switch (provider) {
-      case "anthropic":
+      case "anthropic": {
         return anthropic.model(providerModelId, options);
-      case "openai":
+      }
+      case "openai": {
         return openai.model(providerModelId, options);
-      case "google":
+      }
+      case "google": {
         return google.textModel(providerModelId, options);
+      }
       case "deepseek":
       case "xai":
       case "qwen":
       case "zai":
       case "moonshotai":
-      case "groq":
+      case "groq": {
         return compatibleProviders[provider].model(providerModelId, options);
-      default:
+      }
+      default: {
         throw new Error(`Unknown provider: ${provider}`);
+      }
     }
   }
 
   function getProviderApiKey(provider: ProviderRoute): string | undefined {
     switch (provider) {
-      case "gateway":
+      case "gateway": {
         return config?.gatewayKey ?? envValue("AI_GATEWAY_API_KEY");
-      case "openrouter":
+      }
+      case "openrouter": {
         return config?.openRouterKey ?? envValue("OPENROUTER_API_KEY");
-      case "anthropic":
+      }
+      case "anthropic": {
         return config?.anthropicKey ?? envValue("ANTHROPIC_API_KEY");
-      case "openai":
+      }
+      case "openai": {
         return config?.openaiKey ?? envValue("OPENAI_API_KEY");
-      case "google":
+      }
+      case "google": {
         return config?.googleKey ?? envValue("GOOGLE_GEMINI_API_KEY");
+      }
       case "deepseek":
       case "xai":
       case "qwen":
       case "zai":
       case "moonshotai":
-      case "groq":
+      case "groq": {
         return getConfiguredServiceApiKey(
           config,
           OPENAI_COMPATIBLE_PROVIDER_CONFIG[provider].service,
         );
+      }
     }
   }
 
   function isProviderConfigured(provider: ProviderRoute): boolean {
     if (provider === "gateway") {
       return Boolean(
-        config?.gatewayKey ??
-          envValue("AI_GATEWAY_API_KEY") ??
-          envValue("VERCEL_ENV"),
+        config?.gatewayKey ?? envValue("AI_GATEWAY_API_KEY") ?? envValue("VERCEL_ENV"),
       );
     }
 
@@ -462,28 +466,36 @@ export function createAI(config?: AIConfig): AIClient {
 
   function providerKeyEnv(provider: ProviderRoute): string {
     switch (provider) {
-      case "gateway":
+      case "gateway": {
         return "AI_GATEWAY_API_KEY";
-      case "openrouter":
+      }
+      case "openrouter": {
         return "OPENROUTER_API_KEY";
-      case "anthropic":
+      }
+      case "anthropic": {
         return "ANTHROPIC_API_KEY";
-      case "openai":
+      }
+      case "openai": {
         return "OPENAI_API_KEY";
-      case "google":
+      }
+      case "google": {
         return "GOOGLE_GEMINI_API_KEY";
+      }
       case "deepseek":
       case "xai":
       case "qwen":
       case "zai":
       case "moonshotai":
-      case "groq":
+      case "groq": {
         return OPENAI_COMPATIBLE_PROVIDER_CONFIG[provider].envVar;
+      }
     }
   }
 
   function assertExplicitProviderConfigured(provider: ProviderRoute): void {
-    if (isProviderConfigured(provider)) return;
+    if (isProviderConfigured(provider)) {
+      return;
+    }
 
     throw new Error(
       `Provider "${provider}" was explicitly requested but ${providerKeyEnv(provider)} is not configured. ` +
@@ -495,21 +507,14 @@ export function createAI(config?: AIConfig): AIClient {
     return getConfiguredServiceApiKey(config, service);
   }
 
-  function resolveModelConfig(
-    modelId: string,
-    options?: ModelOptions,
-  ): ProviderModelConfig {
+  function resolveModelConfig(modelId: string, options?: ModelOptions): ProviderModelConfig {
     const provider = resolveRequestedProvider(options);
     assertOpenRouterVariantAllowed(provider, options);
     assertOpenRouterModelIdAllowed(modelId, provider);
     if (options?.provider || options?.free) {
       assertExplicitProviderConfigured(provider);
     }
-    if (
-      provider &&
-      !canRouteModelToProvider(modelId, provider) &&
-      modelId.includes("/")
-    ) {
+    if (provider && !canRouteModelToProvider(modelId, provider) && modelId.includes("/")) {
       validateProviderMatch(modelId, provider);
     }
 
@@ -520,9 +525,7 @@ export function createAI(config?: AIConfig): AIClient {
     assertLanguageModelCompatible(modelId, resolveLanguageModelVariant(options));
     const capabilities = PROVIDER_CONFIG_CAPABILITIES[provider];
     const service =
-      provider === "groq"
-        ? "groq"
-        : inferModelService(modelId) ?? inferModelService(resolvedId);
+      provider === "groq" ? "groq" : (inferModelService(modelId) ?? inferModelService(resolvedId));
     const serviceApiKey = service ? getServiceApiKey(service) : undefined;
     const serviceApiKeyEnv = service ? MODEL_SERVICE_ENV_VARS[service] : undefined;
 
@@ -545,9 +548,7 @@ export function createAI(config?: AIConfig): AIClient {
 
     if (provider in compatibleProviders) {
       const requestConfig =
-        compatibleProviders[
-          provider as keyof typeof compatibleProviders
-        ].requestConfig();
+        compatibleProviders[provider as keyof typeof compatibleProviders].requestConfig();
       return {
         provider,
         id: resolvedId,
@@ -563,9 +564,9 @@ export function createAI(config?: AIConfig): AIClient {
 
     const apiKey = getProviderApiKey(provider);
     return {
-      provider,
-      id: resolvedId,
       capabilities,
+      id: resolvedId,
+      provider,
       ...(service ? { service } : {}),
       ...(apiKey ? { apiKey } : {}),
       ...(serviceApiKey ? { serviceApiKey } : {}),
@@ -596,6 +597,22 @@ export function createAI(config?: AIConfig): AIClient {
   }
 
   return {
+    availableProviders: available,
+
+    availableServices: services,
+
+    embeddingModel(options) {
+      return resolveEmbeddingModel(options);
+    },
+
+    gateway: available.includes("gateway") ? gateway.introspection : undefined,
+
+    generationOptions(options) {
+      return resolveGenerationOptions(options);
+    },
+
+    matrix,
+
     model(tier, options) {
       const variant = resolveLanguageModelVariant(options);
       const provider = resolveRequestedProvider(options);
@@ -622,49 +639,32 @@ export function createAI(config?: AIConfig): AIClient {
         assertExplicitProviderConfigured(provider);
       }
       assertOpenRouterModelIdAllowed(modelId, provider ?? "gateway");
-      if (
-        provider &&
-        !canRouteModelToProvider(modelId, provider) &&
-        modelId.includes("/")
-      ) {
+      if (provider && !canRouteModelToProvider(modelId, provider) && modelId.includes("/")) {
         validateProviderMatch(modelId, provider);
       }
       assertLanguageModelCompatible(modelId, resolveLanguageModelVariant(options));
       return resolveModel(modelId, options);
     },
 
-    availableProviders: available,
-    availableServices: services,
-    gateway: available.includes("gateway") ? gateway.introspection : undefined,
-
-    modelConfig(modelId, options) {
-      return resolveModelConfig(modelId, options);
-    },
-
     modelCapabilities(options) {
       if ("modelId" in (options ?? {})) {
-        const modelId = (options as { modelId?: string }).modelId;
-        const capabilities = modelId
-          ? getLanguageModelCapabilities(modelId)
-          : undefined;
-        if (capabilities) return capabilities;
+        const { modelId } = options as { modelId?: string };
+        const capabilities = modelId ? getLanguageModelCapabilities(modelId) : undefined;
+        if (capabilities) {
+          return capabilities;
+        }
       }
       return LANGUAGE_MODEL_CAPABILITIES[resolveLanguageModelVariant(options)];
     },
 
-    generationOptions(options) {
-      return resolveGenerationOptions(options);
-    },
-
-    embeddingModel(options) {
-      return resolveEmbeddingModel(options);
+    modelConfig(modelId, options) {
+      return resolveModelConfig(modelId, options);
     },
 
     rerankModel() {
       return voyage.rerankModel(matrix.rerank);
     },
 
-    matrix,
     taskMatrix,
   };
 }
@@ -674,32 +674,44 @@ function getConfiguredServiceApiKey(
   service: ModelService,
 ): string | undefined {
   const explicit = config?.serviceKeys?.[service];
-  if (explicit) return explicit;
+  if (explicit) {
+    return explicit;
+  }
 
   switch (service) {
-    case "anthropic":
+    case "anthropic": {
       return config?.anthropicKey ?? envValue("ANTHROPIC_API_KEY");
-    case "openai":
+    }
+    case "openai": {
       return config?.openaiKey ?? envValue("OPENAI_API_KEY");
-    case "google":
+    }
+    case "google": {
       return config?.googleKey ?? envValue("GOOGLE_GEMINI_API_KEY");
-    case "groq":
+    }
+    case "groq": {
       return config?.groqKey ?? envValue("GROQ_API_KEY");
-    case "deepseek":
+    }
+    case "deepseek": {
       return config?.deepseekKey ?? envValue("DEEPSEEK_API_KEY");
+    }
     case "inception":
     case "minimax":
     case "nexagi":
     case "stepfun":
-    case "xiaomi":
+    case "xiaomi": {
       return config?.serviceKeys?.[service];
-    case "xai":
+    }
+    case "xai": {
       return config?.xaiKey ?? envValue("XAI_API_KEY");
-    case "qwen":
+    }
+    case "qwen": {
       return config?.qwenKey ?? envValue("QWEN_API_KEY");
-    case "zai":
+    }
+    case "zai": {
       return config?.zaiKey ?? envValue("ZAI_API_KEY");
-    case "moonshotai":
+    }
+    case "moonshotai": {
       return config?.moonshotKey ?? envValue("MOONSHOT_API_KEY");
+    }
   }
 }

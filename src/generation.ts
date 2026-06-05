@@ -1,5 +1,5 @@
 /**
- * @howells/ai — Provider-aware generation option resolver.
+ * Howells AI provider-aware generation option resolver.
  *
  * The public API stays provider-neutral while this module maps the knobs each
  * provider actually understands into AI SDK providerOptions.
@@ -30,12 +30,16 @@ interface NormalizedCache {
   ttl?: CacheTTL;
 }
 
-function normalizeCache(
-  cache: PromptCachePolicy | undefined,
-): NormalizedCache | undefined {
-  if (cache === undefined) return undefined;
-  if (cache === "off") return { enabled: false };
-  if (cache === "ephemeral") return { enabled: true };
+function normalizeCache(cache: PromptCachePolicy | undefined): NormalizedCache | undefined {
+  if (cache === undefined) {
+    return undefined;
+  }
+  if (cache === "off") {
+    return { enabled: false };
+  }
+  if (cache === "ephemeral") {
+    return { enabled: true };
+  }
   if (typeof cache === "object") {
     return { enabled: true, ttl: cache.ttl };
   }
@@ -45,64 +49,72 @@ function normalizeCache(
 function normalizeReasoning(
   reasoning: ReasoningEffort | ReasoningSpec | undefined,
 ): ReasoningSpec | undefined {
-  if (reasoning === undefined) return undefined;
-  if (typeof reasoning === "string") return { effort: reasoning };
+  if (reasoning === undefined) {
+    return undefined;
+  }
+  if (typeof reasoning === "string") {
+    return { effort: reasoning };
+  }
   return reasoning;
 }
 
 const OUTPUT_TOKENS: Record<Exclude<OutputLength, number>, number> = {
-  short: 512,
-  medium: 2048,
   long: 4096,
   max: 8192,
+  medium: 2048,
+  short: 512,
 };
 
 const TEMPERATURES = {
-  deterministic: 0,
-  focused: 0.2,
   balanced: 0.7,
   creative: 1,
+  deterministic: 0,
+  focused: 0.2,
 } as const;
 
-const ANTHROPIC_THINKING_BUDGET: Record<Exclude<ReasoningEffort, "off">, number> =
-  {
-    minimal: 1024,
-    low: 2048,
-    medium: 4096,
-    high: 8192,
-    max: 16_000,
-  };
+const ANTHROPIC_THINKING_BUDGET: Record<Exclude<ReasoningEffort, "off">, number> = {
+  high: 8192,
+  low: 2048,
+  max: 16_000,
+  medium: 4096,
+  minimal: 1024,
+};
 
 const OPENAI_REASONING: Record<ReasoningEffort, string> = {
-  off: "none",
-  minimal: "minimal",
-  low: "low",
-  medium: "medium",
   high: "high",
+  low: "low",
   max: "xhigh",
+  medium: "medium",
+  minimal: "minimal",
+  off: "none",
 };
 
 const OPENROUTER_REASONING: Record<ReasoningEffort, string> = {
-  off: "none",
-  minimal: "minimal",
-  low: "low",
-  medium: "medium",
   high: "high",
+  low: "low",
   max: "xhigh",
+  medium: "medium",
+  minimal: "minimal",
+  off: "none",
 };
 
-const GOOGLE_REASONING: Record<Exclude<ReasoningEffort, "off" | "max">, string> =
-  {
-    minimal: "minimal",
-    low: "low",
-    medium: "medium",
-    high: "high",
-  };
+const GOOGLE_REASONING: Record<Exclude<ReasoningEffort, "off" | "max">, string> = {
+  high: "high",
+  low: "low",
+  medium: "medium",
+  minimal: "minimal",
+};
 
 function resolveMaxOutputTokens(options: GenerationOptions): number | undefined {
-  if (options.maxOutputTokens !== undefined) return options.maxOutputTokens;
-  if (options.outputLength === undefined) return undefined;
-  if (typeof options.outputLength === "number") return options.outputLength;
+  if (options.maxOutputTokens !== undefined) {
+    return options.maxOutputTokens;
+  }
+  if (options.outputLength === undefined) {
+    return undefined;
+  }
+  if (typeof options.outputLength === "number") {
+    return options.outputLength;
+  }
   return OUTPUT_TOKENS[options.outputLength];
 }
 
@@ -112,7 +124,9 @@ function inferOptionTargets(options: GenerationOptions): ProviderRoute[] {
 
   if (provider === "gateway" && options.modelId) {
     const inferredProvider = inferProvider(options.modelId);
-    if (inferredProvider) targets.add(inferredProvider);
+    if (inferredProvider) {
+      targets.add(inferredProvider);
+    }
   }
 
   return [...targets];
@@ -124,27 +138,33 @@ function setProviderOptions(
   values: Record<string, ProviderOptionValue>,
 ): void {
   const next: Record<string, ProviderOptionValue> = {
-    ...(providerOptions[provider] ?? {}),
+    ...providerOptions[provider],
   };
 
   for (const [key, value] of Object.entries(values)) {
-    if (value !== undefined) next[key] = value;
+    if (value !== undefined) {
+      next[key] = value;
+    }
   }
 
-  if (Object.keys(next).length === 0) return;
+  if (Object.keys(next).length === 0) {
+    return;
+  }
 
   providerOptions[provider] = next;
 }
 
-function mapOpenAIServiceTier(
-  serviceTier: ServiceTier | undefined,
-): string | undefined {
-  if (serviceTier === "standard") return "default";
+function mapOpenAIServiceTier(serviceTier: ServiceTier | undefined): string | undefined {
+  if (serviceTier === "standard") {
+    return "default";
+  }
   return serviceTier;
 }
 
 function toProviderModelName(modelId: string | undefined): string {
-  if (!modelId) return "";
+  if (!modelId) {
+    return "";
+  }
   const slash = modelId.indexOf("/");
   return slash === -1 ? modelId : modelId.slice(slash + 1);
 }
@@ -162,21 +182,29 @@ function resolveOpenAIReasoningEffort(
   reasoning: ReasoningEffort | undefined,
   modelId: string | undefined,
 ): string | undefined {
-  if (!reasoning) return undefined;
+  if (!reasoning) {
+    return undefined;
+  }
 
   const modelName = toProviderModelName(modelId);
 
   if (isOriginalGpt5Family(modelName)) {
-    if (reasoning === "off") return "minimal";
-    if (reasoning === "max") return "high";
+    if (reasoning === "off") {
+      return "minimal";
+    }
+    if (reasoning === "max") {
+      return "high";
+    }
     return OPENAI_REASONING[reasoning];
   }
 
-  if (reasoning === "minimal") return "low";
+  if (reasoning === "minimal") {
+    return "low";
+  }
   return OPENAI_REASONING[reasoning];
 }
 
-const PRICE_FIELDS: Array<keyof RoutingMaxCost> = [
+const PRICE_FIELDS: (keyof RoutingMaxCost)[] = [
   "promptPerMillion",
   "completionPerMillion",
   "imagePerMillion",
@@ -186,10 +214,10 @@ const PRICE_FIELDS: Array<keyof RoutingMaxCost> = [
 const PRICE_FIELD_TO_OR: Partial<
   Record<keyof RoutingMaxCost, "prompt" | "completion" | "image" | "audio">
 > = {
-  promptPerMillion: "prompt",
+  audioPerMillion: "audio",
   completionPerMillion: "completion",
   imagePerMillion: "image",
-  audioPerMillion: "audio",
+  promptPerMillion: "prompt",
 };
 
 /**
@@ -201,16 +229,24 @@ const PRICE_FIELD_TO_OR: Partial<
 function toOpenRouterMaxPrice(
   cost: RoutingMaxCost | undefined,
 ): Record<string, number> | undefined {
-  if (!cost) return undefined;
+  if (!cost) {
+    return undefined;
+  }
 
   const out: Record<string, number> = {};
   for (const field of PRICE_FIELDS) {
     const value = cost[field];
-    if (value === undefined) continue;
+    if (value === undefined) {
+      continue;
+    }
     const target = PRICE_FIELD_TO_OR[field];
-    if (target) out[target] = value;
+    if (target) {
+      out[target] = value;
+    }
   }
-  if (cost.requestUsd !== undefined) out.request = cost.requestUsd;
+  if (cost.requestUsd !== undefined) {
+    out.request = cost.requestUsd;
+  }
 
   return Object.keys(out).length > 0 ? out : undefined;
 }
@@ -230,8 +266,8 @@ const PREFER_TO_OPENROUTER: Record<
 > = {
   cheapest: "price",
   fastest: "latency",
-  "highest-throughput": "throughput",
   "highest-quality": "exacto",
+  "highest-throughput": "throughput",
 };
 
 function gatewayPrivacyFlags(routing: RoutingOptions | undefined): {
@@ -239,16 +275,24 @@ function gatewayPrivacyFlags(routing: RoutingOptions | undefined): {
   disallowPromptTraining?: true;
   hipaaCompliant?: true;
 } {
-  if (!routing?.privacy?.length) return {};
+  if (!routing?.privacy?.length) {
+    return {};
+  }
   const flags: {
     zeroDataRetention?: true;
     disallowPromptTraining?: true;
     hipaaCompliant?: true;
   } = {};
   for (const constraint of routing.privacy) {
-    if (constraint === "no-retention") flags.zeroDataRetention = true;
-    if (constraint === "no-training") flags.disallowPromptTraining = true;
-    if (constraint === "hipaa") flags.hipaaCompliant = true;
+    if (constraint === "no-retention") {
+      flags.zeroDataRetention = true;
+    }
+    if (constraint === "no-training") {
+      flags.disallowPromptTraining = true;
+    }
+    if (constraint === "hipaa") {
+      flags.hipaaCompliant = true;
+    }
   }
   return flags;
 }
@@ -260,30 +304,41 @@ function gatewayPrivacyFlags(routing: RoutingOptions | undefined): {
  */
 function buildOpenRouterProviderRouting(
   routing: RoutingOptions | undefined,
-): { [key: string]: ProviderOptionValue } | undefined {
-  if (!routing) return undefined;
-  const out: { [key: string]: ProviderOptionValue } = {};
+): Record<string, ProviderOptionValue> | undefined {
+  if (!routing) {
+    return undefined;
+  }
+  const out: Record<string, ProviderOptionValue> = {};
 
   if (routing.prefer && routing.prefer !== "auto") {
     out.sort = PREFER_TO_OPENROUTER[routing.prefer];
   }
-  if (routing.allow?.length) out.only = routing.allow;
-  if (routing.deny?.length) out.ignore = routing.deny;
-  if (routing.order?.length) out.order = routing.order;
-  if (routing.fallbacks !== undefined) out.allow_fallbacks = routing.fallbacks;
+  if (routing.allow?.length) {
+    out.only = routing.allow;
+  }
+  if (routing.deny?.length) {
+    out.ignore = routing.deny;
+  }
+  if (routing.order?.length) {
+    out.order = routing.order;
+  }
+  if (routing.fallbacks !== undefined) {
+    out.allow_fallbacks = routing.fallbacks;
+  }
   if (routing.quantizations?.length) {
     out.quantizations = routing.quantizations as string[];
   }
 
   const maxPrice = toOpenRouterMaxPrice(routing.maxCost);
-  if (maxPrice) out.max_price = maxPrice;
+  if (maxPrice) {
+    out.max_price = maxPrice;
+  }
 
   if (routing.privacy?.length) {
-    if (routing.privacy.includes("no-retention")) out.zdr = true;
-    if (
-      routing.privacy.includes("no-training") ||
-      routing.privacy.includes("no-retention")
-    ) {
+    if (routing.privacy.includes("no-retention")) {
+      out.zdr = true;
+    }
+    if (routing.privacy.includes("no-training") || routing.privacy.includes("no-retention")) {
       out.data_collection = "deny";
     }
   }
@@ -296,18 +351,21 @@ interface OpenRouterPlugin {
   [key: string]: ProviderOptionValue;
 }
 
-function buildOpenRouterPlugins(
-  options: GenerationOptions,
-): OpenRouterPlugin[] | undefined {
+function buildOpenRouterPlugins(options: GenerationOptions): OpenRouterPlugin[] | undefined {
   const plugins: OpenRouterPlugin[] = [];
 
   if (options.webSearch) {
-    const ws: WebSearchOptions =
-      options.webSearch === true ? {} : options.webSearch;
+    const ws: WebSearchOptions = options.webSearch === true ? {} : options.webSearch;
     const plugin: OpenRouterPlugin = { id: "web" };
-    if (ws.maxResults !== undefined) plugin.max_results = ws.maxResults;
-    if (ws.searchPrompt !== undefined) plugin.search_prompt = ws.searchPrompt;
-    if (ws.engine && ws.engine !== "auto") plugin.engine = ws.engine;
+    if (ws.maxResults !== undefined) {
+      plugin.max_results = ws.maxResults;
+    }
+    if (ws.searchPrompt !== undefined) {
+      plugin.search_prompt = ws.searchPrompt;
+    }
+    if (ws.engine && ws.engine !== "auto") {
+      plugin.engine = ws.engine;
+    }
     plugins.push(plugin);
   }
 
@@ -318,10 +376,10 @@ function buildOpenRouterPlugins(
   return plugins.length > 0 ? plugins : undefined;
 }
 
-function mapGoogleServiceTier(
-  serviceTier: ServiceTier | undefined,
-): string | undefined {
-  if (serviceTier === "auto") return undefined;
+function mapGoogleServiceTier(serviceTier: ServiceTier | undefined): string | undefined {
+  if (serviceTier === "auto") {
+    return undefined;
+  }
   return serviceTier;
 }
 
@@ -331,15 +389,12 @@ function applyOpenAIOptions(
 ): void {
   const reasoning = normalizeReasoning(options.reasoning);
   setProviderOptions(providerOptions, "openai", {
-    reasoningEffort: resolveOpenAIReasoningEffort(
-      reasoning?.effort,
-      options.modelId,
-    ),
-    textVerbosity: options.verbosity,
     parallelToolCalls: options.parallelTools,
-    strictJsonSchema: options.structured === "strict" ? true : undefined,
-    user: options.user,
+    reasoningEffort: resolveOpenAIReasoningEffort(reasoning?.effort, options.modelId),
     serviceTier: mapOpenAIServiceTier(options.serviceTier),
+    strictJsonSchema: options.structured === "strict" ? true : undefined,
+    textVerbosity: options.verbosity,
+    user: options.user,
   });
 }
 
@@ -371,19 +426,18 @@ function applyAnthropicOptions(
     : undefined;
 
   setProviderOptions(providerOptions, "anthropic", {
-    thinking,
-    sendReasoning:
-      reasoning === undefined ? undefined : reasoning.effort !== "off",
+    cacheControl,
+    disableParallelToolUse:
+      options.parallelTools === undefined ? undefined : !options.parallelTools,
+    metadata: options.user ? { userId: options.user } : undefined,
+    sendReasoning: reasoning === undefined ? undefined : reasoning.effort !== "off",
     structuredOutputMode:
       options.structured === "tool"
         ? "jsonTool"
         : options.structured === "strict"
           ? "outputFormat"
           : options.structured,
-    disableParallelToolUse:
-      options.parallelTools === undefined ? undefined : !options.parallelTools,
-    cacheControl,
-    metadata: options.user ? { userId: options.user } : undefined,
+    thinking,
   });
 }
 
@@ -396,26 +450,22 @@ function applyGoogleOptions(
     reasoning === undefined
       ? undefined
       : reasoning.effort === "off"
-        ? { thinkingBudget: 0, includeThoughts: false }
+        ? { includeThoughts: false, thinkingBudget: 0 }
         : reasoning.maxTokens !== undefined
-          ? { thinkingBudget: reasoning.maxTokens, includeThoughts: true }
+          ? { includeThoughts: true, thinkingBudget: reasoning.maxTokens }
           : reasoning.effort
             ? {
-                thinkingLevel:
-                  reasoning.effort === "max"
-                    ? "high"
-                    : GOOGLE_REASONING[reasoning.effort],
                 includeThoughts: true,
+                thinkingLevel:
+                  reasoning.effort === "max" ? "high" : GOOGLE_REASONING[reasoning.effort],
               }
             : undefined;
 
   setProviderOptions(providerOptions, "google", {
-    thinkingConfig,
-    structuredOutputs:
-      options.structured === undefined || options.structured === "auto"
-        ? undefined
-        : true,
     serviceTier: mapGoogleServiceTier(options.serviceTier),
+    structuredOutputs:
+      options.structured === undefined || options.structured === "auto" ? undefined : true,
+    thinkingConfig,
   });
 }
 
@@ -478,50 +528,51 @@ function applyGatewayOptions(
   providerOptions: GenerationProviderOptions,
   options: GenerationOptions,
 ): void {
-  const routing = options.routing;
+  const { routing } = options;
   const sort =
-    routing?.prefer &&
-    routing.prefer !== "auto" &&
-    routing.prefer !== "highest-quality"
+    routing?.prefer && routing.prefer !== "auto" && routing.prefer !== "highest-quality"
       ? PREFER_TO_GATEWAY[routing.prefer]
       : undefined;
   const privacy = gatewayPrivacyFlags(routing);
 
   setProviderOptions(providerOptions, "gateway", {
-    user: options.user,
-    sort,
-    only: routing?.allow?.length ? routing.allow : undefined,
-    order: routing?.order?.length ? routing.order : undefined,
-    models: options.fallbackModels?.length ? options.fallbackModels : undefined,
-    tags: options.tags?.length ? options.tags : undefined,
-    zeroDataRetention: privacy.zeroDataRetention,
     disallowPromptTraining: privacy.disallowPromptTraining,
     hipaaCompliant: privacy.hipaaCompliant,
+    models: options.fallbackModels?.length ? options.fallbackModels : undefined,
+    only: routing?.allow?.length ? routing.allow : undefined,
+    order: routing?.order?.length ? routing.order : undefined,
+    sort,
+    tags: options.tags?.length ? options.tags : undefined,
+    user: options.user,
+    zeroDataRetention: privacy.zeroDataRetention,
   });
 }
 
-function resolveProviderOptions(
-  options: GenerationOptions,
-): GenerationProviderOptions | undefined {
+function resolveProviderOptions(options: GenerationOptions): GenerationProviderOptions | undefined {
   const providerOptions: GenerationProviderOptions = {};
 
   for (const target of inferOptionTargets(options)) {
     switch (target) {
-      case "gateway":
+      case "gateway": {
         applyGatewayOptions(providerOptions, options);
         break;
-      case "openrouter":
+      }
+      case "openrouter": {
         applyOpenRouterOptions(providerOptions, options);
         break;
-      case "anthropic":
+      }
+      case "anthropic": {
         applyAnthropicOptions(providerOptions, options);
         break;
-      case "openai":
+      }
+      case "openai": {
         applyOpenAIOptions(providerOptions, options);
         break;
-      case "google":
+      }
+      case "google": {
         applyGoogleOptions(providerOptions, options);
         break;
+      }
     }
   }
 
@@ -541,14 +592,20 @@ export function resolveGenerationOptions(
   const maxOutputTokens = resolveMaxOutputTokens(options);
   const providerOptions = resolveProviderOptions(options);
 
-  if (maxOutputTokens !== undefined) resolved.maxOutputTokens = maxOutputTokens;
+  if (maxOutputTokens !== undefined) {
+    resolved.maxOutputTokens = maxOutputTokens;
+  }
   if (options.temperature !== undefined && options.temperature !== null) {
     resolved.temperature = options.temperature;
   } else if (options.temperature === undefined && options.creativity) {
     resolved.temperature = TEMPERATURES[options.creativity];
   }
-  if (options.topP !== undefined) resolved.topP = options.topP;
-  if (options.topK !== undefined) resolved.topK = options.topK;
+  if (options.topP !== undefined) {
+    resolved.topP = options.topP;
+  }
+  if (options.topK !== undefined) {
+    resolved.topK = options.topK;
+  }
   if (options.presencePenalty !== undefined) {
     resolved.presencePenalty = options.presencePenalty;
   }
@@ -558,14 +615,24 @@ export function resolveGenerationOptions(
   if (options.stopSequences !== undefined) {
     resolved.stopSequences = options.stopSequences;
   }
-  if (options.seed !== undefined) resolved.seed = options.seed;
-  if (options.maxRetries !== undefined) resolved.maxRetries = options.maxRetries;
-  if (options.timeout !== undefined) resolved.timeout = options.timeout;
-  if (options.tools !== undefined) resolved.toolChoice = options.tools;
+  if (options.seed !== undefined) {
+    resolved.seed = options.seed;
+  }
+  if (options.maxRetries !== undefined) {
+    resolved.maxRetries = options.maxRetries;
+  }
+  if (options.timeout !== undefined) {
+    resolved.timeout = options.timeout;
+  }
+  if (options.tools !== undefined) {
+    resolved.toolChoice = options.tools;
+  }
   if (options.maxToolSteps !== undefined) {
     resolved.stopWhen = stepCountIs(options.maxToolSteps);
   }
-  if (providerOptions) resolved.providerOptions = providerOptions;
+  if (providerOptions) {
+    resolved.providerOptions = providerOptions;
+  }
 
   return resolved;
 }

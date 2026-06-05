@@ -12,17 +12,17 @@ import { z } from "zod";
 export const envSchema = defineEnv({
   optional: {
     AI_GATEWAY_API_KEY: z.string().min(1),
-    OPENROUTER_API_KEY: z.string().min(1),
     ANTHROPIC_API_KEY: z.string().min(1),
-    OPENAI_API_KEY: z.string().min(1),
-    GOOGLE_GEMINI_API_KEY: z.string().min(1),
-    VOYAGE_API_KEY: z.string().min(1),
     DEEPSEEK_API_KEY: z.string().min(1),
-    XAI_API_KEY: z.string().min(1),
-    QWEN_API_KEY: z.string().min(1),
-    ZAI_API_KEY: z.string().min(1),
-    MOONSHOT_API_KEY: z.string().min(1),
+    GOOGLE_GEMINI_API_KEY: z.string().min(1),
     GROQ_API_KEY: z.string().min(1),
+    MOONSHOT_API_KEY: z.string().min(1),
+    OPENAI_API_KEY: z.string().min(1),
+    OPENROUTER_API_KEY: z.string().min(1),
+    QWEN_API_KEY: z.string().min(1),
+    VOYAGE_API_KEY: z.string().min(1),
+    XAI_API_KEY: z.string().min(1),
+    ZAI_API_KEY: z.string().min(1),
   },
   system: {
     NODE_ENV: z.string().optional(),
@@ -37,9 +37,7 @@ export type RuntimeEnv = ReturnType<typeof envSchema.parseServer>;
 export type RuntimeEnvKey = keyof RuntimeEnv;
 
 /** Parse a server environment object with the shared Envy schema. */
-export function readRuntimeEnv(
-  input: Record<string, unknown> = process.env,
-): RuntimeEnv {
+export function readRuntimeEnv(input: Record<string, unknown> = process.env): RuntimeEnv {
   return envSchema.parseServer(input);
 }
 

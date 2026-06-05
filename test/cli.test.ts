@@ -9,25 +9,25 @@ function runCli(...args: string[]) {
     env: {
       ...process.env,
       AI_GATEWAY_API_KEY: "",
-      OPENROUTER_API_KEY: "",
       ANTHROPIC_API_KEY: "",
-      OPENAI_API_KEY: "",
-      GOOGLE_GEMINI_API_KEY: "",
-      VOYAGE_API_KEY: "",
       DEEPSEEK_API_KEY: "",
-      XAI_API_KEY: "",
-      QWEN_API_KEY: "",
-      ZAI_API_KEY: "",
-      MOONSHOT_API_KEY: "",
+      GOOGLE_GEMINI_API_KEY: "",
       GROQ_API_KEY: "",
+      MOONSHOT_API_KEY: "",
+      OPENAI_API_KEY: "",
+      OPENROUTER_API_KEY: "",
+      QWEN_API_KEY: "",
       VERCEL_ENV: "",
+      VOYAGE_API_KEY: "",
+      XAI_API_KEY: "",
+      ZAI_API_KEY: "",
     },
   });
 
   return {
     exitCode: result.exitCode,
-    stdout: decoder.decode(result.stdout),
     stderr: decoder.decode(result.stderr),
+    stdout: decoder.decode(result.stdout),
   };
 }
 
@@ -46,53 +46,42 @@ describe("CLI", () => {
     expect(result.exitCode).toBe(0);
     const response = JSON.parse(result.stdout) as {
       success: boolean;
-      data: Array<{
+      data: {
         provider: string;
         task: string;
         tier: string;
         variant: string;
         resolved: string;
-      }>;
+      }[];
     };
-    const data = response.data;
+    const { data } = response;
 
     expect(response.success).toBe(true);
     expect(data.length).toBeGreaterThan(0);
     expect(data.every((row) => row.provider === "openrouter")).toBe(true);
     expect(data.every((row) => row.task === "general")).toBe(true);
-    expect(
-      data.some((row) => row.resolved === "google/gemini-3.5-flash"),
-    ).toBe(true);
+    expect(data.some((row) => row.resolved === "google/gemini-3.5-flash")).toBe(true);
   });
 
   test("prints task-specific model matrix JSON", () => {
-    const result = runCli(
-      "models",
-      "--provider",
-      "openrouter",
-      "--task",
-      "coding",
-      "--json",
-    );
+    const result = runCli("models", "--provider", "openrouter", "--task", "coding", "--json");
 
     expect(result.exitCode).toBe(0);
     const response = JSON.parse(result.stdout) as {
       success: boolean;
-      data: Array<{
+      data: {
         provider: string;
         task: string;
         tier: string;
         variant: string;
         resolved: string;
-      }>;
+      }[];
     };
-    const data = response.data;
+    const { data } = response;
 
     expect(response.success).toBe(true);
     expect(data.every((row) => row.task === "coding")).toBe(true);
-    expect(data.some((row) => row.resolved === "openai/gpt-5.3-codex")).toBe(
-      true,
-    );
+    expect(data.some((row) => row.resolved === "openai/gpt-5.3-codex")).toBe(true);
   });
 
   test("prints provider status JSON without requiring keys", () => {
@@ -102,30 +91,20 @@ describe("CLI", () => {
     const response = JSON.parse(result.stdout) as {
       success: boolean;
       data: {
-        providers: Array<{ provider: string; configured: boolean }>;
-        services: Array<{ service: string; configured: boolean }>;
+        providers: { provider: string; configured: boolean }[];
+        services: { service: string; configured: boolean }[];
         availableLanguageProviders: string[];
         availableModelServices: string[];
       };
     };
-    const data = response.data;
+    const { data } = response;
 
     expect(response.success).toBe(true);
-    expect(data.providers.some((provider) => provider.provider === "openai")).toBe(
-      true,
-    );
-    expect(data.providers.some((provider) => provider.provider === "xai")).toBe(
-      true,
-    );
-    expect(data.providers.some((provider) => provider.provider === "moonshotai")).toBe(
-      true,
-    );
-    expect(data.providers.some((provider) => provider.provider === "groq")).toBe(
-      true,
-    );
-    expect(data.services.some((service) => service.service === "moonshotai")).toBe(
-      true,
-    );
+    expect(data.providers.some((provider) => provider.provider === "openai")).toBe(true);
+    expect(data.providers.some((provider) => provider.provider === "xai")).toBe(true);
+    expect(data.providers.some((provider) => provider.provider === "moonshotai")).toBe(true);
+    expect(data.providers.some((provider) => provider.provider === "groq")).toBe(true);
+    expect(data.services.some((service) => service.service === "moonshotai")).toBe(true);
     expect(data.availableLanguageProviders).toEqual([]);
     expect(data.availableModelServices).toEqual([]);
   });
@@ -141,7 +120,7 @@ describe("CLI", () => {
         modelRoutes: number;
       };
     };
-    const data = response.data;
+    const { data } = response;
 
     expect(response.success).toBe(true);
     expect(data.ok).toBe(true);
@@ -169,13 +148,11 @@ describe("CLI", () => {
     expect(result.exitCode).toBe(1);
     const response = JSON.parse(result.stdout) as {
       success: boolean;
-      data: { ok: boolean; failures: Array<{ error?: string }> };
+      data: { ok: boolean; failures: { error?: string }[] };
     };
 
     expect(response.success).toBe(false);
     expect(response.data.ok).toBe(false);
-    expect(response.data.failures[0]?.error).toContain(
-      "no configured language providers",
-    );
+    expect(response.data.failures[0]?.error).toContain("no configured language providers");
   });
 });

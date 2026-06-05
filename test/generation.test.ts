@@ -10,31 +10,31 @@ describe("resolveGenerationOptions", () => {
   test("maps common AI SDK generation settings", () => {
     const result = resolveGenerationOptions({
       creativity: "focused",
-      outputLength: "short",
-      topP: 0.9,
-      topK: 40,
-      presencePenalty: 0.2,
       frequencyPenalty: 0.1,
-      stopSequences: ["END"],
-      seed: 42,
       maxRetries: 0,
+      maxToolSteps: 4,
+      outputLength: "short",
+      presencePenalty: 0.2,
+      seed: 42,
+      stopSequences: ["END"],
       timeout: 5000,
       tools: "required",
-      maxToolSteps: 4,
+      topK: 40,
+      topP: 0.9,
     });
 
     expect(result).toMatchObject({
-      maxOutputTokens: 512,
-      temperature: 0.2,
-      topP: 0.9,
-      topK: 40,
-      presencePenalty: 0.2,
       frequencyPenalty: 0.1,
-      stopSequences: ["END"],
-      seed: 42,
+      maxOutputTokens: 512,
       maxRetries: 0,
+      presencePenalty: 0.2,
+      seed: 42,
+      stopSequences: ["END"],
+      temperature: 0.2,
       timeout: 5000,
       toolChoice: "required",
+      topK: 40,
+      topP: 0.9,
     });
     expect(result.stopWhen).toBeFunction();
   });
@@ -42,8 +42,8 @@ describe("resolveGenerationOptions", () => {
   test("lets explicit maxOutputTokens and temperature override presets", () => {
     const result = resolveGenerationOptions({
       creativity: "creative",
-      outputLength: "long",
       maxOutputTokens: 123,
+      outputLength: "long",
       temperature: 0,
     });
 
@@ -62,23 +62,23 @@ describe("resolveGenerationOptions", () => {
 
   test("maps OpenAI reasoning, verbosity, structured output, and service tier", () => {
     const result = resolveGenerationOptions({
-      provider: "openai",
       modelId: "openai/gpt-5.4",
-      reasoning: "max",
-      verbosity: "low",
-      structured: "strict",
       parallelTools: false,
-      user: "agent-search",
+      provider: "openai",
+      reasoning: "max",
       serviceTier: "standard",
+      structured: "strict",
+      user: "agent-search",
+      verbosity: "low",
     });
 
     expect(providerOptionsFor(result, "openai")).toEqual({
-      reasoningEffort: "xhigh",
-      textVerbosity: "low",
       parallelToolCalls: false,
-      strictJsonSchema: true,
-      user: "agent-search",
+      reasoningEffort: "xhigh",
       serviceTier: "default",
+      strictJsonSchema: true,
+      textVerbosity: "low",
+      user: "agent-search",
     });
   });
 
@@ -86,8 +86,8 @@ describe("resolveGenerationOptions", () => {
     expect(
       providerOptionsFor(
         resolveGenerationOptions({
-          provider: "openai",
           modelId: "openai/gpt-5.4-mini",
+          provider: "openai",
           reasoning: "minimal",
         }),
         "openai",
@@ -97,8 +97,8 @@ describe("resolveGenerationOptions", () => {
     expect(
       providerOptionsFor(
         resolveGenerationOptions({
-          provider: "openai",
           modelId: "openai/gpt-5-nano",
+          provider: "openai",
           reasoning: "off",
         }),
         "openai",
@@ -108,21 +108,21 @@ describe("resolveGenerationOptions", () => {
 
   test("maps Anthropic thinking, structured output, cache, and user metadata", () => {
     const result = resolveGenerationOptions({
+      cache: "ephemeral",
+      parallelTools: false,
       provider: "anthropic",
       reasoning: "high",
       structured: "tool",
-      parallelTools: false,
-      cache: "ephemeral",
       user: "agent-search",
     });
 
     expect(providerOptionsFor(result, "anthropic")).toEqual({
-      thinking: { type: "enabled", budgetTokens: 8192 },
+      cacheControl: { type: "ephemeral" },
+      disableParallelToolUse: true,
+      metadata: { userId: "agent-search" },
       sendReasoning: true,
       structuredOutputMode: "jsonTool",
-      disableParallelToolUse: true,
-      cacheControl: { type: "ephemeral" },
-      metadata: { userId: "agent-search" },
+      thinking: { budgetTokens: 8192, type: "enabled" },
     });
   });
 
@@ -130,51 +130,51 @@ describe("resolveGenerationOptions", () => {
     const result = resolveGenerationOptions({
       provider: "google",
       reasoning: "max",
-      structured: "strict",
       serviceTier: "priority",
+      structured: "strict",
     });
 
     expect(providerOptionsFor(result, "google")).toEqual({
-      thinkingConfig: { thinkingLevel: "high", includeThoughts: true },
-      structuredOutputs: true,
       serviceTier: "priority",
+      structuredOutputs: true,
+      thinkingConfig: { includeThoughts: true, thinkingLevel: "high" },
     });
   });
 
   test("maps OpenRouter reasoning, cache, parallel tools, and user", () => {
     const result = resolveGenerationOptions({
+      cache: "ephemeral",
+      parallelTools: true,
       provider: "openrouter",
       reasoning: "off",
-      parallelTools: true,
-      cache: "ephemeral",
       user: "agent-search",
     });
 
     // OpenRouter's REST API uses snake_case for OpenAI-compatible fields and
     // the SDK spreads providerOptions directly into the request body.
     expect(providerOptionsFor(result, "openrouter")).toEqual({
-      reasoning: { effort: "none", exclude: true },
-      parallel_tool_calls: true,
-      user: "agent-search",
       cache_control: { type: "ephemeral" },
+      parallel_tool_calls: true,
+      reasoning: { effort: "none", exclude: true },
+      user: "agent-search",
     });
   });
 
   test("supports cache TTL via the object form on Anthropic and OpenRouter", () => {
     const anthropic = resolveGenerationOptions({
-      provider: "anthropic",
       cache: { ttl: "1h" },
+      provider: "anthropic",
     });
     expect(providerOptionsFor(anthropic, "anthropic")).toMatchObject({
-      cacheControl: { type: "ephemeral", ttl: "1h" },
+      cacheControl: { ttl: "1h", type: "ephemeral" },
     });
 
     const openrouter = resolveGenerationOptions({
-      provider: "openrouter",
       cache: { ttl: "5m" },
+      provider: "openrouter",
     });
     expect(providerOptionsFor(openrouter, "openrouter")).toMatchObject({
-      cache_control: { type: "ephemeral", ttl: "5m" },
+      cache_control: { ttl: "5m", type: "ephemeral" },
     });
   });
 
@@ -184,83 +184,83 @@ describe("resolveGenerationOptions", () => {
       reasoning: { effort: "high", maxTokens: 12_000 },
     });
     expect(providerOptionsFor(anthropic, "anthropic")).toMatchObject({
-      thinking: { type: "enabled", budgetTokens: 12_000 },
+      thinking: { budgetTokens: 12_000, type: "enabled" },
     });
 
     const openrouter = resolveGenerationOptions({
       provider: "openrouter",
-      reasoning: { maxTokens: 4_000 },
+      reasoning: { maxTokens: 4000 },
     });
     expect(providerOptionsFor(openrouter, "openrouter")?.reasoning).toEqual({
-      max_tokens: 4_000,
+      max_tokens: 4000,
     });
 
     const google = resolveGenerationOptions({
       provider: "google",
-      reasoning: { maxTokens: 8_000 },
+      reasoning: { maxTokens: 8000 },
     });
     expect(providerOptionsFor(google, "google")).toMatchObject({
-      thinkingConfig: { thinkingBudget: 8_000, includeThoughts: true },
+      thinkingConfig: { includeThoughts: true, thinkingBudget: 8000 },
     });
   });
 
   test("maps gateway routing preferences, fallbacks, tags, and privacy", () => {
     const result = resolveGenerationOptions({
-      provider: "gateway",
+      fallbackModels: ["anthropic/claude-haiku-4.5"],
       modelId: "anthropic/claude-sonnet-4.6",
+      provider: "gateway",
       routing: {
-        prefer: "cheapest",
         allow: ["anthropic", "amazon-bedrock"],
         order: ["anthropic", "amazon-bedrock"],
+        prefer: "cheapest",
         privacy: ["no-retention", "no-training", "hipaa"],
       },
-      fallbackModels: ["anthropic/claude-haiku-4.5"],
       tags: ["feature:checkout"],
       user: "agent-search",
     });
 
     expect(providerOptionsFor(result, "gateway")).toEqual({
-      user: "agent-search",
-      sort: "cost",
-      only: ["anthropic", "amazon-bedrock"],
-      order: ["anthropic", "amazon-bedrock"],
-      models: ["anthropic/claude-haiku-4.5"],
-      tags: ["feature:checkout"],
-      zeroDataRetention: true,
       disallowPromptTraining: true,
       hipaaCompliant: true,
+      models: ["anthropic/claude-haiku-4.5"],
+      only: ["anthropic", "amazon-bedrock"],
+      order: ["anthropic", "amazon-bedrock"],
+      sort: "cost",
+      tags: ["feature:checkout"],
+      user: "agent-search",
+      zeroDataRetention: true,
     });
   });
 
   test("maps OpenRouter routing including max_price, quantizations, and ZDR", () => {
     const result = resolveGenerationOptions({
+      fallbackModels: ["anthropic/claude-haiku-4.5"],
       provider: "openrouter",
       routing: {
-        prefer: "fastest",
         allow: ["anthropic"],
         deny: ["openai"],
-        order: ["anthropic", "google-vertex"],
         fallbacks: false,
-        quantizations: ["fp8", "bf16"],
+        maxCost: { completionPerMillion: 15, promptPerMillion: 3, requestUsd: 0.1 },
+        order: ["anthropic", "google-vertex"],
+        prefer: "fastest",
         privacy: ["no-retention"],
-        maxCost: { promptPerMillion: 3, completionPerMillion: 15, requestUsd: 0.1 },
+        quantizations: ["fp8", "bf16"],
       },
-      fallbackModels: ["anthropic/claude-haiku-4.5"],
     });
 
     expect(providerOptionsFor(result, "openrouter")).toMatchObject({
-      provider: {
-        sort: "latency",
-        only: ["anthropic"],
-        ignore: ["openai"],
-        order: ["anthropic", "google-vertex"],
-        allow_fallbacks: false,
-        quantizations: ["fp8", "bf16"],
-        zdr: true,
-        data_collection: "deny",
-        max_price: { prompt: 3, completion: 15, request: 0.1 },
-      },
       models: ["anthropic/claude-haiku-4.5"],
+      provider: {
+        allow_fallbacks: false,
+        data_collection: "deny",
+        ignore: ["openai"],
+        max_price: { completion: 15, prompt: 3, request: 0.1 },
+        only: ["anthropic"],
+        order: ["anthropic", "google-vertex"],
+        quantizations: ["fp8", "bf16"],
+        sort: "latency",
+        zdr: true,
+      },
     });
   });
 
@@ -307,50 +307,45 @@ describe("resolveGenerationOptions", () => {
 
   test("maps OpenRouter web search and response-healing plugins", () => {
     const result = resolveGenerationOptions({
-      provider: "openrouter",
-      webSearch: { engine: "exa", maxResults: 5 },
-      responseHealing: true,
       includeCost: true,
+      provider: "openrouter",
+      responseHealing: true,
+      webSearch: { engine: "exa", maxResults: 5 },
     });
 
     expect(providerOptionsFor(result, "openrouter")).toMatchObject({
-      plugins: [
-        { id: "web", max_results: 5, engine: "exa" },
-        { id: "response-healing" },
-      ],
+      plugins: [{ engine: "exa", id: "web", max_results: 5 }, { id: "response-healing" }],
       usage: { include: true },
     });
   });
 
   test("maps OpenRouter logprobs into logprobs + top_logprobs", () => {
     const numericLogprobs = resolveGenerationOptions({
-      provider: "openrouter",
+      logitBias: { 50_256: -100 },
       logprobs: 5,
-      logitBias: { 50256: -100 },
+      provider: "openrouter",
     });
     expect(providerOptionsFor(numericLogprobs, "openrouter")).toMatchObject({
+      logit_bias: { 50_256: -100 },
       logprobs: true,
       top_logprobs: 5,
-      logit_bias: { 50256: -100 },
     });
 
     const boolLogprobs = resolveGenerationOptions({
-      provider: "openrouter",
       logprobs: true,
+      provider: "openrouter",
     });
     expect(providerOptionsFor(boolLogprobs, "openrouter")?.logprobs).toBe(true);
-    expect(
-      providerOptionsFor(boolLogprobs, "openrouter")?.top_logprobs,
-    ).toBeUndefined();
+    expect(providerOptionsFor(boolLogprobs, "openrouter")?.top_logprobs).toBeUndefined();
   });
 
   test("ignores unsupported routing knobs on direct providers", () => {
     const result = resolveGenerationOptions({
+      fallbackModels: ["anthropic/claude-haiku-4.5"],
+      logprobs: true,
       provider: "anthropic",
       routing: { prefer: "cheapest", privacy: ["no-retention"] },
-      fallbackModels: ["anthropic/claude-haiku-4.5"],
       tags: ["feature:checkout"],
-      logprobs: true,
     });
 
     // Anthropic direct provider should see no routing/tag/logprobs leakage.
@@ -363,11 +358,11 @@ describe("resolveGenerationOptions", () => {
 
   test("adds gateway options and inferred direct-provider options when modelId is known", () => {
     const result = resolveGenerationOptions({
-      provider: "gateway",
       modelId: "openai/gpt-5.4",
+      provider: "gateway",
       reasoning: "medium",
-      verbosity: "high",
       user: "agent-search",
+      verbosity: "high",
     });
 
     expect(providerOptionsFor(result, "gateway")).toEqual({
@@ -392,13 +387,13 @@ describe("AIClient.generationOptions", () => {
         tools: "none",
       }),
     ).toMatchObject({
-      toolChoice: "none",
       providerOptions: {
         anthropic: {
-          thinking: { type: "disabled" },
           sendReasoning: false,
+          thinking: { type: "disabled" },
         },
       },
+      toolChoice: "none",
     });
   });
 });

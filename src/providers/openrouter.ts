@@ -32,10 +32,7 @@ export interface OpenRouterProvider {
   embedModel: (
     modelId: string,
   ) => ReturnType<ReturnType<typeof createOpenRouter>["textEmbeddingModel"]>;
-  modelConfig: (
-    modelId: `${string}/${string}`,
-    options?: ModelOptions,
-  ) => OpenRouterModelConfig;
+  modelConfig: (modelId: `${string}/${string}`, options?: ModelOptions) => OpenRouterModelConfig;
   requestConfig: (options?: ModelOptions) => OpenRouterRequestConfig;
 }
 
@@ -78,7 +75,9 @@ export function createOpenRouterProvider(
   }
 
   function getClient() {
-    if (client) return client;
+    if (client) {
+      return client;
+    }
 
     const headers = getHeaders();
     client = createOpenRouter({
@@ -90,27 +89,27 @@ export function createOpenRouterProvider(
   }
 
   return {
+    embedModel(modelId) {
+      return getClient().textEmbeddingModel(modelId);
+    },
     model(modelId, options) {
       const user = getUser(options);
       return getClient()(modelId, user ? { user } : {});
     },
-    embedModel(modelId) {
-      return getClient().textEmbeddingModel(modelId);
-    },
     modelConfig(modelId, _options) {
       const headers = getHeaders();
       return {
+        apiKey: getApiKey(),
         id: modelId,
         url: OPENROUTER_BASE_URL,
-        apiKey: getApiKey(),
         ...(Object.keys(headers).length > 0 ? { headers } : {}),
       };
     },
     requestConfig(options) {
       const user = getUser(options);
       return {
-        baseURL: OPENROUTER_BASE_URL,
         apiKey: getApiKey(),
+        baseURL: OPENROUTER_BASE_URL,
         headers: getHeaders(),
         ...(user ? { user } : {}),
       };

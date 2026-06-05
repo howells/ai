@@ -1,38 +1,43 @@
 {
   "name": "@howells/ai",
-  "version": "0.1.18",
-  "type": "module",
+  "version": "0.1.20",
   "description": "Unified AI client for all projects — Gateway, OpenRouter, direct providers, tiered language models, and retrieval models.",
   "license": "MIT",
-  "packageManager": "pnpm@10.23.0",
-  "engines": {
-    "node": ">=22.18.0"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/howells/ai.git"
+  },
+  "bin": {
+    "ai": "dist/cli.mjs",
+    "howells-ai": "dist/cli.mjs"
   },
   "files": [
     "dist",
     "README.md"
   ],
-  "bin": {
-    "ai": "dist/cli.mjs",
-    "howells-ai": "dist/cli.mjs"
-  },
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "exports": {
     ".": {
       "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
       "default": "./dist/index.mjs"
     },
     "./react": {
       "types": "./dist/react.d.mts",
+      "import": "./dist/react.mjs",
       "default": "./dist/react.mjs"
     },
     "./models": {
       "types": "./dist/models.d.mts",
+      "import": "./dist/models.mjs",
       "default": "./dist/models.mjs"
-    }
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsdown",
@@ -40,29 +45,34 @@
     "benchmark:dev": "pnpm --filter @howells/ai-benchmark dev",
     "check-types": "tsc --noEmit",
     "test": "bun test",
-    "test:live": "LIVE_AI_TESTS=1 bun test test/live.test.ts"
+    "test:live": "LIVE_AI_TESTS=1 bun test test/live.test.ts",
+    "lint": "oxfmt --check src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts && oxlint --config=oxlint.config.ts src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts",
+    "lint:fix": "oxfmt --write src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts README.md && oxlint --fix --config=oxlint.config.ts src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts",
+    "format": "howells-oxfmt --write src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts README.md"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.71",
-    "@ai-sdk/gateway": "^3.0.104",
-    "@ai-sdk/google": "^3.0.64",
-    "@ai-sdk/openai": "^3.0.53",
-    "@ai-sdk/react": "3.0.118",
+    "@ai-sdk/anthropic": "^3.0.81",
+    "@ai-sdk/gateway": "^3.0.125",
+    "@ai-sdk/google": "^3.0.80",
+    "@ai-sdk/openai": "^3.0.68",
+    "@ai-sdk/react": "3.0.199",
     "@howells/envy": "^0.3.7",
     "@openrouter/ai-sdk-provider": "^2.9.0",
-    "ai": "6.0.116",
+    "ai": "6.0.197",
     "voyage-ai-provider": "^3.0.0",
     "zod": "^4.4.3"
   },
-  "publishConfig": {
-    "access": "public"
+  "devDependencies": {
+    "@howells/lint": "^0.2.1",
+    "@types/node": "^25.9.1",
+    "tsdown": "^0.22.2",
+    "typescript": "^6.0.3"
   },
   "peerDependencies": {
     "typescript": "^5 || ^6"
   },
-  "devDependencies": {
-    "@types/node": "^25.6.0",
-    "tsdown": "^0.21.9",
-    "typescript": "^6.0.3"
-  }
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "packageManager": "pnpm@10.23.0"
 }

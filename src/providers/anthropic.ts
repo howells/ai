@@ -22,13 +22,13 @@ export interface AnthropicProvider {
  * Create an Anthropic provider instance.
  * Each createAI() call gets its own instance — no shared state.
  */
-export function createAnthropicProvider(
-  apiKey: string | undefined,
-): AnthropicProvider {
+export function createAnthropicProvider(apiKey: string | undefined): AnthropicProvider {
   let client: ReturnType<typeof createAnthropic> | null = null;
 
   function getClient() {
-    if (client) return client;
+    if (client) {
+      return client;
+    }
 
     const key = apiKey ?? envValue("ANTHROPIC_API_KEY");
     if (!key) {

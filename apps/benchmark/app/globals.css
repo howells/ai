@@ -4,10 +4,10 @@
 @source "../node_modules/streamdown/dist/*.js";
 
 @theme {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
-    sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo,
-    Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono:
+    var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
   --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
 
   /*
@@ -199,30 +199,14 @@ body {
  */
 .scroll-shadow-x {
   background:
-    linear-gradient(
-        to right,
-        var(--color-overlay) 0%,
-        oklch(1 0 0 / 0)
-      )
-      left center / 24px 100% no-repeat,
-    linear-gradient(
-        to left,
-        var(--color-overlay) 0%,
-        oklch(1 0 0 / 0)
-      )
-      right center / 24px 100% no-repeat,
-    linear-gradient(
-        to right,
-        oklch(0 0 0 / 0.08),
-        oklch(0 0 0 / 0) 60%
-      )
-      left center / 14px 100% no-repeat,
-    linear-gradient(
-        to left,
-        oklch(0 0 0 / 0.08),
-        oklch(0 0 0 / 0) 60%
-      )
-      right center / 14px 100% no-repeat,
+    linear-gradient(to right, var(--color-overlay) 0%, oklch(1 0 0 / 0)) left center / 24px 100%
+      no-repeat,
+    linear-gradient(to left, var(--color-overlay) 0%, oklch(1 0 0 / 0)) right center / 24px 100%
+      no-repeat,
+    linear-gradient(to right, oklch(0 0 0 / 0.08), oklch(0 0 0 / 0) 60%) left center / 14px 100%
+      no-repeat,
+    linear-gradient(to left, oklch(0 0 0 / 0.08), oklch(0 0 0 / 0) 60%) right center / 14px 100%
+      no-repeat,
     var(--color-surface);
   background-attachment: local, local, scroll, scroll, local;
 }

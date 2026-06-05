@@ -1,6 +1,7 @@
 "use client";
 
-import { METRIC_META, type MetricKey } from "../lib/format";
+import { METRIC_META } from "../lib/format";
+import type { MetricKey } from "../lib/format";
 
 interface LegendBarProps {
   metric: MetricKey;
@@ -41,9 +42,7 @@ export function LegendBar({
       <span className="pill pill--warn">no key</span>
       <Sep />
       <span className="flex items-center gap-1.5 text-[var(--color-text-muted)]">
-        <span className="font-medium text-[var(--color-text)]">
-          {meta.short}
-        </span>
+        <span className="font-medium text-[var(--color-text)]">{meta.short}</span>
         <span className="hidden text-[var(--color-text-faint)] md:inline">
           · {meta.full.toLowerCase()}
         </span>

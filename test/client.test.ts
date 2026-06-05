@@ -1,12 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import {
-  createAI,
-  GLM_MODELS,
-  KIMI_MODELS,
-  OPENAI_MODELS,
-  OPENROUTER_EMBED_MODELS,
-  QWEN_MODELS,
-} from "../src";
+import { createAI, KIMI_MODELS, OPENAI_MODELS, OPENROUTER_EMBED_MODELS, QWEN_MODELS } from "../src";
 import type { ModelTier, ProviderRoute } from "../src";
 
 const ENV_KEYS = [
@@ -83,14 +76,10 @@ describe("createAI", () => {
       expect(() => ai.model("fast", { provider })).toThrow(
         `Provider "${provider}" was explicitly requested but ${envVar} is not configured.`,
       );
-      expect(() =>
-        ai.modelById("google/gemini-3.5-flash", { provider }),
-      ).toThrow(
+      expect(() => ai.modelById("google/gemini-3.5-flash", { provider })).toThrow(
         `Provider "${provider}" was explicitly requested but ${envVar} is not configured.`,
       );
-      expect(() =>
-        ai.modelConfig("google/gemini-3.5-flash", { provider }),
-      ).toThrow(
+      expect(() => ai.modelConfig("google/gemini-3.5-flash", { provider })).toThrow(
         `Provider "${provider}" was explicitly requested but ${envVar} is not configured.`,
       );
     }
@@ -137,16 +126,16 @@ describe("createAI", () => {
 
   test("uses explicit config keys when computing available providers", () => {
     const ai = createAI({
+      deepseekKey: "deepseek-key",
       gatewayKey: "gateway-key",
+      googleKey: "google-key",
+      groqKey: "groq-key",
+      moonshotKey: "moonshot-key",
       openRouterKey: "openrouter-key",
       openaiKey: "openai-key",
-      googleKey: "google-key",
-      deepseekKey: "deepseek-key",
-      xaiKey: "xai-key",
       qwenKey: "qwen-key",
+      xaiKey: "xai-key",
       zaiKey: "zai-key",
-      moonshotKey: "moonshot-key",
-      groqKey: "groq-key",
     });
 
     expect(ai.availableProviders).toEqual([
@@ -178,8 +167,8 @@ describe("createAI", () => {
 
     expect(
       createAI({
-        xaiKey: "xai-key",
         serviceKeys: { qwen: "qwen-key" },
+        xaiKey: "xai-key",
       }).availableServices,
     ).toEqual(["xai", "qwen"]);
   });
@@ -187,9 +176,7 @@ describe("createAI", () => {
   test("rejects modelById calls with mismatched prefixed direct providers", () => {
     const ai = createAI({ anthropicKey: "anthropic-key" });
 
-    expect(() =>
-      ai.modelById("openai/gpt-5-nano", { provider: "anthropic" }),
-    ).toThrow(
+    expect(() => ai.modelById("openai/gpt-5-nano", { provider: "anthropic" })).toThrow(
       'Model "openai/gpt-5-nano" cannot be used with provider "anthropic". It belongs to "openai".',
     );
   });
@@ -228,24 +215,22 @@ describe("createAI", () => {
   test("allows bare model IDs for direct provider escape hatches", () => {
     const ai = createAI({ anthropicKey: "anthropic-key" });
 
-    expect(() =>
-      ai.modelById("claude-sonnet-4-6", { provider: "anthropic" }),
-    ).not.toThrow();
+    expect(() => ai.modelById("claude-sonnet-4-6", { provider: "anthropic" })).not.toThrow();
   });
 
   test("translates default tier model IDs for each viable provider route", () => {
     const ai = createAI({
-      gatewayKey: "gateway-key",
-      openRouterKey: "openrouter-key",
       anthropicKey: "anthropic-key",
-      openaiKey: "openai-key",
-      googleKey: "google-key",
       deepseekKey: "deepseek-key",
-      xaiKey: "xai-key",
-      qwenKey: "qwen-key",
-      zaiKey: "zai-key",
-      moonshotKey: "moonshot-key",
+      gatewayKey: "gateway-key",
+      googleKey: "google-key",
       groqKey: "groq-key",
+      moonshotKey: "moonshot-key",
+      openRouterKey: "openrouter-key",
+      openaiKey: "openai-key",
+      qwenKey: "qwen-key",
+      xaiKey: "xai-key",
+      zaiKey: "zai-key",
     });
 
     const cases = [
@@ -281,11 +266,7 @@ describe("createAI", () => {
       ["standard", "zai", "glm-4.7"],
       ["standard", "moonshotai", "kimi-k2.6"],
       ["standard", "groq", "openai/gpt-oss-120b"],
-    ] as const satisfies readonly [
-      ModelTier,
-      ProviderRoute,
-      string,
-    ][];
+    ] as const satisfies readonly [ModelTier, ProviderRoute, string][];
 
     for (const [tier, provider, expected] of cases) {
       expect(modelIdOf(ai.model(tier, { provider }))).toBe(expected);
@@ -295,16 +276,16 @@ describe("createAI", () => {
   test("selects tool and vision variants inside each tier", () => {
     const ai = createAI({
       gatewayKey: "gateway-key",
-      openRouterKey: "openrouter-key",
       googleKey: "google-key",
+      openRouterKey: "openrouter-key",
     });
 
     expect(modelIdOf(ai.model("fast", { tools: true }))).toBe(
       "google/gemini-3.1-flash-lite-preview",
     );
-    expect(
-      modelIdOf(ai.model("fast", { provider: "openrouter", tools: true })),
-    ).toBe("google/gemini-3.1-flash-lite-preview");
+    expect(modelIdOf(ai.model("fast", { provider: "openrouter", tools: true }))).toBe(
+      "google/gemini-3.1-flash-lite-preview",
+    );
     expect(modelIdOf(ai.model("fast", { vision: true }))).toBe(
       "google/gemini-3.1-flash-lite-preview",
     );
@@ -317,9 +298,9 @@ describe("createAI", () => {
         }),
       ),
     ).toBe("google/gemini-3.1-flash-lite-preview");
-    expect(
-      modelIdOf(ai.model("standard", { provider: "google", vision: true })),
-    ).toBe("gemini-3.5-flash");
+    expect(modelIdOf(ai.model("standard", { provider: "google", vision: true }))).toBe(
+      "gemini-3.5-flash",
+    );
   });
 
   test("routes free tier selections through OpenRouter's managed free router", () => {
@@ -327,22 +308,19 @@ describe("createAI", () => {
       openRouterKey: "openrouter-key",
     });
 
-    expect(modelIdOf(ai.model("standard", { free: true }))).toBe(
+    expect(modelIdOf(ai.model("standard", { free: true }))).toBe("openrouter/free");
+    expect(modelIdOf(ai.model("fast", { free: true, tools: true, vision: true }))).toBe(
       "openrouter/free",
     );
-    expect(
-      modelIdOf(ai.model("fast", { free: true, tools: true, vision: true })),
-    ).toBe("openrouter/free");
-    expect(() =>
-      ai.model("standard", { free: true, provider: "gateway" }),
-    ).toThrow(/only supported through provider "openrouter"/);
+    expect(() => ai.model("standard", { free: true, provider: "gateway" })).toThrow(
+      /only supported through provider "openrouter"/,
+    );
   });
 
   test("selects task-specific tier models and falls back per provider", () => {
     const ai = createAI({
-      gatewayKey: "gateway-key",
-      openRouterKey: "openrouter-key",
       anthropicKey: "anthropic-key",
+      gatewayKey: "gateway-key",
       models: {
         tasks: {
           coding: {
@@ -352,6 +330,7 @@ describe("createAI", () => {
           },
         },
       },
+      openRouterKey: "openrouter-key",
     });
 
     expect(
@@ -366,8 +345,8 @@ describe("createAI", () => {
       modelIdOf(
         ai.model("standard", {
           provider: "openrouter",
-          tools: true,
           task: "coding",
+          tools: true,
         }),
       ),
     ).toBe(OPENAI_MODELS.GPT_5_3_CODEX);
@@ -375,8 +354,8 @@ describe("createAI", () => {
       modelIdOf(
         ai.model("standard", {
           provider: "anthropic",
-          tools: true,
           task: "coding",
+          tools: true,
         }),
       ),
     ).toBe("claude-sonnet-4-6");
@@ -384,10 +363,10 @@ describe("createAI", () => {
 
   test("uses provider-specific task defaults when one provider is pinned", () => {
     const ai = createAI({
+      moonshotKey: "moonshot-key",
       openaiKey: "openai-key",
       qwenKey: "qwen-key",
       zaiKey: "zai-key",
-      moonshotKey: "moonshot-key",
     });
 
     expect(
@@ -433,9 +412,7 @@ describe("createAI", () => {
       openRouterKey: "openrouter-key",
     });
 
-    expect(() =>
-      ai.model("nano", { provider: "deepseek", vision: true }),
-    ).toThrow(
+    expect(() => ai.model("nano", { provider: "deepseek", vision: true })).toThrow(
       'Model "deepseek/deepseek-v3.2" does not support vision input. Choose a vision-capable model or remove vision: true.',
     );
     expect(() =>
@@ -488,9 +465,9 @@ describe("createAI", () => {
 
   test("normalizes legacy IDs when selecting explicit models", () => {
     const ai = createAI({
+      anthropicKey: "anthropic-key",
       gatewayKey: "gateway-key",
       openRouterKey: "openrouter-key",
-      anthropicKey: "anthropic-key",
       xaiKey: "xai-key",
     });
 
@@ -519,39 +496,39 @@ describe("createAI", () => {
     expect(
       modelIdOf(
         ai.model("standard", {
-          provider: "openrouter",
           openRouterVariant: "nitro",
+          provider: "openrouter",
         }),
       ),
     ).toBe("google/gemini-3.5-flash:nitro");
     expect(
       modelIdOf(
         ai.modelById("moonshotai/kimi-k2.6", {
-          provider: "openrouter",
           openRouterVariant: "exacto",
+          provider: "openrouter",
         }),
       ),
     ).toBe("moonshotai/kimi-k2.6:exacto");
     expect(
       modelIdOf(
         ai.modelById("moonshotai/kimi-k2.6:nitro", {
-          provider: "openrouter",
           openRouterVariant: "floor",
+          provider: "openrouter",
         }),
       ),
     ).toBe("moonshotai/kimi-k2.6:floor");
     expect(
       ai.modelConfig("moonshotai/kimi-k2.6", {
-        provider: "openrouter",
         openRouterVariant: "exacto",
+        provider: "openrouter",
       }),
     ).toMatchObject({
       id: "moonshotai/kimi-k2.6:exacto",
     });
     expect(() =>
       ai.modelById("openai/gpt-5.4", {
-        provider: "openai",
         openRouterVariant: "nitro",
+        provider: "openai",
       }),
     ).toThrow(/only supported with provider "openrouter"/);
     expect(() => ai.modelById("openai/gpt-5.4:nitro")).toThrow(
@@ -562,17 +539,17 @@ describe("createAI", () => {
   test("exposes Voyage image embedding models", () => {
     const ai = createAI({ voyageKey: "voyage-key" });
 
-    expect(
-      modelIdOf(ai.embeddingModel({ input: "image", provider: "voyage" })),
-    ).toBe("voyage-multimodal-3.5");
+    expect(modelIdOf(ai.embeddingModel({ input: "image", provider: "voyage" }))).toBe(
+      "voyage-multimodal-3.5",
+    );
   });
 
   test("exposes Google Gemini image embedding models", () => {
     const ai = createAI({ googleKey: "google-key" });
 
-    expect(
-      modelIdOf(ai.embeddingModel({ input: "image", provider: "gemini" })),
-    ).toBe("gemini-embedding-2-preview");
+    expect(modelIdOf(ai.embeddingModel({ input: "image", provider: "gemini" }))).toBe(
+      "gemini-embedding-2-preview",
+    );
   });
 
   test("exposes provider-neutral text embedding models", () => {
@@ -580,17 +557,15 @@ describe("createAI", () => {
     const gemini = createAI({ googleKey: "google-key" });
     const openrouter = createAI({ openRouterKey: "openrouter-key" });
 
-    expect(
-      modelIdOf(voyage.embeddingModel({ input: "text", provider: "voyage" })),
-    ).toBe("voyage-3");
-    expect(
-      modelIdOf(gemini.embeddingModel({ input: "text", provider: "gemini" })),
-    ).toBe("gemini-embedding-2-preview");
-    expect(
-      modelIdOf(
-        openrouter.embeddingModel({ input: "text", provider: "openrouter" }),
-      ),
-    ).toBe("openai/text-embedding-3-small");
+    expect(modelIdOf(voyage.embeddingModel({ input: "text", provider: "voyage" }))).toBe(
+      "voyage-3",
+    );
+    expect(modelIdOf(gemini.embeddingModel({ input: "text", provider: "gemini" }))).toBe(
+      "gemini-embedding-2-preview",
+    );
+    expect(modelIdOf(openrouter.embeddingModel({ input: "text", provider: "openrouter" }))).toBe(
+      "openai/text-embedding-3-small",
+    );
   });
 
   test("exposes curated OpenRouter embedding models", () => {
@@ -599,12 +574,10 @@ describe("createAI", () => {
     expect(modelIdOf(ai.embeddingModel({ provider: "openrouter" }))).toBe(
       OPENROUTER_EMBED_MODELS.OPENAI_TEXT_EMBEDDING_3_SMALL,
     );
-    expect(
-      modelIdOf(ai.embeddingModel({ input: "image", provider: "openrouter" })),
-    ).toBe(OPENROUTER_EMBED_MODELS.GEMINI_EMBEDDING_2);
-    expect(() =>
-      createAI().embeddingModel({ provider: "openrouter" }),
-    ).toThrow(
+    expect(modelIdOf(ai.embeddingModel({ input: "image", provider: "openrouter" }))).toBe(
+      OPENROUTER_EMBED_MODELS.GEMINI_EMBEDDING_2,
+    );
+    expect(() => createAI().embeddingModel({ provider: "openrouter" })).toThrow(
       'Provider "openrouter" was explicitly requested but OPENROUTER_API_KEY is not configured.',
     );
   });
@@ -612,77 +585,73 @@ describe("createAI", () => {
   test("uses provider-specific embedding slot overrides", () => {
     const ai = createAI({
       googleKey: "google-key",
-      openRouterKey: "openrouter-key",
-      voyageKey: "voyage-key",
       models: {
         embed: {
-          voyage: "voyage-3-lite",
           gemini: "gemini-embedding-001",
           openrouter: "openai/text-embedding-3-large",
+          voyage: "voyage-3-lite",
         },
         multimodalEmbed: {
-          voyage: "voyage-multimodal-3",
           gemini: "gemini-embedding-2-preview",
           openrouter: "google/gemini-embedding-001",
+          voyage: "voyage-multimodal-3",
         },
       },
+      openRouterKey: "openrouter-key",
+      voyageKey: "voyage-key",
     });
 
-    expect(modelIdOf(ai.embeddingModel({ provider: "voyage" }))).toBe(
-      "voyage-3-lite",
-    );
-    expect(modelIdOf(ai.embeddingModel({ provider: "gemini" }))).toBe(
-      "gemini-embedding-001",
-    );
+    expect(modelIdOf(ai.embeddingModel({ provider: "voyage" }))).toBe("voyage-3-lite");
+    expect(modelIdOf(ai.embeddingModel({ provider: "gemini" }))).toBe("gemini-embedding-001");
     expect(modelIdOf(ai.embeddingModel({ provider: "openrouter" }))).toBe(
       "openai/text-embedding-3-large",
     );
-    expect(
-      modelIdOf(ai.embeddingModel({ input: "image", provider: "voyage" })),
-    ).toBe("voyage-multimodal-3");
-    expect(
-      modelIdOf(ai.embeddingModel({ input: "image", provider: "gemini" })),
-    ).toBe("gemini-embedding-2-preview");
-    expect(
-      modelIdOf(ai.embeddingModel({ input: "image", provider: "openrouter" })),
-    ).toBe("google/gemini-embedding-001");
+    expect(modelIdOf(ai.embeddingModel({ input: "image", provider: "voyage" }))).toBe(
+      "voyage-multimodal-3",
+    );
+    expect(modelIdOf(ai.embeddingModel({ input: "image", provider: "gemini" }))).toBe(
+      "gemini-embedding-2-preview",
+    );
+    expect(modelIdOf(ai.embeddingModel({ input: "image", provider: "openrouter" }))).toBe(
+      "google/gemini-embedding-001",
+    );
   });
 
   test("exposes provider-neutral runtime model config", () => {
     const env = process.env.NODE_ENV ?? "development";
     const ai = createAI({
+      anthropicKey: "anthropic-key",
       app: { name: "Howells AI", url: "https://github.com/howells/ai" },
       gatewayKey: "gateway-key",
       openRouterKey: "openrouter-key",
-      anthropicKey: "anthropic-key",
       xaiKey: "xai-key",
     });
 
     expect(ai.modelConfig("anthropic/claude-sonnet-4.6")).toMatchObject({
-      provider: "gateway",
-      id: "anthropic/claude-sonnet-4.6",
       apiKey: "gateway-key",
+      capabilities: {
+        agentAttribution: false,
+        apiKey: true,
+        appAttribution: false,
+        baseURL: false,
+        headers: false,
+        modelId: true,
+      },
+      id: "anthropic/claude-sonnet-4.6",
+      provider: "gateway",
       service: "anthropic",
       serviceApiKey: "anthropic-key",
       serviceApiKeyEnv: "ANTHROPIC_API_KEY",
-      capabilities: {
-        modelId: true,
-        apiKey: true,
-        baseURL: false,
-        headers: false,
-        appAttribution: false,
-        agentAttribution: false,
-      },
     });
     expect(
       createAI({
-        openRouterKey: "openrouter-key",
         moonshotKey: "moonshot-key",
+        openRouterKey: "openrouter-key",
       }).modelConfig(KIMI_MODELS.KIMI_K2_6, { provider: "openrouter" }),
     ).toMatchObject({
-      provider: "openrouter",
-      id: "moonshotai/kimi-k2.6",
       apiKey: "openrouter-key",
+      id: "moonshotai/kimi-k2.6",
+      provider: "openrouter",
       service: "moonshotai",
       serviceApiKey: "moonshot-key",
       serviceApiKeyEnv: "MOONSHOT_API_KEY",
@@ -692,49 +661,49 @@ describe("createAI", () => {
         provider: "xai",
       }),
     ).toMatchObject({
-      provider: "xai",
-      id: "grok-4.3",
       apiKey: "xai-key",
+      baseURL: "https://api.x.ai/v1",
+      capabilities: {
+        apiKey: true,
+        baseURL: true,
+        modelId: true,
+      },
+      id: "grok-4.3",
+      provider: "xai",
       service: "xai",
       serviceApiKey: "xai-key",
       serviceApiKeyEnv: "XAI_API_KEY",
-      baseURL: "https://api.x.ai/v1",
       url: "https://api.x.ai/v1",
-      capabilities: {
-        modelId: true,
-        apiKey: true,
-        baseURL: true,
-      },
     });
     expect(
       ai.modelConfig("anthropic/claude-sonnet-4.6", {
         provider: "anthropic",
       }),
     ).toMatchObject({
-      provider: "anthropic",
-      id: "claude-sonnet-4-6",
       apiKey: "anthropic-key",
+      id: "claude-sonnet-4-6",
+      provider: "anthropic",
     });
     expect(
       ai.modelConfig("anthropic/claude-sonnet-4-6", {
-        provider: "openrouter",
         agent: "search",
+        provider: "openrouter",
       }),
     ).toMatchObject({
-      provider: "openrouter",
-      id: "anthropic/claude-sonnet-4.6",
       apiKey: "openrouter-key",
       baseURL: "https://openrouter.ai/api/v1",
-      url: "https://openrouter.ai/api/v1",
-      user: `search/${env}`,
       capabilities: {
-        modelId: true,
+        agentAttribution: true,
         apiKey: true,
+        appAttribution: true,
         baseURL: true,
         headers: true,
-        appAttribution: true,
-        agentAttribution: true,
+        modelId: true,
       },
+      id: "anthropic/claude-sonnet-4.6",
+      provider: "openrouter",
+      url: "https://openrouter.ai/api/v1",
+      user: `search/${env}`,
     });
   });
 });

@@ -1,5 +1,5 @@
 /**
- * @howells/ai — Unified AI client for all projects.
+ * Howells AI unified client for all projects.
  *
  * One package, provider-aware model tiers and retrieval models.
  *

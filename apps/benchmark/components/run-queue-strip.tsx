@@ -1,12 +1,7 @@
 "use client";
 
-import {
-  formatMs,
-  formatTpsWithUnit,
-  formatUsd,
-  pluralize,
-  type MetricKey,
-} from "../lib/format";
+import { formatMs, formatTpsWithUnit, formatUsd, pluralize } from "../lib/format";
+import type { MetricKey } from "../lib/format";
 import { formatProviderScore } from "../lib/result-insights";
 import { Tooltip } from "./tooltip";
 
@@ -75,14 +70,12 @@ export function RunQueueStrip({
   onRun,
 }: RunQueueStripProps) {
   const empty = runs === 0;
-  const progress =
-    totalRequests > 0 ? Math.min(completed / totalRequests, 1) : 0;
+  const progress = totalRequests > 0 ? Math.min(completed / totalRequests, 1) : 0;
   const showSummary = hasResults && !running;
 
   // Hero swaps to fastest time once a run has results (Observation 9). The
   // editorial Fraunces moment now carries the win condition.
-  const heroIsFastest =
-    showSummary && fastestModelValue !== undefined && !!fastestModel;
+  const heroIsFastest = showSummary && fastestModelValue !== undefined && !!fastestModel;
   const heroValue = heroIsFastest
     ? formatRunMetric(fastestModelValue, metric)
     : totalRequests.toString();
@@ -128,8 +121,7 @@ export function RunQueueStrip({
     insightDetail = "uses your keys";
   }
 
-  const showCost =
-    showSummary && totalCostUsd !== undefined && totalCostUsd > 0;
+  const showCost = showSummary && totalCostUsd !== undefined && totalCostUsd > 0;
   const showErrors = showSummary && errors > 0;
 
   const button = (
@@ -151,11 +143,7 @@ export function RunQueueStrip({
       ) : (
         <>
           {showSummary ? "Run again" : "Run"}
-          {rounds > 1 && (
-            <span className="data text-[var(--color-cta-fg)]/70">
-              ×{rounds}
-            </span>
-          )}
+          {rounds > 1 && <span className="data text-[var(--color-cta-fg)]/70">×{rounds}</span>}
           <span aria-hidden="true">→</span>
         </>
       )}
@@ -175,11 +163,7 @@ export function RunQueueStrip({
       <div className="relative flex min-w-0 flex-1 items-center gap-6 overflow-hidden px-6 py-3">
         {/* Hero numeral slot — Fraunces. Promotes to fastest-time post-run. */}
         <Slot minWidth={130}>
-          <DisplayPair
-            value={heroValue}
-            label={heroEyebrow}
-            dim={empty && !heroIsFastest}
-          />
+          <DisplayPair value={heroValue} label={heroEyebrow} dim={empty && !heroIsFastest} />
         </Slot>
 
         <Divider />
@@ -189,7 +173,11 @@ export function RunQueueStrip({
           <div className="flex items-baseline gap-4">
             <Pair value={runs.toString()} label={pluralize(runs, "route")} dim={empty} />
             <Pair value={models.toString()} label={pluralize(models, "model")} dim={empty} />
-            <Pair value={providers.toString()} label={pluralize(providers, "provider")} dim={empty} />
+            <Pair
+              value={providers.toString()}
+              label={pluralize(providers, "provider")}
+              dim={empty}
+            />
             <Pair value={rounds.toString()} label={pluralize(rounds, "round")} dim={false} />
           </div>
         </Slot>
@@ -221,11 +209,7 @@ export function RunQueueStrip({
         {/* Errors slot — appears post-run only when present. */}
         {showErrors && (
           <Slot minWidth={70}>
-            <StatGroup
-              label="Errors"
-              primary={errors.toString()}
-              tone="error"
-            />
+            <StatGroup label="Errors" primary={errors.toString()} tone="error" />
           </Slot>
         )}
 
@@ -253,13 +237,7 @@ export function RunQueueStrip({
  * Fixed-width container for a strip section. Locks geometry so swapping
  * content inside doesn't reshape the surrounding layout.
  */
-function Slot({
-  minWidth,
-  children,
-}: {
-  minWidth: number;
-  children: React.ReactNode;
-}) {
+function Slot({ minWidth, children }: { minWidth: number; children: React.ReactNode }) {
   return (
     <div
       className="flex shrink-0 items-center transition-opacity duration-150 ease-out"
@@ -276,15 +254,7 @@ function Placeholder() {
 }
 
 /* Big editorial numeral with sentence-case meta — the hero moment. */
-function DisplayPair({
-  value,
-  label,
-  dim,
-}: {
-  value: string;
-  label: string;
-  dim: boolean;
-}) {
+function DisplayPair({ value, label, dim }: { value: string; label: string; dim: boolean }) {
   return (
     <div className="flex items-baseline gap-3">
       <span
@@ -294,9 +264,7 @@ function DisplayPair({
       >
         {value}
       </span>
-      <span className="min-w-0 truncate text-[12px] text-[var(--color-text-muted)]">
-        {label}
-      </span>
+      <span className="min-w-0 truncate text-[12px] text-[var(--color-text-muted)]">{label}</span>
     </div>
   );
 }
@@ -317,24 +285,17 @@ function StatGroup({
   completed?: number;
   total?: number;
 }) {
-  const valueColor =
-    tone === "error" ? "text-[var(--color-error-fg)]" : "text-[var(--color-text)]";
+  const valueColor = tone === "error" ? "text-[var(--color-error-fg)]" : "text-[var(--color-text)]";
   const labelColor =
-    tone === "error"
-      ? "text-[var(--color-error-fg)]"
-      : "text-[var(--color-text-muted)]";
+    tone === "error" ? "text-[var(--color-error-fg)]" : "text-[var(--color-text-muted)]";
 
   const primaryNode = (
-    <span className={`data text-[15px] tabular-nums ${valueColor}`}>
-      {primary}
-    </span>
+    <span className={`data text-[15px] tabular-nums ${valueColor}`}>{primary}</span>
   );
 
   return (
     <div className="flex min-w-0 items-baseline gap-2">
-      <span className={`text-[12px] whitespace-nowrap ${labelColor}`}>
-        {label}
-      </span>
+      <span className={`text-[12px] whitespace-nowrap ${labelColor}`}>{label}</span>
       {completed !== undefined && total !== undefined ? (
         <Tooltip
           content={`${completed} of ${total} ${pluralize(total, "call")} complete`}
@@ -373,15 +334,11 @@ function Pair({
       ? "text-[var(--color-error-fg)]"
       : "text-[var(--color-text)]";
   const labelColor =
-    tone === "error"
-      ? "text-[var(--color-error-fg)]"
-      : "text-[var(--color-text-muted)]";
+    tone === "error" ? "text-[var(--color-error-fg)]" : "text-[var(--color-text-muted)]";
 
   return (
     <div className="flex items-baseline gap-1.5 tabular-nums">
-      <span className={`data text-[15px] transition-colors ${valueColor}`}>
-        {value}
-      </span>
+      <span className={`data text-[15px] transition-colors ${valueColor}`}>{value}</span>
       <span className={`text-[12px] ${labelColor}`}>{label}</span>
     </div>
   );
@@ -392,10 +349,5 @@ function formatRunMetric(value: number, metric: MetricKey): string {
 }
 
 function Divider() {
-  return (
-    <span
-      aria-hidden="true"
-      className="h-5 w-px self-center bg-[var(--color-border)]"
-    />
-  );
+  return <span aria-hidden="true" className="h-5 w-px self-center bg-[var(--color-border)]" />;
 }

@@ -1,4 +1,5 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
 interface OpenRouterEndpoint {
   provider_name?: string;
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest) {
 
   const payload = (await response.json()) as OpenRouterEndpointResponse;
   return NextResponse.json({
-    model: payload.data?.id ?? model,
     endpoints: payload.data?.endpoints ?? [],
+    model: payload.data?.id ?? model,
   });
 }

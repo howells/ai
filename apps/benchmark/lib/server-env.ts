@@ -8,7 +8,9 @@ let loaded = false;
  * once before creating provider clients.
  */
 export function loadBenchmarkEnv(): void {
-  if (loaded) return;
+  if (loaded) {
+    return;
+  }
 
   loadDotenv(
     [

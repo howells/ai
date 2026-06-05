@@ -18,27 +18,23 @@ export interface GoogleProvider {
   textModel: (modelId: string, options?: ModelOptions) => LanguageModel;
   embedModel: (
     modelId: string,
-  ) => ReturnType<
-    ReturnType<typeof createGoogleGenerativeAI>["embeddingModel"]
-  >;
+  ) => ReturnType<ReturnType<typeof createGoogleGenerativeAI>["embeddingModel"]>;
   imageEmbedModel: (
     modelId: string,
-  ) => ReturnType<
-    ReturnType<typeof createGoogleGenerativeAI>["embeddingModel"]
-  >;
+  ) => ReturnType<ReturnType<typeof createGoogleGenerativeAI>["embeddingModel"]>;
 }
 
 /**
  * Create a Google provider instance.
  * Each createAI() call gets its own instance — no shared state.
  */
-export function createGoogleProvider(
-  apiKey: string | undefined,
-): GoogleProvider {
+export function createGoogleProvider(apiKey: string | undefined): GoogleProvider {
   let client: ReturnType<typeof createGoogleGenerativeAI> | null = null;
 
   function getClient() {
-    if (client) return client;
+    if (client) {
+      return client;
+    }
 
     const key = apiKey ?? envValue("GOOGLE_GEMINI_API_KEY");
     if (!key) {
@@ -53,14 +49,14 @@ export function createGoogleProvider(
   }
 
   return {
-    textModel(modelId, _options) {
-      return getClient()(modelId);
-    },
     embedModel(modelId) {
       return getClient().embeddingModel(modelId);
     },
     imageEmbedModel(modelId) {
       return getClient().embeddingModel(modelId);
+    },
+    textModel(modelId, _options) {
+      return getClient()(modelId);
     },
   };
 }

@@ -1,21 +1,16 @@
+import { createAI, streamText, visionMessage } from "@howells/ai";
+import type { ModelService, ProviderRoute } from "@howells/ai";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 import {
-  createAI,
-  streamText,
-  visionMessage,
-  type ModelService,
-  type ProviderRoute,
-} from "@howells/ai";
-import { type NextRequest, NextResponse } from "next/server";
-import {
-  type BenchmarkAdvancedOptions,
-  type BenchmarkReasoningMode,
   buildBenchmarkGenerationOptions,
   DEFAULT_ADVANCED_OPTIONS,
 } from "../../../lib/benchmark-options";
-import {
-  benchmarkOptionsHash,
-  persistBenchmarkResult,
-} from "../../../lib/benchmark-history";
+import type {
+  BenchmarkAdvancedOptions,
+  BenchmarkReasoningMode,
+} from "../../../lib/benchmark-options";
+import { benchmarkOptionsHash, persistBenchmarkResult } from "../../../lib/benchmark-history";
 import { loadBenchmarkEnv } from "../../../lib/server-env";
 
 /** Allow benchmark streams to run for up to five minutes. */
@@ -121,15 +116,13 @@ async function executeRun(
 
     const result = streamText({
       model,
-      ...(images.length > 0
-        ? { messages: [visionMessage(prompt, images)] }
-        : { prompt }),
+      ...(images.length > 0 ? { messages: [visionMessage(prompt, images)] } : { prompt }),
       ...ai.generationOptions(
         buildBenchmarkGenerationOptions({
-          provider: run.provider,
-          modelId: run.model,
           maxTokens,
+          modelId: run.model,
           options: runOptions,
+          provider: run.provider,
         }),
       ),
     });
@@ -161,30 +154,27 @@ async function executeRun(
       totalTime: Math.round(totalTime),
       outputTokens: outTokens,
       inputTokens: inTokens,
-      tokensPerSecond:
-        totalTime > 0
-          ? Math.round((outTokens / (totalTime / 1000)) * 10) / 10
-          : 0,
+      tokensPerSecond: totalTime > 0 ? Math.round((outTokens / (totalTime / 1000)) * 10) / 10 : 0,
       ...(costUsd !== undefined ? { costUsd } : {}),
       output: output.slice(0, 500),
       region,
       round,
     };
-  } catch (err) {
+  } catch (error) {
     const totalTime = performance.now() - start;
     return {
-      model: resultModel,
-      provider: run.provider,
-      label: resultLabel,
-      ttft: 0,
-      totalTime: Math.round(totalTime),
-      outputTokens: 0,
+      error: error instanceof Error ? error.message : String(error),
       inputTokens: 0,
-      tokensPerSecond: 0,
+      label: resultLabel,
+      model: resultModel,
       output: "",
-      error: err instanceof Error ? err.message : String(err),
+      outputTokens: 0,
+      provider: run.provider,
       region,
       round,
+      tokensPerSecond: 0,
+      totalTime: Math.round(totalTime),
+      ttft: 0,
     };
   }
 }
@@ -210,18 +200,24 @@ function numericCost(value: unknown): number | undefined {
 }
 
 function extractCostUsd(value: unknown, depth = 0): number | undefined {
-  if (!value || depth > 5 || typeof value !== "object") return undefined;
+  if (!value || depth > 5 || typeof value !== "object") {
+    return undefined;
+  }
 
   for (const [key, child] of Object.entries(value)) {
     if (COST_KEYS.has(key)) {
       const cost = numericCost(child);
-      if (cost !== undefined) return cost;
+      if (cost !== undefined) {
+        return cost;
+      }
     }
   }
 
   for (const child of Object.values(value)) {
     const cost = extractCostUsd(child, depth + 1);
-    if (cost !== undefined) return cost;
+    if (cost !== undefined) {
+      return cost;
+    }
   }
 
   return undefined;
@@ -247,10 +243,7 @@ function averageResults(results: BenchmarkResult[]): BenchmarkResult {
     Math.round(valid.reduce((sum, r) => sum + fn(r), 0) / valid.length);
 
   const avgTps =
-    Math.round(
-      (valid.reduce((sum, r) => sum + r.tokensPerSecond, 0) / valid.length) *
-        10,
-    ) / 10;
+    Math.round((valid.reduce((sum, r) => sum + r.tokensPerSecond, 0) / valid.length) * 10) / 10;
   const totalCostUsd = valid.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
 
   return {
@@ -287,10 +280,7 @@ export async function POST(request: NextRequest) {
   const firstPrompt = prompts[0];
 
   if (!firstPrompt || !runs?.length) {
-    return NextResponse.json(
-      { error: "prompt(s) and runs[] are required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "prompt(s) and runs[] are required" }, { status: 400 });
   }
 
   const ai = createAI({
@@ -299,7 +289,7 @@ export async function POST(request: NextRequest) {
 
   const region = process.env.VERCEL_REGION ?? process.env.AWS_REGION ?? "local";
   const multiRound = prompts.length > 1;
-  const optionsHash = benchmarkOptionsHash({ maxTokens, options, images });
+  const optionsHash = benchmarkOptionsHash({ images, maxTokens, options });
   const pendingHistoryWrites: Promise<void>[] = [];
 
   const encoder = new TextEncoder();
@@ -309,8 +299,8 @@ export async function POST(request: NextRequest) {
         controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
         pendingHistoryWrites.push(
           persistBenchmarkResult({
-            prompt: promptText,
             optionsHash,
+            prompt: promptText,
             result: data,
           }).catch((error) => {
             console.warn("Failed to persist benchmark result:", error);
@@ -322,35 +312,20 @@ export async function POST(request: NextRequest) {
         // Single prompt - fire all runs in parallel (original behavior)
         await Promise.all(
           runs.map((run) =>
-            executeRun(
-              ai,
-              run,
-              firstPrompt,
-              images,
-              maxTokens,
-              region,
-              options,
-            ).then((result) => send(result, firstPrompt)),
+            executeRun(ai, run, firstPrompt, images, maxTokens, region, options).then((result) =>
+              send(result, firstPrompt),
+            ),
           ),
         );
       } else {
         // Multi-round - run each prompt sequentially, all runs in parallel per round
-        const allResults: Map<string, BenchmarkResult[]> = new Map();
+        const allResults = new Map<string, BenchmarkResult[]>();
 
-        for (let round = 0; round < prompts.length; round++) {
+        for (let round = 0; round < prompts.length; round += 1) {
           const promptForRound = prompts[round] ?? "";
           const roundResults = await Promise.all(
             runs.map((run) =>
-              executeRun(
-                ai,
-                run,
-                promptForRound,
-                images,
-                maxTokens,
-                region,
-                options,
-                round,
-              ),
+              executeRun(ai, run, promptForRound, images, maxTokens, region, options, round),
             ),
           );
 
@@ -379,9 +354,9 @@ export async function POST(request: NextRequest) {
 
   return new Response(stream, {
     headers: {
-      "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache",
       Connection: "keep-alive",
+      "Content-Type": "text/event-stream",
     },
   });
 }

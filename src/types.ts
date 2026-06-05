@@ -1,14 +1,8 @@
 /**
- * @howells/ai — Shared types
+ * Howells AI shared types.
  */
 
-import type {
-  CallSettings,
-  JSONValue,
-  StopCondition,
-  ToolChoice,
-  ToolSet,
-} from "ai";
+import type { CallSettings, JSONValue, StopCondition, ToolChoice, ToolSet } from "ai";
 
 /**
  * Language model tiers.
@@ -16,12 +10,7 @@ import type {
  * Every default language model must support structured input/output. Capabilities
  * such as tool calling and vision are selected per tier with ModelOptions.
  */
-export type ModelTier =
-  | "nano"
-  | "fast"
-  | "standard"
-  | "powerful"
-  | "reasoning";
+export type ModelTier = "nano" | "fast" | "standard" | "powerful" | "reasoning";
 
 /** Capability variants available inside each language model tier. */
 export type LanguageModelVariant = "text" | "tools" | "vision" | "visionTools";
@@ -102,10 +91,7 @@ export type TaskModelMatrix = Record<
 >;
 
 /** Provider-specific language defaults for every tier and capability surface. */
-export type ProviderLanguageModelMatrix = Record<
-  ProviderRoute,
-  Record<ModelTier, TierModelMatrix>
->;
+export type ProviderLanguageModelMatrix = Record<ProviderRoute, Record<ModelTier, TierModelMatrix>>;
 
 /** The resolved model matrix. */
 export type ModelMatrix = Record<ModelTier, TierModelMatrix> &
@@ -114,12 +100,8 @@ export type ModelMatrix = Record<ModelTier, TierModelMatrix> &
   };
 
 /** Model overrides accepted by createAI(). */
-export type ModelOverrides = Partial<
-  Record<ModelTier, Partial<TierModelMatrix>>
-> & {
-  tasks?: Partial<
-    Record<ModelTask, Partial<Record<ModelTier, Partial<TierModelMatrix>>>>
-  >;
+export type ModelOverrides = Partial<Record<ModelTier, Partial<TierModelMatrix>>> & {
+  tasks?: Partial<Record<ModelTask, Partial<Record<ModelTier, Partial<TierModelMatrix>>>>>;
   embed?: Partial<EmbeddingProviderModels>;
   multimodalEmbed?: Partial<EmbeddingProviderModels>;
   rerank?: string;
@@ -256,13 +238,7 @@ export interface ModelOptions {
 export type OpenRouterModelVariant = "nitro" | "exacto" | "floor";
 
 /** Normalized reasoning budget for generation calls. */
-export type ReasoningEffort =
-  | "off"
-  | "minimal"
-  | "low"
-  | "medium"
-  | "high"
-  | "max";
+export type ReasoningEffort = "off" | "minimal" | "low" | "medium" | "high" | "max";
 
 /** Normalized output detail hint. Currently maps to OpenAI verbosity. */
 export type OutputVerbosity = "low" | "medium" | "high";
@@ -288,10 +264,7 @@ export type CacheTTL = "5m" | "1h";
  * Accepts the legacy "off"/"ephemeral" strings, plus an object form that
  * carries an explicit TTL where providers (Anthropic, OpenRouter) expose one.
  */
-export type PromptCachePolicy =
-  | "off"
-  | "ephemeral"
-  | { type?: "ephemeral"; ttl?: CacheTTL };
+export type PromptCachePolicy = "off" | "ephemeral" | { type?: "ephemeral"; ttl?: CacheTTL };
 
 /** Normalized latency/cost priority where providers expose one. */
 export type ServiceTier = "auto" | "standard" | "flex" | "priority";
@@ -311,15 +284,7 @@ export type RoutePreference =
 export type PrivacyConstraint = "no-retention" | "no-training" | "hipaa";
 
 /** Quantization levels acceptable for OpenRouter routing. */
-export type Quantization =
-  | "int4"
-  | "int8"
-  | "fp4"
-  | "fp6"
-  | "fp8"
-  | "fp16"
-  | "bf16"
-  | "fp32";
+export type Quantization = "int4" | "int8" | "fp4" | "fp6" | "fp8" | "fp16" | "bf16" | "fp32";
 
 /** Maximum cost ceilings expressed in USD. */
 export interface RoutingMaxCost {
@@ -391,12 +356,7 @@ export interface RoutingOptions {
 }
 
 /** Normalized web search engines for built-in provider search. */
-export type WebSearchEngine =
-  | "auto"
-  | "native"
-  | "exa"
-  | "perplexity"
-  | "parallel";
+export type WebSearchEngine = "auto" | "native" | "exa" | "perplexity" | "parallel";
 
 /** Built-in web search options for OpenRouter's `web` plugin. */
 export interface WebSearchOptions {
@@ -425,10 +385,7 @@ export interface ReasoningSpec {
 }
 
 /** Provider-specific options object accepted by AI SDK generation calls. */
-export type GenerationProviderOptions = Record<
-  string,
-  Record<string, JSONValue | undefined>
->;
+export type GenerationProviderOptions = Record<string, Record<string, JSONValue | undefined>>;
 
 /** Provider-neutral generation settings resolved into AI SDK call options. */
 export interface GenerationOptions {

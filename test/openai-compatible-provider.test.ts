@@ -1,13 +1,13 @@
 import { describe, expect, mock, test } from "bun:test";
 
 const calls = {
-  create: [] as Array<{
+  chatModel: [] as string[],
+  create: [] as {
     apiKey?: string;
     baseURL?: string;
     fetch?: typeof fetch;
-  }>,
+  }[],
   defaultModel: [] as string[],
-  chatModel: [] as string[],
 };
 
 mock.module("@ai-sdk/openai", () => ({
@@ -16,23 +16,21 @@ mock.module("@ai-sdk/openai", () => ({
 
     const client = ((modelId: string) => {
       calls.defaultModel.push(modelId);
-      return { modelId, mode: "default" };
+      return { mode: "default", modelId };
     }) as ((modelId: string) => unknown) & {
       chat: (modelId: string) => unknown;
     };
 
     client.chat = (modelId: string) => {
       calls.chatModel.push(modelId);
-      return { modelId, mode: "chat" };
+      return { mode: "chat", modelId };
     };
 
     return client;
   },
 }));
 
-const { createOpenAICompatibleProvider } = await import(
-  "../src/providers/openai-compatible"
-);
+const { createOpenAICompatibleProvider } = await import("../src/providers/openai-compatible");
 
 describe("createOpenAICompatibleProvider", () => {
   test("uses Chat Completions for OpenAI-compatible direct providers", () => {
@@ -41,16 +39,16 @@ describe("createOpenAICompatibleProvider", () => {
     calls.chatModel.length = 0;
 
     const provider = createOpenAICompatibleProvider({
+      apiKey: "test-key",
+      baseURL: "https://api.moonshot.ai/v1",
+      envVar: "MOONSHOT_API_KEY",
       provider: "moonshotai",
       service: "moonshotai",
-      apiKey: "test-key",
-      envVar: "MOONSHOT_API_KEY",
-      baseURL: "https://api.moonshot.ai/v1",
     });
 
     expect(provider.model("kimi-k2.5")).toEqual({
-      modelId: "kimi-k2.5",
       mode: "chat",
+      modelId: "kimi-k2.5",
     });
     expect(calls.create).toEqual([
       {
@@ -70,18 +68,20 @@ describe("createOpenAICompatibleProvider", () => {
     const originalFetch = globalThis.fetch;
     const bodies: string[] = [];
 
-    globalThis.fetch = (async (_input, init) => {
-      if (typeof init?.body === "string") bodies.push(init.body);
+    globalThis.fetch = ((_input, init) => {
+      if (typeof init?.body === "string") {
+        bodies.push(init.body);
+      }
       return new Response("{}", { status: 200 });
     }) as typeof fetch;
 
     try {
       const provider = createOpenAICompatibleProvider({
+        apiKey: "test-key",
+        baseURL: "https://api.groq.com/openai/v1",
+        envVar: "GROQ_API_KEY",
         provider: "groq",
         service: "groq",
-        apiKey: "test-key",
-        envVar: "GROQ_API_KEY",
-        baseURL: "https://api.groq.com/openai/v1",
       });
 
       provider.model("openai/gpt-oss-20b");
@@ -90,16 +90,16 @@ describe("createOpenAICompatibleProvider", () => {
       expect(groqFetch).toBeFunction();
 
       await groqFetch?.("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
         body: JSON.stringify({
-          model: "openai/gpt-oss-20b",
           messages: [{ role: "user", content: "Hi" }],
+          model: "openai/gpt-oss-20b",
         }),
+        method: "POST",
       });
 
       expect(JSON.parse(bodies[0] ?? "{}")).toMatchObject({
-        model: "openai/gpt-oss-20b",
         include_reasoning: false,
+        model: "openai/gpt-oss-20b",
         reasoning_effort: "low",
       });
     } finally {

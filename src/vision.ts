@@ -16,18 +16,22 @@ export type VisionInput =
     };
 
 /** AI SDK multimodal prompt content built from text plus image parts. */
-export type VisionPrompt = Array<TextPart | ImagePart>;
+export type VisionPrompt = (TextPart | ImagePart)[];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
 function normalizeImageData(value: VisionImageData): VisionImageData {
-  if (typeof value !== "string") return value;
+  if (typeof value !== "string") {
+    return value;
+  }
 
   try {
     const url = new URL(value);
-    if (url.protocol === "http:" || url.protocol === "https:") return url;
+    if (url.protocol === "http:" || url.protocol === "https:") {
+      return url;
+    }
   } catch {
     // Plain strings are treated as base64/data-url payloads by the AI SDK.
   }
@@ -41,9 +45,7 @@ function mediaTypeFromDataUrl(value: VisionImageData): `image/${string}` | undef
   }
   const [header] = value.split(",", 1);
   const mediaType = header?.slice("data:".length).split(";")[0];
-  return mediaType?.startsWith("image/")
-    ? (mediaType as `image/${string}`)
-    : undefined;
+  return mediaType?.startsWith("image/") ? (mediaType as `image/${string}`) : undefined;
 }
 
 /** Convert a supported image input into an AI SDK image content part. */
@@ -52,49 +54,41 @@ export function imagePart(input: VisionInput): ImagePart {
     if ("url" in input) {
       const image = normalizeImageData(input.url as string | URL);
       return {
-        type: "image",
         image,
         mediaType:
-          (input.mediaType as `image/${string}` | undefined) ??
-          mediaTypeFromDataUrl(image),
+          (input.mediaType as `image/${string}` | undefined) ?? mediaTypeFromDataUrl(image),
+        type: "image",
       };
     }
 
     if ("data" in input) {
       const image = normalizeImageData(input.data as VisionImageData);
       return {
-        type: "image",
         image,
         mediaType:
-          (input.mediaType as `image/${string}` | undefined) ??
-          mediaTypeFromDataUrl(image),
+          (input.mediaType as `image/${string}` | undefined) ?? mediaTypeFromDataUrl(image),
+        type: "image",
       };
     }
   }
 
   const image = normalizeImageData(input);
   return {
-    type: "image",
     image,
     mediaType: mediaTypeFromDataUrl(image),
+    type: "image",
   };
 }
 
 /** Build AI SDK user-message content from text and one or more images. */
 export function visionPrompt(text: string, images: readonly VisionInput[]): VisionPrompt {
-  return [
-    { type: "text", text },
-    ...images.map((image) => imagePart(image)),
-  ];
+  return [{ text, type: "text" }, ...images.map((image) => imagePart(image))];
 }
 
 /** Build a complete AI SDK user message for multimodal generation calls. */
-export function visionMessage(
-  text: string,
-  images: readonly VisionInput[],
-): UserModelMessage {
+export function visionMessage(text: string, images: readonly VisionInput[]): UserModelMessage {
   return {
-    role: "user",
     content: visionPrompt(text, images),
+    role: "user",
   };
 }

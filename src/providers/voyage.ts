@@ -21,22 +21,20 @@ export interface VoyageProvider {
   multimodalEmbedModel: (
     modelId: string,
   ) => ReturnType<ReturnType<typeof createVoyage>["multimodalEmbeddingModel"]>;
-  rerankModel: (
-    modelId: string,
-  ) => ReturnType<ReturnType<typeof createVoyage>["rerankingModel"]>;
+  rerankModel: (modelId: string) => ReturnType<ReturnType<typeof createVoyage>["rerankingModel"]>;
 }
 
 /**
  * Create a Voyage provider instance.
  * Each createAI() call gets its own instance — no shared state.
  */
-export function createVoyageProvider(
-  apiKey: string | undefined,
-): VoyageProvider {
+export function createVoyageProvider(apiKey: string | undefined): VoyageProvider {
   let client: ReturnType<typeof createVoyage> | null = null;
 
   function getClient() {
-    if (client) return client;
+    if (client) {
+      return client;
+    }
 
     const key = apiKey ?? envValue("VOYAGE_API_KEY");
     if (!key) {
