@@ -42,7 +42,8 @@ export type ModelService =
   | "stepfun"
   | "xiaomi"
   | "zai"
-  | "moonshotai";
+  | "moonshotai"
+  | "ollama";
 
 /** Capabilities exposed by a selected language model variant. */
 export interface LanguageModelCapabilities {
@@ -67,7 +68,7 @@ export interface LanguageModelCatalogEntry {
 }
 
 /** Provider routes for embedding models. */
-export type EmbeddingProviderRoute = "voyage" | "gemini" | "openrouter";
+export type EmbeddingProviderRoute = "voyage" | "gemini" | "openrouter" | "ollama";
 
 /** Slots that return embedding models. */
 export type EmbeddingModelSlot = "embed" | "multimodalEmbed";
@@ -139,6 +140,12 @@ export interface AIConfig {
   moonshotKey?: string;
   /** Groq API key. Defaults to process.env.GROQ_API_KEY. */
   groqKey?: string;
+  /**
+   * Ollama base URL for the local provider route.
+   * Defaults to process.env.OLLAMA_BASE_URL, then http://localhost:11434/v1.
+   * No API key is required.
+   */
+  ollamaBaseURL?: string;
   /** Underlying service API keys for provider-routed model authors. */
   serviceKeys?: Partial<Record<ModelService, string>>;
   /** Vercel AI Gateway API key. Defaults to process.env.AI_GATEWAY_API_KEY. Auto-authenticates on Vercel. */
@@ -163,6 +170,7 @@ export interface AIConfig {
  * - "zai"        — direct Z.ai OpenAI-compatible API
  * - "moonshotai" — direct Moonshot/Kimi OpenAI-compatible API
  * - "groq"       — direct Groq OpenAI-compatible API
+ * - "ollama"     — local Ollama server via its OpenAI-compatible API (no key)
  */
 export type ProviderRoute =
   | "openrouter"
@@ -175,7 +183,8 @@ export type ProviderRoute =
   | "qwen"
   | "zai"
   | "moonshotai"
-  | "groq";
+  | "groq"
+  | "ollama";
 
 /** Input family for provider-neutral embedding model selection. */
 export type EmbeddingInputKind = "text" | "image";

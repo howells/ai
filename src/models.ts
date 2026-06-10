@@ -194,6 +194,24 @@ export const NEX_AGI_MODELS = {
   DEEPSEEK_V3_1_NEX_N1: "nex-agi/deepseek-v3.1-nex-n1",
 } as const;
 
+// ── Ollama local model constants ──────────────────────────────────────
+// Native Ollama IDs (no provider prefix). Defaults match the locally
+// benchmarked lineup; override per machine via createAI({ models }).
+
+/** Locally served Ollama model IDs for language model tiers and retrieval. */
+export const OLLAMA_MODELS = {
+  /** Vision specialist — most accurate local image understanding. */
+  GEMMA_4_31B: "gemma4:31b",
+  /** Deep reasoner and strongest local prose; proportional reasoning depth. */
+  GPT_OSS_120B: "gpt-oss:120b",
+  /** Fast all-rounder; thinking model (CoT arrives in the reasoning field). */
+  QWEN_3_6_35B: "qwen3.6:35b",
+  /** Coding specialist — fastest local model, strong tool calling. */
+  QWEN_3_CODER_30B: "qwen3-coder:30b",
+  /** 4096d text embeddings for local retrieval. */
+  QWEN_3_EMBEDDING_8B: "qwen3-embedding:8b",
+} as const;
+
 /** Canonical language model catalogue exposed by @howells/ai. */
 export const LANGUAGE_MODEL_CATALOG = [
   {
@@ -411,6 +429,30 @@ export const LANGUAGE_MODEL_CATALOG = [
     service: "xiaomi",
     tasks: ["general", "longContext"],
   },
+  {
+    id: OLLAMA_MODELS.QWEN_3_6_35B,
+    name: "Qwen 3.6 35B (local)",
+    service: "ollama",
+    tasks: ["general", "chat", "bulk", "longContext", "creative"],
+  },
+  {
+    id: OLLAMA_MODELS.QWEN_3_CODER_30B,
+    name: "Qwen 3 Coder 30B (local)",
+    service: "ollama",
+    tasks: ["coding", "agentic"],
+  },
+  {
+    id: OLLAMA_MODELS.GPT_OSS_120B,
+    name: "GPT-OSS 120B (local)",
+    service: "ollama",
+    tasks: ["reasoning", "creative"],
+  },
+  {
+    id: OLLAMA_MODELS.GEMMA_4_31B,
+    name: "Gemma 4 31B (local)",
+    service: "ollama",
+    tasks: ["vision"],
+  },
 ] as const satisfies readonly LanguageModelCatalogEntry[];
 
 // ── Voyage AI model constants ─────────────────────────────────────────
@@ -499,11 +541,13 @@ export const DEFAULT_MODELS: ModelMatrix = {
   // ── Retrieval ────────────────────────────────────────────────────────
   embed: {
     gemini: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2,
+    ollama: OLLAMA_MODELS.QWEN_3_EMBEDDING_8B, // 4096d local text embeddings,
     openrouter: OPENROUTER_EMBED_MODELS.OPENAI_TEXT_EMBEDDING_3_SMALL,
     voyage: VOYAGE_MODELS.VOYAGE_3, // 1024d text embeddings,
   },
   multimodalEmbed: {
     gemini: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2,
+    ollama: OLLAMA_MODELS.QWEN_3_EMBEDDING_8B, // text-only; image input throws,
     openrouter: OPENROUTER_EMBED_MODELS.GEMINI_EMBEDDING_2,
     voyage: VOYAGE_MODELS.MULTIMODAL_3_5, // 1024d text + images in same space,
   },
@@ -705,6 +749,28 @@ export const PROVIDER_DEFAULT_MODELS: ProviderLanguageModelMatrix = {
     powerful: everyVariant(KIMI_MODELS.KIMI_K2_6),
     reasoning: everyVariant(KIMI_MODELS.KIMI_K2_6),
     standard: everyVariant(KIMI_MODELS.KIMI_K2_6),
+  },
+  ollama: {
+    fast: splitVariantModels({
+      text: OLLAMA_MODELS.QWEN_3_6_35B,
+      vision: OLLAMA_MODELS.GEMMA_4_31B,
+    }),
+    nano: splitVariantModels({
+      text: OLLAMA_MODELS.QWEN_3_CODER_30B,
+      vision: OLLAMA_MODELS.GEMMA_4_31B,
+    }),
+    powerful: splitVariantModels({
+      text: OLLAMA_MODELS.GPT_OSS_120B,
+      vision: OLLAMA_MODELS.GEMMA_4_31B,
+    }),
+    reasoning: splitVariantModels({
+      text: OLLAMA_MODELS.GPT_OSS_120B,
+      vision: OLLAMA_MODELS.GEMMA_4_31B,
+    }),
+    standard: splitVariantModels({
+      text: OLLAMA_MODELS.QWEN_3_6_35B,
+      vision: OLLAMA_MODELS.GEMMA_4_31B,
+    }),
   },
   openai: {
     fast: everyVariant(OPENAI_MODELS.GPT_5_4_NANO),
@@ -923,6 +989,41 @@ export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
       standard: everyVariant(KIMI_MODELS.KIMI_K2_5),
     },
   },
+  ollama: {
+    agentic: {
+      powerful: everyVariant(OLLAMA_MODELS.GPT_OSS_120B),
+      standard: everyVariant(OLLAMA_MODELS.QWEN_3_CODER_30B),
+    },
+    bulk: {
+      fast: everyVariant(OLLAMA_MODELS.QWEN_3_6_35B),
+      nano: everyVariant(OLLAMA_MODELS.QWEN_3_CODER_30B),
+      standard: everyVariant(OLLAMA_MODELS.QWEN_3_6_35B),
+    },
+    coding: {
+      fast: everyVariant(OLLAMA_MODELS.QWEN_3_CODER_30B),
+      powerful: everyVariant(OLLAMA_MODELS.QWEN_3_CODER_30B),
+      reasoning: everyVariant(OLLAMA_MODELS.GPT_OSS_120B),
+      standard: everyVariant(OLLAMA_MODELS.QWEN_3_CODER_30B),
+    },
+    creative: {
+      powerful: everyVariant(OLLAMA_MODELS.GPT_OSS_120B),
+      standard: everyVariant(OLLAMA_MODELS.QWEN_3_6_35B),
+    },
+    longContext: {
+      powerful: everyVariant(OLLAMA_MODELS.QWEN_3_6_35B),
+      standard: everyVariant(OLLAMA_MODELS.QWEN_3_6_35B),
+    },
+    reasoning: {
+      powerful: everyVariant(OLLAMA_MODELS.GPT_OSS_120B),
+      reasoning: everyVariant(OLLAMA_MODELS.GPT_OSS_120B),
+      standard: everyVariant(OLLAMA_MODELS.QWEN_3_6_35B),
+    },
+    vision: {
+      powerful: everyVariant(OLLAMA_MODELS.GEMMA_4_31B),
+      reasoning: everyVariant(OLLAMA_MODELS.GEMMA_4_31B),
+      standard: everyVariant(OLLAMA_MODELS.GEMMA_4_31B),
+    },
+  },
   openai: {
     agentic: {
       powerful: everyVariant(OPENAI_MODELS.GPT_5_3_CODEX),
@@ -1124,6 +1225,8 @@ const LANGUAGE_MODEL_FEATURES: Record<string, { tools: boolean; vision: boolean 
           OPENROUTER_MODELS.FREE,
           XAI_MODELS.GROK_4_3,
           QWEN_MODELS.QWEN_3_6_PLUS,
+          OLLAMA_MODELS.GEMMA_4_31B,
+          OLLAMA_MODELS.QWEN_3_6_35B,
         ]).has(model.id),
       },
     ]),
@@ -1340,6 +1443,7 @@ export const MODEL_SERVICE_ENV_VARS: Partial<Record<ModelService, string>> = {
   google: "GOOGLE_GEMINI_API_KEY",
   groq: "GROQ_API_KEY",
   moonshotai: "MOONSHOT_API_KEY",
+  ollama: "OLLAMA_BASE_URL",
   openai: "OPENAI_API_KEY",
   qwen: "QWEN_API_KEY",
   xai: "XAI_API_KEY",
@@ -1458,6 +1562,10 @@ const GATEWAY_UNAVAILABLE_MODEL_IDS = new Set<string>([
   NEX_AGI_MODELS.DEEPSEEK_V3_1_NEX_N1,
   GROQ_MODELS.GPT_OSS_120B,
   GROQ_MODELS.GPT_OSS_20B,
+  OLLAMA_MODELS.GEMMA_4_31B,
+  OLLAMA_MODELS.GPT_OSS_120B,
+  OLLAMA_MODELS.QWEN_3_6_35B,
+  OLLAMA_MODELS.QWEN_3_CODER_30B,
   OPENROUTER_MODELS.FREE,
   QWEN_MODELS.QWEN_3_235B_A22B_2507,
   QWEN_MODELS.QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE,
@@ -1509,6 +1617,14 @@ export const PROVIDER_CONFIG_CAPABILITIES: Record<ProviderRoute, ProviderConfigC
   moonshotai: {
     agentAttribution: false,
     apiKey: true,
+    appAttribution: false,
+    baseURL: true,
+    headers: false,
+    modelId: true,
+  },
+  ollama: {
+    agentAttribution: false,
+    apiKey: false,
     appAttribution: false,
     baseURL: true,
     headers: false,

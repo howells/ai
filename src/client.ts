@@ -56,6 +56,8 @@ import type { GatewayIntrospection } from "./providers/gateway";
 import { createGatewayProvider } from "./providers/gateway";
 import type { GoogleProvider } from "./providers/google";
 import { createGoogleProvider } from "./providers/google";
+import type { OllamaProvider } from "./providers/ollama";
+import { createOllamaProvider } from "./providers/ollama";
 import { createOpenAICompatibleProvider } from "./providers/openai-compatible";
 import { createOpenAIProvider } from "./providers/openai";
 import type { OpenRouterProvider } from "./providers/openrouter";
@@ -221,7 +223,8 @@ export interface AIClient {
     | ReturnType<VoyageProvider["multimodalEmbedModel"]>
     | ReturnType<GoogleProvider["embedModel"]>
     | ReturnType<GoogleProvider["imageEmbedModel"]>
-    | ReturnType<OpenRouterProvider["embedModel"]>;
+    | ReturnType<OpenRouterProvider["embedModel"]>
+    | ReturnType<OllamaProvider["embedModel"]>;
 
   /**
    * Get the Voyage reranking model for the configured rerank slot.
@@ -257,6 +260,7 @@ export function createAI(config?: AIConfig): AIClient {
   const gateway = createGatewayProvider(config?.gatewayKey ?? envValue("AI_GATEWAY_API_KEY"));
   const voyage = createVoyageProvider(config?.voyageKey);
   const google = createGoogleProvider(config?.googleKey);
+  const ollama = createOllamaProvider(config?.ollamaBaseURL);
   const compatibleProviders = {
     deepseek: createOpenAICompatibleProvider({
       apiKey: getConfiguredServiceApiKey(config, "deepseek"),
@@ -323,6 +327,11 @@ export function createAI(config?: AIConfig): AIClient {
     if (getConfiguredServiceApiKey(config, OPENAI_COMPATIBLE_PROVIDER_CONFIG[provider].service)) {
       available.push(provider);
     }
+  }
+  // Ollama needs no key: available when a base URL is set, or by the
+  // localhost default when not on Vercel (serverless cannot reach localhost).
+  if (isProviderConfigured("ollama")) {
+    available.push("ollama");
   }
 
   const services: ModelService[] = [];
@@ -409,6 +418,9 @@ export function createAI(config?: AIConfig): AIClient {
       case "google": {
         return google.textModel(providerModelId, options);
       }
+      case "ollama": {
+        return ollama.model(providerModelId, options);
+      }
       case "deepseek":
       case "xai":
       case "qwen":
@@ -440,6 +452,10 @@ export function createAI(config?: AIConfig): AIClient {
       case "google": {
         return config?.googleKey ?? envValue("GOOGLE_GEMINI_API_KEY");
       }
+      case "ollama": {
+        // Ollama is keyless; configuration is the base URL.
+        return undefined;
+      }
       case "deepseek":
       case "xai":
       case "qwen":
@@ -461,6 +477,14 @@ export function createAI(config?: AIConfig): AIClient {
       );
     }
 
+    if (provider === "ollama") {
+      if (config?.ollamaBaseURL ?? envValue("OLLAMA_BASE_URL")) {
+        return true;
+      }
+      // The localhost default only applies off-Vercel.
+      return !envValue("VERCEL_ENV");
+    }
+
     return Boolean(getProviderApiKey(provider));
   }
 
@@ -480,6 +504,9 @@ export function createAI(config?: AIConfig): AIClient {
       }
       case "google": {
         return "GOOGLE_GEMINI_API_KEY";
+      }
+      case "ollama": {
+        return "OLLAMA_BASE_URL";
       }
       case "deepseek":
       case "xai":
@@ -525,7 +552,11 @@ export function createAI(config?: AIConfig): AIClient {
     assertLanguageModelCompatible(modelId, resolveLanguageModelVariant(options));
     const capabilities = PROVIDER_CONFIG_CAPABILITIES[provider];
     const service =
-      provider === "groq" ? "groq" : (inferModelService(modelId) ?? inferModelService(resolvedId));
+      provider === "groq"
+        ? "groq"
+        : provider === "ollama"
+          ? "ollama"
+          : (inferModelService(modelId) ?? inferModelService(resolvedId));
     const serviceApiKey = service ? getServiceApiKey(service) : undefined;
     const serviceApiKeyEnv = service ? MODEL_SERVICE_ENV_VARS[service] : undefined;
 
@@ -543,6 +574,18 @@ export function createAI(config?: AIConfig): AIClient {
         url: requestConfig.baseURL,
         headers: requestConfig.headers,
         ...(requestConfig.user ? { user: requestConfig.user } : {}),
+      };
+    }
+
+    if (provider === "ollama") {
+      const requestConfig = ollama.requestConfig();
+      return {
+        capabilities,
+        id: resolvedId,
+        provider,
+        service: "ollama",
+        baseURL: requestConfig.baseURL,
+        url: requestConfig.url,
       };
     }
 
@@ -589,6 +632,17 @@ export function createAI(config?: AIConfig): AIClient {
       return input === "image"
         ? openrouter.embedModel(matrix.multimodalEmbed.openrouter)
         : openrouter.embedModel(matrix.embed.openrouter);
+    }
+
+    if (provider === "ollama") {
+      assertExplicitProviderConfigured("ollama");
+      if (input === "image") {
+        throw new Error(
+          'No local multimodal embedding model is available through provider "ollama". ' +
+            'Use provider "voyage" or "gemini" for image embeddings.',
+        );
+      }
+      return ollama.embedModel(matrix.embed.ollama);
     }
 
     return input === "image"
@@ -697,6 +751,7 @@ function getConfiguredServiceApiKey(
     case "inception":
     case "minimax":
     case "nexagi":
+    case "ollama":
     case "stepfun":
     case "xiaomi": {
       return config?.serviceKeys?.[service];

@@ -17,6 +17,7 @@ export const envSchema = defineEnv({
     GOOGLE_GEMINI_API_KEY: z.string().min(1),
     GROQ_API_KEY: z.string().min(1),
     MOONSHOT_API_KEY: z.string().min(1),
+    OLLAMA_BASE_URL: z.string().min(1),
     OPENAI_API_KEY: z.string().min(1),
     OPENROUTER_API_KEY: z.string().min(1),
     QWEN_API_KEY: z.string().min(1),

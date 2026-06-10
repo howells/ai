@@ -77,6 +77,7 @@ const LANGUAGE_PROVIDERS = [
   "zai",
   "moonshotai",
   "groq",
+  "ollama",
 ] as const satisfies readonly ProviderRoute[];
 
 const DEFAULT_PROMPT = "Reply with exactly OK.";
