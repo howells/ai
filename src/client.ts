@@ -220,9 +220,6 @@ export interface AIClient {
     options?: EmbeddingModelOptions,
   ) =>
     | ReturnType<VoyageProvider["embedModel"]>
-    | ReturnType<VoyageProvider["multimodalEmbedModel"]>
-    | ReturnType<GoogleProvider["embedModel"]>
-    | ReturnType<GoogleProvider["imageEmbedModel"]>
     | ReturnType<OpenRouterProvider["embedModel"]>
     | ReturnType<OllamaProvider["embedModel"]>;
 

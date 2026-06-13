@@ -67,7 +67,9 @@ export function Tooltip({
     if (!open) {
       return;
     }
-    const handle = () => updatePosition();
+    const handle = () => {
+      updatePosition();
+    };
     window.addEventListener("scroll", handle, true);
     window.addEventListener("resize", handle);
     return () => {
@@ -80,10 +82,18 @@ export function Tooltip({
     <span
       ref={triggerRef}
       className="relative inline-flex"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onFocus={() => setOpen(true)}
-      onBlur={() => setOpen(false)}
+      onMouseEnter={() => {
+        setOpen(true);
+      }}
+      onMouseLeave={() => {
+        setOpen(false);
+      }}
+      onFocus={() => {
+        setOpen(true);
+      }}
+      onBlur={() => {
+        setOpen(false);
+      }}
     >
       {children}
       {open && coords && typeof document !== "undefined"

@@ -55,18 +55,18 @@
     "@ai-sdk/gateway": "^3.0.125",
     "@ai-sdk/google": "^3.0.80",
     "@ai-sdk/openai": "^3.0.68",
-    "@ai-sdk/react": "3.0.199",
-    "@howells/envy": "^0.3.7",
+    "@ai-sdk/react": "catalog:",
+    "@howells/envy": "catalog:",
     "@openrouter/ai-sdk-provider": "^2.9.0",
-    "ai": "6.0.197",
+    "ai": "catalog:",
     "voyage-ai-provider": "^3.0.0",
-    "zod": "^4.4.3"
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@howells/lint": "^0.2.1",
-    "@types/node": "^25.9.1",
+    "@howells/lint": "catalog:",
+    "@types/node": "catalog:",
     "tsdown": "^0.22.2",
-    "typescript": "^6.0.3"
+    "typescript": "catalog:"
   },
   "peerDependencies": {
     "typescript": "^5 || ^6"

@@ -11,20 +11,20 @@
   "dependencies": {
     "@howells/ai": "workspace:*",
     "@neondatabase/serverless": "^1.1.0",
-    "@tailwindcss/postcss": "^4.2.2",
+    "@tailwindcss/postcss": "catalog:",
     "@tanstack/react-table": "^8.21.3",
     "geist": "^1.7.0",
-    "next": "16.2.6",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
+    "next": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
     "streamdown": "^2.5.0",
-    "tailwindcss": "^4.2.2"
+    "tailwindcss": "catalog:"
   },
   "devDependencies": {
-    "@types/node": "^25.6.0",
-    "@types/react": "~19.2.14",
-    "@types/react-dom": "^19.2.3",
+    "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "postcss": "^8.5.8",
-    "typescript": "^6.0.3"
+    "typescript": "catalog:"
   }
 }

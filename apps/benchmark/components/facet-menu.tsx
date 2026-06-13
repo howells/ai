@@ -101,7 +101,9 @@ export function FacetMenu<T extends string>({
     <div ref={ref} className="relative">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          setOpen((v) => !v);
+        }}
         className={`flex h-8 cursor-pointer items-center gap-1.5 rounded-[var(--radius-pill)] border px-2.5 text-[12px] transition-colors ${
           open || isFiltered
             ? "border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text)]"
@@ -175,7 +177,9 @@ export function FacetMenu<T extends string>({
                   key={option.value}
                   type="button"
                   disabled={option.disabled}
-                  onClick={() => toggle(option.value)}
+                  onClick={() => {
+                    toggle(option.value);
+                  }}
                   className={`flex w-full cursor-pointer items-center justify-between rounded-md px-2 py-1.5 text-left text-[12px] transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                     isSelected
                       ? "bg-[var(--color-raised)] text-[var(--color-text)]"

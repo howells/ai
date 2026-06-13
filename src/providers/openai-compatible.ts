@@ -32,12 +32,12 @@ export interface OpenAICompatibleProvider {
 
 const GROQ_HIDDEN_REASONING_MODELS = new Set(["openai/gpt-oss-120b", "openai/gpt-oss-20b"]);
 
-function withGroqHiddenReasoning(
+async function withGroqHiddenReasoning(
   input: Parameters<typeof fetch>[0],
   init?: Parameters<typeof fetch>[1],
 ): Promise<Response> {
   if (typeof init?.body !== "string") {
-    return fetch(input, init);
+    return await fetch(input, init);
   }
 
   try {
@@ -63,7 +63,7 @@ function withGroqHiddenReasoning(
     // Leave non-JSON requests untouched.
   }
 
-  return fetch(input, init);
+  return await fetch(input, init);
 }
 
 /** Create a provider adapter for direct OpenAI-compatible chat APIs. */

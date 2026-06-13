@@ -362,7 +362,9 @@ export default function BenchmarkPage() {
       }
     })();
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+    };
   }, [
     configLoaded,
     running,
@@ -551,7 +553,9 @@ export default function BenchmarkPage() {
         <div className="flex items-center gap-3">
           <button
             type="button"
-            onClick={() => setSettingsOpen((open) => !open)}
+            onClick={() => {
+              setSettingsOpen((open) => !open);
+            }}
             className="rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1 text-[12px] text-[var(--color-text-muted)] transition-colors hover:border-[var(--color-border-strong)] hover:text-[var(--color-text)]"
           >
             {settingsOpen ? "Hide settings" : "Settings"}
@@ -596,10 +600,17 @@ export default function BenchmarkPage() {
               onDensityChange={setDensity}
               groupRows={groupRows}
               onGroupRowsChange={setGroupRows}
-              onCollapse={() => setSettingsOpen(false)}
+              onCollapse={() => {
+                setSettingsOpen(false);
+              }}
             />
           ) : (
-            <SettingsRail summary={sidebarSummary} onExpand={() => setSettingsOpen(true)} />
+            <SettingsRail
+              summary={sidebarSummary}
+              onExpand={() => {
+                setSettingsOpen(true);
+              }}
+            />
           )}
         </aside>
 
@@ -832,7 +843,9 @@ function SettingsPanelOpen({
       <textarea
         aria-label="Benchmark prompt"
         value={prompt}
-        onChange={(e) => onPromptChange(e.target.value)}
+        onChange={(e) => {
+          onPromptChange(e.target.value);
+        }}
         rows={2}
         className="min-h-[4.25rem] w-full resize-none rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-faint)] transition-colors focus:border-[var(--color-border-strong)]"
         placeholder="Enter your test prompt…"
@@ -840,7 +853,9 @@ function SettingsPanelOpen({
       <textarea
         aria-label="Image inputs"
         value={imageInputs}
-        onChange={(e) => onImageInputsChange(e.target.value)}
+        onChange={(e) => {
+          onImageInputsChange(e.target.value);
+        }}
         rows={2}
         className="min-h-[4.25rem] w-full resize-none rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-sm text-[var(--color-text)] placeholder:text-[var(--color-text-faint)] transition-colors focus:border-[var(--color-border-strong)]"
         placeholder="Optional image URLs or data URLs, one per line…"
@@ -878,7 +893,9 @@ function SettingsPanelOpen({
         >
           <SegmentedControl
             value={metric}
-            onChange={(value) => onMetricChange(value as MetricKey)}
+            onChange={(value) => {
+              onMetricChange(value);
+            }}
             options={[
               { label: "TTFT", value: "ttft" },
               { label: "TPS", value: "tokensPerSecond" },
@@ -890,7 +907,9 @@ function SettingsPanelOpen({
         <FieldGroup label="Density">
           <SegmentedControl
             value={density}
-            onChange={(v) => onDensityChange(v as "comfortable" | "compact")}
+            onChange={(v) => {
+              onDensityChange(v);
+            }}
             options={[
               { label: "Cozy", value: "comfortable" },
               { label: "Compact", value: "compact" },
@@ -901,7 +920,9 @@ function SettingsPanelOpen({
         <FieldGroup label="Rows">
           <SegmentedControl
             value={groupRows ? "grouped" : "flat"}
-            onChange={(value) => onGroupRowsChange(value === "grouped")}
+            onChange={(value) => {
+              onGroupRowsChange(value === "grouped");
+            }}
             options={[
               { label: "Flat", value: "flat" },
               { label: "Grouped", value: "grouped" },
@@ -979,7 +1000,9 @@ function AdvancedProviderControls({
         </div>
         <button
           type="button"
-          onClick={() => onChange(DEFAULT_ADVANCED_OPTIONS)}
+          onClick={() => {
+            onChange(DEFAULT_ADVANCED_OPTIONS);
+          }}
           className="w-fit cursor-pointer rounded-[var(--radius-pill)] px-2.5 py-1 text-[12px] text-[var(--color-text-faint)] transition-colors hover:bg-[var(--color-raised)] hover:text-[var(--color-text-muted)]"
         >
           Reset behavior
@@ -996,7 +1019,9 @@ function AdvancedProviderControls({
           </div>
           <SegmentedControl
             value={options.routePreference}
-            onChange={(value) => update("routePreference", value)}
+            onChange={(value) => {
+              update("routePreference", value);
+            }}
             options={ROUTE_PREFERENCES}
           />
           <div className="mt-2">
@@ -1007,7 +1032,9 @@ function AdvancedProviderControls({
                 OPENROUTER_VARIANTS.find((option) => option.value === options.openRouterVariant)
                   ?.description
               }
-              onChange={(value) => update("openRouterVariant", value as BenchmarkOpenRouterVariant)}
+              onChange={(value) => {
+                update("openRouterVariant", value);
+              }}
               options={OPENROUTER_VARIANTS.map((option) => [option.value, option.label])}
             />
           </div>
@@ -1018,7 +1045,9 @@ function AdvancedProviderControls({
               tooltip={
                 SERVICE_TIERS.find((option) => option.value === options.serviceTier)?.description
               }
-              onChange={(value) => update("serviceTier", value as BenchmarkServiceTier)}
+              onChange={(value) => {
+                update("serviceTier", value);
+              }}
               options={SERVICE_TIERS.map((option) => [option.value, option.label])}
             />
           </div>
@@ -1027,16 +1056,18 @@ function AdvancedProviderControls({
               <TogglePill
                 key={option.value}
                 active={options.privacy.includes(option.value)}
-                onToggle={(active) =>
-                  update("privacy", setMembership(options.privacy, option.value, active))
-                }
+                onToggle={(active) => {
+                  update("privacy", setMembership(options.privacy, option.value, active));
+                }}
               >
                 {option.label}
               </TogglePill>
             ))}
             <TogglePill
               active={!options.fallbacks}
-              onToggle={(active) => update("fallbacks", !active)}
+              onToggle={(active) => {
+                update("fallbacks", !active);
+              }}
             >
               Disable fallback
             </TogglePill>
@@ -1046,19 +1077,25 @@ function AdvancedProviderControls({
               label="Allow"
               value={formatList(options.allowProviders)}
               placeholder="anthropic"
-              onChange={(value) => update("allowProviders", parseList(value))}
+              onChange={(value) => {
+                update("allowProviders", parseList(value));
+              }}
             />
             <TinyTextField
               label="Deny"
               value={formatList(options.denyProviders)}
               placeholder="openai"
-              onChange={(value) => update("denyProviders", parseList(value))}
+              onChange={(value) => {
+                update("denyProviders", parseList(value));
+              }}
             />
             <TinyTextField
               label="Order"
               value={formatList(options.providerOrder)}
               placeholder="anthropic, google"
-              onChange={(value) => update("providerOrder", parseList(value))}
+              onChange={(value) => {
+                update("providerOrder", parseList(value));
+              }}
             />
           </div>
         </div>
@@ -1072,25 +1109,33 @@ function AdvancedProviderControls({
             <TinyNumberField
               label="Prompt $/M"
               value={options.maxPromptCost}
-              onChange={(value) => updateNumber("maxPromptCost", value)}
+              onChange={(value) => {
+                updateNumber("maxPromptCost", value);
+              }}
             />
             <TinyNumberField
               label="Output $/M"
               value={options.maxCompletionCost}
-              onChange={(value) => updateNumber("maxCompletionCost", value)}
+              onChange={(value) => {
+                updateNumber("maxCompletionCost", value);
+              }}
             />
             <TinyNumberField
               label="Request $"
               value={options.maxRequestCost}
               step="0.01"
-              onChange={(value) => updateNumber("maxRequestCost", value)}
+              onChange={(value) => {
+                updateNumber("maxRequestCost", value);
+              }}
             />
           </div>
           <div className="mt-2 grid grid-cols-2 gap-2">
             <TinySelect
               label="Reasoning"
               value={options.reasoning}
-              onChange={(value) => update("reasoning", value as BenchmarkReasoningMode)}
+              onChange={(value) => {
+                update("reasoning", value);
+              }}
               options={[
                 ["default", "Default"],
                 ["off", "Off"],
@@ -1104,7 +1149,9 @@ function AdvancedProviderControls({
             <TinyNumberField
               label="Reasoning tokens"
               value={options.reasoningTokens}
-              onChange={(value) => updateNumber("reasoningTokens", value)}
+              onChange={(value) => {
+                updateNumber("reasoningTokens", value);
+              }}
             />
           </div>
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -1112,12 +1159,12 @@ function AdvancedProviderControls({
               <TogglePill
                 key={quantization}
                 active={options.quantizations.includes(quantization)}
-                onToggle={(active) =>
+                onToggle={(active) => {
                   update(
                     "quantizations",
                     setMembership(options.quantizations, quantization, active),
-                  )
-                }
+                  );
+                }}
               >
                 {quantization}
               </TogglePill>
@@ -1138,7 +1185,9 @@ function AdvancedProviderControls({
             <TinySelect
               label="Cache"
               value={options.cache}
-              onChange={(value) => update("cache", value as BenchmarkCacheMode)}
+              onChange={(value) => {
+                update("cache", value);
+              }}
               options={[
                 ["off", "Off"],
                 ["ephemeral", "Ephemeral"],
@@ -1149,7 +1198,9 @@ function AdvancedProviderControls({
             <TinySelect
               label="Search"
               value={options.webSearch}
-              onChange={(value) => update("webSearch", value as BenchmarkWebSearchMode)}
+              onChange={(value) => {
+                update("webSearch", value);
+              }}
               options={[
                 ["off", "Off"],
                 ["auto", "Auto"],
@@ -1160,7 +1211,9 @@ function AdvancedProviderControls({
             <TinySelect
               label="Logprobs"
               value={options.logprobs}
-              onChange={(value) => update("logprobs", value as BenchmarkLogprobsMode)}
+              onChange={(value) => {
+                update("logprobs", value);
+              }}
               options={[
                 ["off", "Off"],
                 ["basic", "Basic"],
@@ -1171,13 +1224,17 @@ function AdvancedProviderControls({
           <div className="mt-2 flex flex-wrap gap-1.5">
             <TogglePill
               active={options.responseHealing}
-              onToggle={(active) => update("responseHealing", active)}
+              onToggle={(active) => {
+                update("responseHealing", active);
+              }}
             >
               Response healing
             </TogglePill>
             <TogglePill
               active={options.includeCost}
-              onToggle={(active) => update("includeCost", active)}
+              onToggle={(active) => {
+                update("includeCost", active);
+              }}
             >
               Include cost
             </TogglePill>
@@ -1187,13 +1244,17 @@ function AdvancedProviderControls({
               label="Fallback models"
               value={formatList(options.fallbackModels)}
               placeholder="anthropic/claude-haiku-4.5"
-              onChange={(value) => update("fallbackModels", parseList(value))}
+              onChange={(value) => {
+                update("fallbackModels", parseList(value));
+              }}
             />
             <TinyTextField
               label="Tags"
               value={formatList(options.tags)}
               placeholder="bench:routing"
-              onChange={(value) => update("tags", parseList(value))}
+              onChange={(value) => {
+                update("tags", parseList(value));
+              }}
             />
           </div>
         </div>
@@ -1249,7 +1310,9 @@ function FieldNumber({
         aria-label={label}
         type="number"
         value={value}
-        onChange={(e) => onChange(Math.max(min, Math.min(max, Number(e.target.value))))}
+        onChange={(e) => {
+          onChange(Math.max(min, Math.min(max, Number(e.target.value))));
+        }}
         min={min}
         max={max}
         step={step}
@@ -1275,7 +1338,9 @@ function SegmentedControl<T extends string>({
         <button
           key={option.value}
           type="button"
-          onClick={() => onChange(option.value)}
+          onClick={() => {
+            onChange(option.value);
+          }}
           className={`cursor-pointer rounded-[var(--radius-pill)] px-3 text-[12px] font-medium transition-colors ${
             value === option.value
               ? "bg-[var(--color-surface)] text-[var(--color-text)] shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
@@ -1302,7 +1367,9 @@ function TogglePill({
     <button
       type="button"
       aria-pressed={active}
-      onClick={() => onToggle(!active)}
+      onClick={() => {
+        onToggle(!active);
+      }}
       className={`h-6 cursor-pointer rounded-[var(--radius-pill)] border px-2 text-[11px] transition-colors ${
         active
           ? "border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text)]"
@@ -1331,7 +1398,9 @@ function TinyTextField({
       <input
         aria-label={label}
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => {
+          onChange(event.target.value);
+        }}
         placeholder={placeholder}
         className="h-7 min-w-0 rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2 data text-[11px] text-[var(--color-text)] placeholder:text-[var(--color-text-faint)] focus:border-[var(--color-border-strong)]"
       />
@@ -1359,7 +1428,9 @@ function TinyNumberField({
         min={0}
         step={step ?? "1"}
         value={value ?? ""}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => {
+          onChange(event.target.value);
+        }}
         className="h-7 min-w-0 rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2 data text-[11px] text-[var(--color-text)] focus:border-[var(--color-border-strong)]"
       />
     </label>
@@ -1386,7 +1457,9 @@ function TinySelect<T extends string>({
       </span>
       <select
         value={value}
-        onChange={(event) => onChange(event.target.value as T)}
+        onChange={(event) => {
+          onChange(event.target.value as T);
+        }}
         className="h-7 min-w-0 cursor-pointer rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2 text-[11px] text-[var(--color-text)] focus:border-[var(--color-border-strong)]"
       >
         {options.map(([optionValue, labelText]) => (

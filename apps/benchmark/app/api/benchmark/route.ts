@@ -311,11 +311,13 @@ export async function POST(request: NextRequest) {
       if (!multiRound) {
         // Single prompt - fire all runs in parallel (original behavior)
         await Promise.all(
-          runs.map((run) =>
-            executeRun(ai, run, firstPrompt, images, maxTokens, region, options).then((result) =>
-              send(result, firstPrompt),
-            ),
-          ),
+          runs.map(async (run) => {
+            await executeRun(ai, run, firstPrompt, images, maxTokens, region, options).then(
+              (result) => {
+                send(result, firstPrompt);
+              },
+            );
+          }),
         );
       } else {
         // Multi-round - run each prompt sequentially, all runs in parallel per round
@@ -324,8 +326,18 @@ export async function POST(request: NextRequest) {
         for (let round = 0; round < prompts.length; round += 1) {
           const promptForRound = prompts[round] ?? "";
           const roundResults = await Promise.all(
-            runs.map((run) =>
-              executeRun(ai, run, promptForRound, images, maxTokens, region, options, round),
+            runs.map(
+              async (run) =>
+                await executeRun(
+                  ai,
+                  run,
+                  promptForRound,
+                  images,
+                  maxTokens,
+                  region,
+                  options,
+                  round,
+                ),
             ),
           );
 

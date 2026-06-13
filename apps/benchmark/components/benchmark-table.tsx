@@ -107,7 +107,9 @@ export function BenchmarkTable({
         cell: ({ row }) => (
           <Checkbox
             checked={row.getIsSelected()}
-            onChange={(value) => row.toggleSelected(value)}
+            onChange={(value) => {
+              row.toggleSelected(value);
+            }}
             aria-label={`Select ${row.original.name}`}
           />
         ),
@@ -116,7 +118,9 @@ export function BenchmarkTable({
           <Checkbox
             checked={table.getIsAllRowsSelected()}
             indeterminate={table.getIsSomeRowsSelected()}
-            onChange={(value) => table.toggleAllRowsSelected(value)}
+            onChange={(value) => {
+              table.toggleAllRowsSelected(value);
+            }}
             aria-label="Select all rows"
           />
         ),
@@ -778,7 +782,9 @@ function Checkbox({
         type="checkbox"
         checked={checked}
         aria-label={ariaLabel}
-        onChange={(event) => onChange(event.target.checked)}
+        onChange={(event) => {
+          onChange(event.target.checked);
+        }}
         className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
       />
       {indeterminate ? (

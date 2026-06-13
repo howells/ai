@@ -564,17 +564,17 @@ async function runLiveTests(options: CliOptions): Promise<SmokeResult[]> {
   return results;
 }
 
-function commandModels(options: CliOptions): Promise<number> {
+async function commandModels(options: CliOptions): Promise<number> {
   const rows = modelRows(options);
   if (options.json) {
     json(rows);
-    return Promise.resolve(0);
+    return 0;
   }
   print(table(rows));
-  return Promise.resolve(0);
+  return 0;
 }
 
-function commandProviders(options: CliOptions): Promise<number> {
+async function commandProviders(options: CliOptions): Promise<number> {
   const statuses = providerStatuses();
   const services = serviceStatuses();
   const availableProviders = configuredLanguageProviders();
@@ -586,7 +586,7 @@ function commandProviders(options: CliOptions): Promise<number> {
       providers: statuses,
       services,
     });
-    return Promise.resolve(0);
+    return 0;
   }
   print(table(statuses));
   print();
@@ -602,7 +602,7 @@ function commandProviders(options: CliOptions): Promise<number> {
       availableModelServices.length ? availableModelServices.join(", ") : "none"
     }`,
   );
-  return Promise.resolve(0);
+  return 0;
 }
 
 async function commandDoctor(options: CliOptions): Promise<number> {
@@ -729,34 +729,34 @@ async function commandBench(options: CliOptions): Promise<number> {
   return output.trim() ? 0 : 1;
 }
 
-function main(): Promise<number> {
+async function main(): Promise<number> {
   loadLocalEnv();
   const options = parseCliOptions(process.argv.slice(2));
 
   if (options.schema) {
     json(commandSchema(options.command));
-    return Promise.resolve(0);
+    return 0;
   }
 
   switch (options.command) {
     case "help": {
       help();
-      return Promise.resolve(0);
+      return 0;
     }
     case "models": {
-      return commandModels(options);
+      return await commandModels(options);
     }
     case "providers": {
-      return commandProviders(options);
+      return await commandProviders(options);
     }
     case "doctor": {
-      return commandDoctor(options);
+      return await commandDoctor(options);
     }
     case "test": {
-      return commandTest(options);
+      return await commandTest(options);
     }
     case "bench": {
-      return commandBench(options);
+      return await commandBench(options);
     }
   }
 }

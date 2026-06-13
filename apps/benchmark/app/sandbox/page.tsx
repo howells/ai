@@ -536,7 +536,9 @@ export default function SandboxPage() {
               aria-label="Shared prompt"
               className="min-h-24 resize-none rounded-[var(--radius-control)] border border-border bg-surface p-3 text-sm leading-6"
               value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
+              onChange={(event) => {
+                setPrompt(event.target.value);
+              }}
             />
           </label>
           <label className="grid gap-1">
@@ -548,7 +550,9 @@ export default function SandboxPage() {
               max={4096}
               type="number"
               value={maxTokens}
-              onChange={(event) => setMaxTokens(Number(event.target.value))}
+              onChange={(event) => {
+                setMaxTokens(Number(event.target.value));
+              }}
             />
           </label>
           <button
@@ -607,13 +611,13 @@ export default function SandboxPage() {
                   <select
                     className="rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2 text-sm"
                     value={column.label}
-                    onChange={(event) =>
+                    onChange={(event) => {
                       setColumns((current) =>
                         current.map((item) =>
                           item.id === column.id ? applyOption(item, event.target.value) : item,
                         ),
-                      )
-                    }
+                      );
+                    }}
                   >
                     {MODEL_OPTIONS.map((option) => (
                       <option key={option.label}>{option.label}</option>
@@ -627,7 +631,7 @@ export default function SandboxPage() {
                     <select
                       className="rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2 text-sm"
                       value={column.provider}
-                      onChange={(event) =>
+                      onChange={(event) => {
                         setColumns((current) =>
                           current.map((item) =>
                             item.id === column.id
@@ -638,8 +642,8 @@ export default function SandboxPage() {
                                 }
                               : item,
                           ),
-                        )
-                      }
+                        );
+                      }}
                     >
                       {[
                         "openrouter",
@@ -661,7 +665,7 @@ export default function SandboxPage() {
                       className="rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2 text-sm disabled:text-text-faint"
                       disabled={column.provider !== "openrouter"}
                       value={column.routeProvider ?? ""}
-                      onChange={(event) =>
+                      onChange={(event) => {
                         setColumns((current) =>
                           current.map((item) =>
                             item.id === column.id
@@ -671,8 +675,8 @@ export default function SandboxPage() {
                                 }
                               : item,
                           ),
-                        )
-                      }
+                        );
+                      }}
                     >
                       <option value="">default</option>
                       {availableRouteOptions.map((option) => (
@@ -696,13 +700,13 @@ export default function SandboxPage() {
                     aria-label={`Model ID for ${column.label}`}
                     className="rounded-[var(--radius-control)] border border-border bg-surface px-3 py-2 font-mono text-xs"
                     value={column.model}
-                    onChange={(event) =>
+                    onChange={(event) => {
                       setColumns((current) =>
                         current.map((item) =>
                           item.id === column.id ? { ...item, model: event.target.value } : item,
                         ),
-                      )
-                    }
+                      );
+                    }}
                   />
                 </label>
               </div>

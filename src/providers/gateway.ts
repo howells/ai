@@ -70,13 +70,13 @@ export function createGatewayProvider(apiKey: string | undefined): GatewayProvid
   }
 
   const introspection: GatewayIntrospection = {
-    credits: () => getClient().getCredits(),
-    generationInfo: (id) => getClient().getGenerationInfo({ id }),
+    credits: async () => await getClient().getCredits(),
+    generationInfo: async (id) => await getClient().getGenerationInfo({ id }),
     listModels: async () => {
       const response = await getClient().getAvailableModels();
       return response.models;
     },
-    spend: (params) => getClient().getSpendReport(params),
+    spend: async (params) => await getClient().getSpendReport(params),
   };
 
   return {

@@ -85,7 +85,9 @@ export function BenchmarkToolbar({
           type="text"
           aria-label="Filter models"
           value={filters.search}
-          onChange={(event) => update("search", event.target.value)}
+          onChange={(event) => {
+            update("search", event.target.value);
+          }}
           placeholder="Filter"
           className="h-8 w-44 rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-surface)] pr-3 pl-8 text-[12px] text-[var(--color-text)] placeholder:text-[var(--color-text-faint)] transition-colors focus:border-[var(--color-border-strong)]"
         />
@@ -94,7 +96,9 @@ export function BenchmarkToolbar({
       <FacetMenu<ModelTier>
         label="Tier"
         selected={filters.tiers}
-        onChange={(next) => update("tiers", next)}
+        onChange={(next) => {
+          update("tiers", next);
+        }}
         options={ALL_TIERS.map((tier) => ({
           count: tierCounts[tier],
           description: TIER_DESCRIPTIONS[tier],
@@ -107,7 +111,9 @@ export function BenchmarkToolbar({
       <FacetMenu<ModelTask>
         label="Task"
         selected={filters.tasks}
-        onChange={(next) => update("tasks", next)}
+        onChange={(next) => {
+          update("tasks", next);
+        }}
         options={ALL_TASKS.map((task) => ({
           count: taskCounts[task],
           description: TASK_DESCRIPTIONS[task],
@@ -120,7 +126,9 @@ export function BenchmarkToolbar({
       <FacetMenu<ModelService>
         label="Family"
         selected={filters.services}
-        onChange={(next) => update("services", next)}
+        onChange={(next) => {
+          update("services", next);
+        }}
         options={allServices.map((service) => ({
           count: serviceCounts[service],
           label: serviceLabel(service),
@@ -131,7 +139,9 @@ export function BenchmarkToolbar({
       <FacetMenu<ProviderRoute>
         label="Provider"
         selected={filters.providers}
-        onChange={(next) => update("providers", next)}
+        onChange={(next) => {
+          update("providers", next);
+        }}
         options={allProviders.map((provider) => ({
           disabled: filters.configuredOnly && !availableProviders.includes(provider),
           label: providerLabel(provider),
@@ -142,7 +152,9 @@ export function BenchmarkToolbar({
 
       <ConfiguredToggle
         active={filters.configuredOnly}
-        onToggle={() => update("configuredOnly", !filters.configuredOnly)}
+        onToggle={() => {
+          update("configuredOnly", !filters.configuredOnly);
+        }}
       />
 
       <span className="ml-auto whitespace-nowrap text-[12px] text-[var(--color-text-muted)]">
@@ -177,7 +189,7 @@ export function BenchmarkToolbar({
       {hasActiveFilters && (
         <button
           type="button"
-          onClick={() =>
+          onClick={() => {
             onFiltersChange({
               configuredOnly: true,
               providers: new Set(),
@@ -185,8 +197,8 @@ export function BenchmarkToolbar({
               services: new Set(),
               tasks: new Set(),
               tiers: new Set(),
-            })
-          }
+            });
+          }}
           className="cursor-pointer whitespace-nowrap rounded-[var(--radius-pill)] px-2.5 py-1 text-[12px] text-[var(--color-text-muted)] transition-colors hover:bg-[var(--color-raised)] hover:text-[var(--color-text)]"
         >
           Reset

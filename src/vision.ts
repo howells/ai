@@ -52,21 +52,19 @@ function mediaTypeFromDataUrl(value: VisionImageData): `image/${string}` | undef
 export function imagePart(input: VisionInput): ImagePart {
   if (isRecord(input)) {
     if ("url" in input) {
-      const image = normalizeImageData(input.url as string | URL);
+      const image = normalizeImageData(input.url);
       return {
         image,
-        mediaType:
-          (input.mediaType as `image/${string}` | undefined) ?? mediaTypeFromDataUrl(image),
+        mediaType: input.mediaType ?? mediaTypeFromDataUrl(image),
         type: "image",
       };
     }
 
     if ("data" in input) {
-      const image = normalizeImageData(input.data as VisionImageData);
+      const image = normalizeImageData(input.data);
       return {
         image,
-        mediaType:
-          (input.mediaType as `image/${string}` | undefined) ?? mediaTypeFromDataUrl(image),
+        mediaType: input.mediaType ?? mediaTypeFromDataUrl(image),
         type: "image",
       };
     }

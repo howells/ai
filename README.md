@@ -27,9 +27,7 @@ const { text: analysis } = await generateText({
     tools: true,
     vision: true,
   }),
-  prompt: visionPrompt("Analyze this design", [
-    "https://example.com/design.png",
-  ]),
+  prompt: visionPrompt("Analyze this design", ["https://example.com/design.png"]),
 });
 
 // Structured output
@@ -104,26 +102,26 @@ await streamText({
 });
 ```
 
-| Normalized Option | AI SDK / Provider Mapping |
-|-------------------|---------------------------|
-| `reasoning` | OpenAI `reasoningEffort`, Anthropic `thinking`, Google `thinkingConfig`, OpenRouter `reasoning`. Accepts a preset (`"high"`) or `{ effort, maxTokens }`. |
-| `verbosity` | OpenAI `textVerbosity` |
-| `structured` | OpenAI strict JSON schema, Anthropic structured output mode, Google structured outputs |
-| `tools` | AI SDK `toolChoice` |
-| `maxToolSteps` | AI SDK `stopWhen: stepCountIs(n)` |
-| `parallelTools` | OpenAI/OpenRouter parallel tool calls, Anthropic inverse disable flag |
-| `outputLength` | AI SDK `maxOutputTokens` preset |
-| `creativity` | AI SDK `temperature` preset |
-| `cache` | Anthropic `cacheControl`, OpenRouter `cache_control`. Pass `"ephemeral"` or `{ ttl: "5m" \| "1h" }`. |
-| `serviceTier` | OpenAI/Google service tier where supported |
-| `routing` | Normalized route intent. Gateway `sort/only/order/zeroDataRetention/...`, OpenRouter `provider.{sort, only, ignore, order, allow_fallbacks, max_price, quantizations, zdr, data_collection}` |
-| `fallbackModels` | Gateway `models`, OpenRouter `models` (model fallback chain) |
-| `openRouterVariant` | OpenRouter model suffixes `:nitro`, `:exacto`, `:floor` on `ai.model()` / `ai.modelById()` |
-| `tags` | Gateway `tags` (spend reporting). Ignored elsewhere. |
-| `webSearch` | OpenRouter `plugins: [{ id: "web", ... }]`. For Gateway, wire `gateway.tools.parallelSearch()` / `perplexitySearch()` via AI SDK `tools`. |
-| `responseHealing` | OpenRouter `plugins: [{ id: "response-healing" }]` (auto-repair JSON for `generateObject`). |
-| `includeCost` | OpenRouter `usage: { include: true }`. Gateway returns cost automatically. |
-| `logprobs` / `logitBias` | OpenRouter only (`logprobs` + `top_logprobs`, `logit_bias`). |
+| Normalized Option        | AI SDK / Provider Mapping                                                                                                                                                                    |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `reasoning`              | OpenAI `reasoningEffort`, Anthropic `thinking`, Google `thinkingConfig`, OpenRouter `reasoning`. Accepts a preset (`"high"`) or `{ effort, maxTokens }`.                                     |
+| `verbosity`              | OpenAI `textVerbosity`                                                                                                                                                                       |
+| `structured`             | OpenAI strict JSON schema, Anthropic structured output mode, Google structured outputs                                                                                                       |
+| `tools`                  | AI SDK `toolChoice`                                                                                                                                                                          |
+| `maxToolSteps`           | AI SDK `stopWhen: stepCountIs(n)`                                                                                                                                                            |
+| `parallelTools`          | OpenAI/OpenRouter parallel tool calls, Anthropic inverse disable flag                                                                                                                        |
+| `outputLength`           | AI SDK `maxOutputTokens` preset                                                                                                                                                              |
+| `creativity`             | AI SDK `temperature` preset                                                                                                                                                                  |
+| `cache`                  | Anthropic `cacheControl`, OpenRouter `cache_control`. Pass `"ephemeral"` or `{ ttl: "5m" \| "1h" }`.                                                                                         |
+| `serviceTier`            | OpenAI/Google service tier where supported                                                                                                                                                   |
+| `routing`                | Normalized route intent. Gateway `sort/only/order/zeroDataRetention/...`, OpenRouter `provider.{sort, only, ignore, order, allow_fallbacks, max_price, quantizations, zdr, data_collection}` |
+| `fallbackModels`         | Gateway `models`, OpenRouter `models` (model fallback chain)                                                                                                                                 |
+| `openRouterVariant`      | OpenRouter model suffixes `:nitro`, `:exacto`, `:floor` on `ai.model()` / `ai.modelById()`                                                                                                   |
+| `tags`                   | Gateway `tags` (spend reporting). Ignored elsewhere.                                                                                                                                         |
+| `webSearch`              | OpenRouter `plugins: [{ id: "web", ... }]`. For Gateway, wire `gateway.tools.parallelSearch()` / `perplexitySearch()` via AI SDK `tools`.                                                    |
+| `responseHealing`        | OpenRouter `plugins: [{ id: "response-healing" }]` (auto-repair JSON for `generateObject`).                                                                                                  |
+| `includeCost`            | OpenRouter `usage: { include: true }`. Gateway returns cost automatically.                                                                                                                   |
+| `logprobs` / `logitBias` | OpenRouter only (`logprobs` + `top_logprobs`, `logit_bias`).                                                                                                                                 |
 
 ### Routing & cost
 
@@ -219,13 +217,13 @@ scriptable output. The CLI loads local keys from `.env`, `.env.local`, and
 Language models are selected by tier, then capability flags. Structured
 input/output is a baseline requirement for every default language model.
 
-| Tier | Text Default | Tools Default | Vision / Vision Tools Default | Use When |
-|------|--------------|---------------|-------------------------------|----------|
-| `nano` | `openai/gpt-5.4-nano` | `openai/gpt-5.4-nano` | `google/gemini-3.1-flash-lite-preview` | Premium low-cost text plus lightweight Gemini vision |
-| `fast` | `google/gemini-3.1-flash-lite-preview` | `google/gemini-3.1-flash-lite-preview` | `google/gemini-3.1-flash-lite-preview` | Fast premium Gemini calls across text, tools, and vision |
-| `standard` | `google/gemini-3.5-flash` | `google/gemini-3.5-flash` | `google/gemini-3.5-flash` | Everyday tasks, chat, coding, vision, 1M context |
-| `powerful` | `google/gemini-3.1-pro-preview` | `google/gemini-3.1-pro-preview` | `google/gemini-3.1-pro-preview` | High-quality premium Gemini reasoning and multimodal work |
-| `reasoning` | `anthropic/claude-opus-4.7` | `anthropic/claude-opus-4.7` | `anthropic/claude-opus-4.7` | Frontier quality and deep multi-step reasoning |
+| Tier        | Text Default                           | Tools Default                          | Vision / Vision Tools Default          | Use When                                                  |
+| ----------- | -------------------------------------- | -------------------------------------- | -------------------------------------- | --------------------------------------------------------- |
+| `nano`      | `openai/gpt-5.4-nano`                  | `openai/gpt-5.4-nano`                  | `google/gemini-3.1-flash-lite-preview` | Premium low-cost text plus lightweight Gemini vision      |
+| `fast`      | `google/gemini-3.1-flash-lite-preview` | `google/gemini-3.1-flash-lite-preview` | `google/gemini-3.1-flash-lite-preview` | Fast premium Gemini calls across text, tools, and vision  |
+| `standard`  | `google/gemini-3.5-flash`              | `google/gemini-3.5-flash`              | `google/gemini-3.5-flash`              | Everyday tasks, chat, coding, vision, 1M context          |
+| `powerful`  | `google/gemini-3.1-pro-preview`        | `google/gemini-3.1-pro-preview`        | `google/gemini-3.1-pro-preview`        | High-quality premium Gemini reasoning and multimodal work |
+| `reasoning` | `anthropic/claude-opus-4.7`            | `anthropic/claude-opus-4.7`            | `anthropic/claude-opus-4.7`            | Frontier quality and deep multi-step reasoning            |
 
 ```typescript
 ai.model("fast"); // fast text
@@ -262,11 +260,11 @@ true` fails locally because DeepSeek's selected models are not vision-capable.
 
 ### Retrieval Models
 
-| Slot | Voyage Default | Gemini Default | Use When |
-|------|----------------|----------------|----------|
-| `embed` | `voyage-3` | `gemini-embedding-2-preview` | Text embeddings |
+| Slot              | Voyage Default          | Gemini Default               | Use When                |
+| ----------------- | ----------------------- | ---------------------------- | ----------------------- |
+| `embed`           | `voyage-3`              | `gemini-embedding-2-preview` | Text embeddings         |
 | `multimodalEmbed` | `voyage-multimodal-3.5` | `gemini-embedding-2-preview` | Text + image embeddings |
-| `rerank` | `rerank-2.5` | n/a | Search result reranking |
+| `rerank`          | `rerank-2.5`            | n/a                          | Search result reranking |
 
 OpenRouter embedding defaults are also available through the same slots:
 `openai/text-embedding-3-small` for text and
@@ -359,9 +357,7 @@ const { embedding: imageEmbedding } = await embed({
   value: "green woven upholstery",
   providerOptions: {
     google: {
-      content: [
-        [{ inlineData: { mimeType: "image/png", data: "<base64>" } }],
-      ],
+      content: [[{ inlineData: { mimeType: "image/png", data: "<base64>" } }]],
     },
   },
 });
@@ -395,19 +391,19 @@ The `capabilities` field describes which config fields the selected provider
 can consume, so callers can pass through the useful fields without branching on
 one provider-specific helper.
 
-| Provider | API Key | Base URL | Headers | App Attribution | Agent Attribution |
-|----------|---------|----------|---------|-----------------|-------------------|
-| `gateway` | yes | no | no | no | no |
-| `openrouter` | yes | yes | yes | yes | yes |
-| `anthropic` | yes | no | no | no | no |
-| `openai` | yes | no | no | no | no |
-| `google` | yes | no | no | no | no |
-| `deepseek` | yes | yes | no | no | no |
-| `xai` | yes | yes | no | no | no |
-| `qwen` | yes | yes | no | no | no |
-| `zai` | yes | yes | no | no | no |
-| `moonshotai` | yes | yes | no | no | no |
-| `groq` | yes | yes | no | no | no |
+| Provider     | API Key | Base URL | Headers | App Attribution | Agent Attribution |
+| ------------ | ------- | -------- | ------- | --------------- | ----------------- |
+| `gateway`    | yes     | no       | no      | no              | no                |
+| `openrouter` | yes     | yes      | yes     | yes             | yes               |
+| `anthropic`  | yes     | no       | no      | no              | no                |
+| `openai`     | yes     | no       | no      | no              | no                |
+| `google`     | yes     | no       | no      | no              | no                |
+| `deepseek`   | yes     | yes      | no      | no              | no                |
+| `xai`        | yes     | yes      | no      | no              | no                |
+| `qwen`       | yes     | yes      | no      | no              | no                |
+| `zai`        | yes     | yes      | no      | no              | no                |
+| `moonshotai` | yes     | yes      | no      | no              | no                |
+| `groq`       | yes     | yes      | no      | no              | no                |
 
 For OpenRouter direct HTTP clients, request an OpenRouter model config and pass
 `user` in the request body:
@@ -499,104 +495,104 @@ import {
 } from "@howells/ai";
 
 // Anthropic
-ANTHROPIC_MODELS.CLAUDE_OPUS_4_7        // "anthropic/claude-opus-4.7"
-ANTHROPIC_MODELS.CLAUDE_OPUS_4_6        // "anthropic/claude-opus-4.6"
-ANTHROPIC_MODELS.CLAUDE_SONNET_4_6      // "anthropic/claude-sonnet-4.6"
+ANTHROPIC_MODELS.CLAUDE_OPUS_4_7; // "anthropic/claude-opus-4.7"
+ANTHROPIC_MODELS.CLAUDE_OPUS_4_6; // "anthropic/claude-opus-4.6"
+ANTHROPIC_MODELS.CLAUDE_SONNET_4_6; // "anthropic/claude-sonnet-4.6"
 
 // DeepSeek
-DEEPSEEK_MODELS.DEEPSEEK_V3_2           // "deepseek/deepseek-v3.2"
-DEEPSEEK_MODELS.DEEPSEEK_V4_FLASH       // "deepseek/deepseek-v4-flash"
+DEEPSEEK_MODELS.DEEPSEEK_V3_2; // "deepseek/deepseek-v3.2"
+DEEPSEEK_MODELS.DEEPSEEK_V4_FLASH; // "deepseek/deepseek-v4-flash"
 
 // GLM / Z.ai
-GLM_MODELS.GLM_5                        // "z-ai/glm-5"
-GLM_MODELS.GLM_5V_TURBO                 // "z-ai/glm-5v-turbo"
-GLM_MODELS.GLM_4_7                      // "z-ai/glm-4.7"
-GLM_MODELS.GLM_4_7_FLASH                // "z-ai/glm-4.7-flash"
-GLM_MODELS.GLM_4_6V                     // "z-ai/glm-4.6v"
+GLM_MODELS.GLM_5; // "z-ai/glm-5"
+GLM_MODELS.GLM_5V_TURBO; // "z-ai/glm-5v-turbo"
+GLM_MODELS.GLM_4_7; // "z-ai/glm-4.7"
+GLM_MODELS.GLM_4_7_FLASH; // "z-ai/glm-4.7-flash"
+GLM_MODELS.GLM_4_6V; // "z-ai/glm-4.6v"
 
 // Kimi / Moonshot
-KIMI_MODELS.KIMI_K2_6                   // "moonshotai/kimi-k2.6"
-KIMI_MODELS.KIMI_K2_5                   // "moonshotai/kimi-k2.5"
-KIMI_MODELS.KIMI_K2_THINKING            // "moonshotai/kimi-k2-thinking"
+KIMI_MODELS.KIMI_K2_6; // "moonshotai/kimi-k2.6"
+KIMI_MODELS.KIMI_K2_5; // "moonshotai/kimi-k2.5"
+KIMI_MODELS.KIMI_K2_THINKING; // "moonshotai/kimi-k2-thinking"
 
 // Groq
-GROQ_MODELS.GPT_OSS_120B                // "openai/gpt-oss-120b"
-GROQ_MODELS.GPT_OSS_20B                 // "openai/gpt-oss-20b"
+GROQ_MODELS.GPT_OSS_120B; // "openai/gpt-oss-120b"
+GROQ_MODELS.GPT_OSS_20B; // "openai/gpt-oss-20b"
 
 // Google language models
-GOOGLE_MODELS.GEMINI_3_5_FLASH          // "google/gemini-3.5-flash"
-GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW    // "google/gemini-3.1-pro-preview"
-GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW
+GOOGLE_MODELS.GEMINI_3_5_FLASH; // "google/gemini-3.5-flash"
+GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW; // "google/gemini-3.1-pro-preview"
+GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW;
 
 // OpenAI
-OPENAI_MODELS.GPT_5_4_NANO              // "openai/gpt-5.4-nano"
-OPENAI_MODELS.GPT_5_4_MINI              // "openai/gpt-5.4-mini"
-OPENAI_MODELS.GPT_5_4                   // "openai/gpt-5.4"
-OPENAI_MODELS.GPT_5_3_CODEX             // "openai/gpt-5.3-codex"
+OPENAI_MODELS.GPT_5_4_NANO; // "openai/gpt-5.4-nano"
+OPENAI_MODELS.GPT_5_4_MINI; // "openai/gpt-5.4-mini"
+OPENAI_MODELS.GPT_5_4; // "openai/gpt-5.4"
+OPENAI_MODELS.GPT_5_3_CODEX; // "openai/gpt-5.3-codex"
 
 // OpenRouter-managed
-OPENROUTER_MODELS.FREE                  // "openrouter/free"
+OPENROUTER_MODELS.FREE; // "openrouter/free"
 
 // Qwen
-QWEN_MODELS.QWEN_3_235B_A22B_2507       // "qwen/qwen3-235b-a22b-2507"
-QWEN_MODELS.QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE
-QWEN_MODELS.QWEN_3_6_PLUS               // "qwen/qwen3.6-plus"
+QWEN_MODELS.QWEN_3_235B_A22B_2507; // "qwen/qwen3-235b-a22b-2507"
+QWEN_MODELS.QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE;
+QWEN_MODELS.QWEN_3_6_PLUS; // "qwen/qwen3.6-plus"
 
 // xAI
-XAI_MODELS.GROK_4_3                     // "x-ai/grok-4.3"
+XAI_MODELS.GROK_4_3; // "x-ai/grok-4.3"
 
 // Gateway/OpenRouter-only services
-MINIMAX_MODELS.MINIMAX_M2_7             // "minimax/minimax-m2.7"
-MINIMAX_MODELS.MINIMAX_M2_5             // "minimax/minimax-m2.5"
-STEPFUN_MODELS.STEP_3_5_FLASH           // "stepfun/step-3.5-flash"
-XIAOMI_MODELS.MIMO_V2_FLASH             // "xiaomi/mimo-v2-flash"
-INCEPTION_MODELS.MERCURY_2              // "inception/mercury-2"
-NEX_AGI_MODELS.DEEPSEEK_V3_1_NEX_N1     // "nex-agi/deepseek-v3.1-nex-n1"
+MINIMAX_MODELS.MINIMAX_M2_7; // "minimax/minimax-m2.7"
+MINIMAX_MODELS.MINIMAX_M2_5; // "minimax/minimax-m2.5"
+STEPFUN_MODELS.STEP_3_5_FLASH; // "stepfun/step-3.5-flash"
+XIAOMI_MODELS.MIMO_V2_FLASH; // "xiaomi/mimo-v2-flash"
+INCEPTION_MODELS.MERCURY_2; // "inception/mercury-2"
+NEX_AGI_MODELS.DEEPSEEK_V3_1_NEX_N1; // "nex-agi/deepseek-v3.1-nex-n1"
 
 // Provider-pinned task matrix
-PROVIDER_TASK_DEFAULT_MODELS.openai?.coding?.standard?.text
+PROVIDER_TASK_DEFAULT_MODELS.openai?.coding?.standard?.text;
 // "openai/gpt-5.3-codex"
 
-ai.modelCapabilities({ modelId: "deepseek/deepseek-v3.2" })
+ai.modelCapabilities({ modelId: "deepseek/deepseek-v3.2" });
 // { structured: true, tools: true, vision: false }
 
 // Voyage
-VOYAGE_MODELS.VOYAGE_3            // "voyage-3"
-VOYAGE_MODELS.VOYAGE_3_LITE       // "voyage-3-lite"
-VOYAGE_MODELS.VOYAGE_3_5          // "voyage-3.5"
-VOYAGE_MODELS.VOYAGE_3_5_LITE     // "voyage-3.5-lite"
-VOYAGE_MODELS.MULTIMODAL_3        // "voyage-multimodal-3"
-VOYAGE_MODELS.MULTIMODAL_3_5      // "voyage-multimodal-3.5"
-VOYAGE_MODELS.RERANK_2_5          // "rerank-2.5"
-VOYAGE_MODELS.RERANK_2_5_LITE     // "rerank-2.5-lite"
+VOYAGE_MODELS.VOYAGE_3; // "voyage-3"
+VOYAGE_MODELS.VOYAGE_3_LITE; // "voyage-3-lite"
+VOYAGE_MODELS.VOYAGE_3_5; // "voyage-3.5"
+VOYAGE_MODELS.VOYAGE_3_5_LITE; // "voyage-3.5-lite"
+VOYAGE_MODELS.MULTIMODAL_3; // "voyage-multimodal-3"
+VOYAGE_MODELS.MULTIMODAL_3_5; // "voyage-multimodal-3.5"
+VOYAGE_MODELS.RERANK_2_5; // "rerank-2.5"
+VOYAGE_MODELS.RERANK_2_5_LITE; // "rerank-2.5-lite"
 
 // Google
-GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2  // "gemini-embedding-2-preview"
-GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_1  // "gemini-embedding-001"
+GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2; // "gemini-embedding-2-preview"
+GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_1; // "gemini-embedding-001"
 
 // OpenRouter embeddings
-OPENROUTER_EMBED_MODELS.OPENAI_TEXT_EMBEDDING_3_SMALL // "openai/text-embedding-3-small"
-OPENROUTER_EMBED_MODELS.OPENAI_TEXT_EMBEDDING_3_LARGE // "openai/text-embedding-3-large"
-OPENROUTER_EMBED_MODELS.GEMINI_EMBEDDING_2            // "google/gemini-embedding-2-preview"
-OPENROUTER_EMBED_MODELS.GEMINI_EMBEDDING_1            // "google/gemini-embedding-001"
+OPENROUTER_EMBED_MODELS.OPENAI_TEXT_EMBEDDING_3_SMALL; // "openai/text-embedding-3-small"
+OPENROUTER_EMBED_MODELS.OPENAI_TEXT_EMBEDDING_3_LARGE; // "openai/text-embedding-3-large"
+OPENROUTER_EMBED_MODELS.GEMINI_EMBEDDING_2; // "google/gemini-embedding-2-preview"
+OPENROUTER_EMBED_MODELS.GEMINI_EMBEDDING_1; // "google/gemini-embedding-001"
 ```
 
 ## Environment Variables
 
-| Variable | Required | Used By |
-|----------|----------|---------|
-| `AI_GATEWAY_API_KEY` | Yes locally for default language models | Vercel AI Gateway |
-| `OPENROUTER_API_KEY` | Only if using `provider: "openrouter"` | OpenRouter provider |
-| `ANTHROPIC_API_KEY` | Only if using `provider: "anthropic"` | Anthropic provider |
-| `OPENAI_API_KEY` | Only if using `provider: "openai"` | OpenAI provider |
-| `VOYAGE_API_KEY` | Yes (for embed/rerank) | Voyage provider |
-| `GOOGLE_GEMINI_API_KEY` | Only if using Gemini embeddings or `provider: "google"` | Google provider |
-| `DEEPSEEK_API_KEY` | Only if using `provider: "deepseek"` | DeepSeek direct provider |
-| `XAI_API_KEY` | Only if using `provider: "xai"` | xAI direct provider |
-| `QWEN_API_KEY` | Only if using `provider: "qwen"` | Qwen direct provider |
-| `ZAI_API_KEY` | Only if using `provider: "zai"` | Z.ai / GLM direct provider |
-| `MOONSHOT_API_KEY` | Only if using `provider: "moonshotai"` | Moonshot / Kimi direct provider |
-| `GROQ_API_KEY` | Only if using `provider: "groq"` | Groq direct provider |
+| Variable                | Required                                                | Used By                         |
+| ----------------------- | ------------------------------------------------------- | ------------------------------- |
+| `AI_GATEWAY_API_KEY`    | Yes locally for default language models                 | Vercel AI Gateway               |
+| `OPENROUTER_API_KEY`    | Only if using `provider: "openrouter"`                  | OpenRouter provider             |
+| `ANTHROPIC_API_KEY`     | Only if using `provider: "anthropic"`                   | Anthropic provider              |
+| `OPENAI_API_KEY`        | Only if using `provider: "openai"`                      | OpenAI provider                 |
+| `VOYAGE_API_KEY`        | Yes (for embed/rerank)                                  | Voyage provider                 |
+| `GOOGLE_GEMINI_API_KEY` | Only if using Gemini embeddings or `provider: "google"` | Google provider                 |
+| `DEEPSEEK_API_KEY`      | Only if using `provider: "deepseek"`                    | DeepSeek direct provider        |
+| `XAI_API_KEY`           | Only if using `provider: "xai"`                         | xAI direct provider             |
+| `QWEN_API_KEY`          | Only if using `provider: "qwen"`                        | Qwen direct provider            |
+| `ZAI_API_KEY`           | Only if using `provider: "zai"`                         | Z.ai / GLM direct provider      |
+| `MOONSHOT_API_KEY`      | Only if using `provider: "moonshotai"`                  | Moonshot / Kimi direct provider |
+| `GROQ_API_KEY`          | Only if using `provider: "groq"`                        | Groq direct provider            |
 
 Keys can also be passed directly to `createAI()`:
 
