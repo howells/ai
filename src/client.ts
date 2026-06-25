@@ -54,7 +54,6 @@ import { resolveGenerationOptions } from "./generation";
 import { createAnthropicProvider } from "./providers/anthropic";
 import type { GatewayIntrospection } from "./providers/gateway";
 import { createGatewayProvider } from "./providers/gateway";
-import type { GoogleProvider } from "./providers/google";
 import { createGoogleProvider } from "./providers/google";
 import type { OllamaProvider } from "./providers/ollama";
 import { createOllamaProvider } from "./providers/ollama";

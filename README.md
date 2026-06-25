@@ -88,7 +88,7 @@ For Gateway calls, pass the canonical model ID when you want provider-specific
 options inferred as well as Gateway attribution:
 
 ```typescript
-const modelId = "openai/gpt-5.4";
+const modelId = "openai/gpt-5.5";
 
 await streamText({
   model: ai.modelById(modelId),
@@ -217,13 +217,13 @@ scriptable output. The CLI loads local keys from `.env`, `.env.local`, and
 Language models are selected by tier, then capability flags. Structured
 input/output is a baseline requirement for every default language model.
 
-| Tier        | Text Default                           | Tools Default                          | Vision / Vision Tools Default          | Use When                                                  |
-| ----------- | -------------------------------------- | -------------------------------------- | -------------------------------------- | --------------------------------------------------------- |
-| `nano`      | `openai/gpt-5.4-nano`                  | `openai/gpt-5.4-nano`                  | `google/gemini-3.1-flash-lite-preview` | Premium low-cost text plus lightweight Gemini vision      |
-| `fast`      | `google/gemini-3.1-flash-lite-preview` | `google/gemini-3.1-flash-lite-preview` | `google/gemini-3.1-flash-lite-preview` | Fast premium Gemini calls across text, tools, and vision  |
-| `standard`  | `google/gemini-3.5-flash`              | `google/gemini-3.5-flash`              | `google/gemini-3.5-flash`              | Everyday tasks, chat, coding, vision, 1M context          |
-| `powerful`  | `google/gemini-3.1-pro-preview`        | `google/gemini-3.1-pro-preview`        | `google/gemini-3.1-pro-preview`        | High-quality premium Gemini reasoning and multimodal work |
-| `reasoning` | `anthropic/claude-opus-4.7`            | `anthropic/claude-opus-4.7`            | `anthropic/claude-opus-4.7`            | Frontier quality and deep multi-step reasoning            |
+| Tier        | Text Default                    | Tools Default                   | Vision / Vision Tools Default   | Use When                                                  |
+| ----------- | ------------------------------- | ------------------------------- | ------------------------------- | --------------------------------------------------------- |
+| `nano`      | `openai/gpt-5.4-nano`           | `openai/gpt-5.4-nano`           | `google/gemini-3.1-flash-lite`  | Premium low-cost text plus lightweight Gemini vision      |
+| `fast`      | `google/gemini-3.1-flash-lite`  | `google/gemini-3.1-flash-lite`  | `google/gemini-3.1-flash-lite`  | Fast premium Gemini calls across text, tools, and vision  |
+| `standard`  | `google/gemini-3.5-flash`       | `google/gemini-3.5-flash`       | `google/gemini-3.5-flash`       | Everyday tasks, chat, coding, vision, 1M context          |
+| `powerful`  | `google/gemini-3.1-pro-preview` | `google/gemini-3.1-pro-preview` | `google/gemini-3.1-pro-preview` | High-quality premium Gemini reasoning and multimodal work |
+| `reasoning` | `anthropic/claude-opus-4.8`     | `anthropic/claude-opus-4.8`     | `anthropic/claude-opus-4.8`     | Frontier quality and deep multi-step reasoning            |
 
 ```typescript
 ai.model("fast"); // fast text
@@ -241,7 +241,7 @@ over the same tier/capability shape.
 
 ```typescript
 ai.model("fast", { task: "coding", tools: true }); // GLM 4.7
-ai.model("standard", { task: "coding" }); // GPT-5.3 Codex
+ai.model("standard", { task: "coding" }); // GPT-5.5
 ai.model("fast", { task: "agentic", tools: true }); // GLM 4.7
 ai.model("standard", { task: "vision", vision: true }); // Gemini 3.5 Flash
 ai.model("standard", { task: "longContext" }); // Gemini 3.5 Flash
@@ -260,11 +260,11 @@ true` fails locally because DeepSeek's selected models are not vision-capable.
 
 ### Retrieval Models
 
-| Slot              | Voyage Default          | Gemini Default               | Use When                |
-| ----------------- | ----------------------- | ---------------------------- | ----------------------- |
-| `embed`           | `voyage-3`              | `gemini-embedding-2-preview` | Text embeddings         |
-| `multimodalEmbed` | `voyage-multimodal-3.5` | `gemini-embedding-2-preview` | Text + image embeddings |
-| `rerank`          | `rerank-2.5`            | n/a                          | Search result reranking |
+| Slot              | Voyage Default          | Gemini Default       | Use When                |
+| ----------------- | ----------------------- | -------------------- | ----------------------- |
+| `embed`           | `voyage-4`              | `gemini-embedding-2` | Text embeddings         |
+| `multimodalEmbed` | `voyage-multimodal-3.5` | `gemini-embedding-2` | Text + image embeddings |
+| `rerank`          | `rerank-2.5`            | n/a                  | Search result reranking |
 
 OpenRouter embedding defaults are also available through the same slots:
 `openai/text-embedding-3-small` for text and
@@ -380,7 +380,7 @@ const reranker = ai.rerankModel();
 Some frameworks accept config objects instead of AI SDK models:
 
 ```typescript
-const model = ai.modelConfig("deepseek/deepseek-v3.2", {
+const model = ai.modelConfig("deepseek/deepseek-v4-pro", {
   provider: "openrouter",
   agent: "materials-agent",
 });
@@ -409,7 +409,7 @@ For OpenRouter direct HTTP clients, request an OpenRouter model config and pass
 `user` in the request body:
 
 ```typescript
-const config = ai.modelConfig("deepseek/deepseek-v3.2", {
+const config = ai.modelConfig("deepseek/deepseek-v4-pro", {
   provider: "openrouter",
   agent: "nl-search",
 });
@@ -421,7 +421,7 @@ await fetch(`${config.baseURL}/chat/completions`, {
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    model: "deepseek/deepseek-v3.2",
+    model: "deepseek/deepseek-v4-pro",
     messages,
     user: config.user,
   }),
@@ -444,11 +444,11 @@ Route through OpenRouter or direct providers when needed:
 ```typescript
 ai.model("standard", { provider: "openrouter" });
 ai.model("standard", { provider: "openrouter", openRouterVariant: "exacto" });
-ai.modelById("openai/gpt-5.4", { provider: "openrouter", openRouterVariant: "nitro" });
+ai.modelById("openai/gpt-5.5", { provider: "openrouter", openRouterVariant: "nitro" });
 ai.model("standard", { free: true }); // always provider: "openrouter"
 ai.modelById("claude-sonnet-4-6", { provider: "anthropic" });
 ai.modelById("x-ai/grok-4.3", { provider: "xai" });
-ai.modelById("moonshotai/kimi-k2.6", { provider: "moonshotai" });
+ai.modelById("moonshotai/kimi-k2.7-code", { provider: "moonshotai" });
 ```
 
 Constants use normalized package IDs. `createAI()` translates known provider
@@ -495,23 +495,25 @@ import {
 } from "@howells/ai";
 
 // Anthropic
+ANTHROPIC_MODELS.CLAUDE_OPUS_4_8; // "anthropic/claude-opus-4.8"
+ANTHROPIC_MODELS.CLAUDE_FABLE_5; // "anthropic/claude-fable-5"
 ANTHROPIC_MODELS.CLAUDE_OPUS_4_7; // "anthropic/claude-opus-4.7"
 ANTHROPIC_MODELS.CLAUDE_OPUS_4_6; // "anthropic/claude-opus-4.6"
 ANTHROPIC_MODELS.CLAUDE_SONNET_4_6; // "anthropic/claude-sonnet-4.6"
 
 // DeepSeek
-DEEPSEEK_MODELS.DEEPSEEK_V3_2; // "deepseek/deepseek-v3.2"
+DEEPSEEK_MODELS.DEEPSEEK_V4_PRO; // "deepseek/deepseek-v4-pro"
 DEEPSEEK_MODELS.DEEPSEEK_V4_FLASH; // "deepseek/deepseek-v4-flash"
 
 // GLM / Z.ai
-GLM_MODELS.GLM_5; // "z-ai/glm-5"
+GLM_MODELS.GLM_5_2; // "z-ai/glm-5.2"
 GLM_MODELS.GLM_5V_TURBO; // "z-ai/glm-5v-turbo"
 GLM_MODELS.GLM_4_7; // "z-ai/glm-4.7"
 GLM_MODELS.GLM_4_7_FLASH; // "z-ai/glm-4.7-flash"
 GLM_MODELS.GLM_4_6V; // "z-ai/glm-4.6v"
 
 // Kimi / Moonshot
-KIMI_MODELS.KIMI_K2_6; // "moonshotai/kimi-k2.6"
+KIMI_MODELS.KIMI_K2_7_CODE; // "moonshotai/kimi-k2.7-code"
 KIMI_MODELS.KIMI_K2_5; // "moonshotai/kimi-k2.5"
 KIMI_MODELS.KIMI_K2_THINKING; // "moonshotai/kimi-k2-thinking"
 
@@ -522,52 +524,50 @@ GROQ_MODELS.GPT_OSS_20B; // "openai/gpt-oss-20b"
 // Google language models
 GOOGLE_MODELS.GEMINI_3_5_FLASH; // "google/gemini-3.5-flash"
 GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW; // "google/gemini-3.1-pro-preview"
-GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW;
+GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE; // "google/gemini-3.1-flash-lite"
 
 // OpenAI
 OPENAI_MODELS.GPT_5_4_NANO; // "openai/gpt-5.4-nano"
 OPENAI_MODELS.GPT_5_4_MINI; // "openai/gpt-5.4-mini"
-OPENAI_MODELS.GPT_5_4; // "openai/gpt-5.4"
-OPENAI_MODELS.GPT_5_3_CODEX; // "openai/gpt-5.3-codex"
+OPENAI_MODELS.GPT_5_5; // "openai/gpt-5.5"
 
 // OpenRouter-managed
 OPENROUTER_MODELS.FREE; // "openrouter/free"
 
 // Qwen
-QWEN_MODELS.QWEN_3_235B_A22B_2507; // "qwen/qwen3-235b-a22b-2507"
+QWEN_MODELS.QWEN_3_VL_235B_A22B; // "qwen/qwen3-vl-235b-a22b-instruct"
 QWEN_MODELS.QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE;
-QWEN_MODELS.QWEN_3_6_PLUS; // "qwen/qwen3.6-plus"
+QWEN_MODELS.QWEN_3_7_PLUS; // "qwen/qwen3.7-plus"
 
 // xAI
 XAI_MODELS.GROK_4_3; // "x-ai/grok-4.3"
 
 // Gateway/OpenRouter-only services
-MINIMAX_MODELS.MINIMAX_M2_7; // "minimax/minimax-m2.7"
+MINIMAX_MODELS.MINIMAX_M3; // "minimax/minimax-m3"
 MINIMAX_MODELS.MINIMAX_M2_5; // "minimax/minimax-m2.5"
-STEPFUN_MODELS.STEP_3_5_FLASH; // "stepfun/step-3.5-flash"
-XIAOMI_MODELS.MIMO_V2_FLASH; // "xiaomi/mimo-v2-flash"
+STEPFUN_MODELS.STEP_3_7_FLASH; // "stepfun/step-3.7-flash"
+XIAOMI_MODELS.MIMO_V2_5; // "xiaomi/mimo-v2.5"
 INCEPTION_MODELS.MERCURY_2; // "inception/mercury-2"
-NEX_AGI_MODELS.DEEPSEEK_V3_1_NEX_N1; // "nex-agi/deepseek-v3.1-nex-n1"
+NEX_AGI_MODELS.NEX_N2_PRO; // "nex-agi/nex-n2-pro"
 
 // Provider-pinned task matrix
 PROVIDER_TASK_DEFAULT_MODELS.openai?.coding?.standard?.text;
-// "openai/gpt-5.3-codex"
+// "openai/gpt-5.5"
 
-ai.modelCapabilities({ modelId: "deepseek/deepseek-v3.2" });
+ai.modelCapabilities({ modelId: "deepseek/deepseek-v4-pro" });
 // { structured: true, tools: true, vision: false }
 
 // Voyage
-VOYAGE_MODELS.VOYAGE_3; // "voyage-3"
-VOYAGE_MODELS.VOYAGE_3_LITE; // "voyage-3-lite"
-VOYAGE_MODELS.VOYAGE_3_5; // "voyage-3.5"
-VOYAGE_MODELS.VOYAGE_3_5_LITE; // "voyage-3.5-lite"
-VOYAGE_MODELS.MULTIMODAL_3; // "voyage-multimodal-3"
+VOYAGE_MODELS.VOYAGE_4; // "voyage-4"
+VOYAGE_MODELS.VOYAGE_4_LARGE; // "voyage-4-large"
+VOYAGE_MODELS.VOYAGE_4_LITE; // "voyage-4-lite"
+VOYAGE_MODELS.VOYAGE_4_NANO; // "voyage-4-nano"
 VOYAGE_MODELS.MULTIMODAL_3_5; // "voyage-multimodal-3.5"
 VOYAGE_MODELS.RERANK_2_5; // "rerank-2.5"
 VOYAGE_MODELS.RERANK_2_5_LITE; // "rerank-2.5-lite"
 
 // Google
-GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2; // "gemini-embedding-2-preview"
+GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2; // "gemini-embedding-2"
 GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_1; // "gemini-embedding-001"
 
 // OpenRouter embeddings

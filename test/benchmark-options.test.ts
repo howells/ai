@@ -72,7 +72,7 @@ describe("benchmark advanced options", () => {
   test("normalizes reasoning, cache, search, healing, cost, and logprobs knobs", () => {
     const options = buildBenchmarkGenerationOptions({
       maxTokens: 100,
-      modelId: "openai/gpt-5.4",
+      modelId: "openai/gpt-5.5",
       options: {
         ...DEFAULT_ADVANCED_OPTIONS,
         cache: "ephemeral-1h",

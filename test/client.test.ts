@@ -197,11 +197,11 @@ describe("createAI", () => {
     const ai = createAI({ gatewayKey: "gateway-key" });
 
     expect(() =>
-      ai.modelById(QWEN_MODELS.QWEN_3_235B_A22B_2507, {
+      ai.modelById(QWEN_MODELS.QWEN_3_VL_235B_A22B, {
         provider: "gateway",
       }),
     ).toThrow(
-      'Model "qwen/qwen3-235b-a22b-2507" is not available through provider "gateway". Use OpenRouter or choose a Gateway-supported model.',
+      'Model "qwen/qwen3-vl-235b-a22b-instruct" is not available through provider "gateway". Use OpenRouter or choose a Gateway-supported model.',
     );
     expect(() =>
       ai.modelConfig(QWEN_MODELS.QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE, {
@@ -238,9 +238,9 @@ describe("createAI", () => {
       ["nano", "openrouter", "openai/gpt-5.4-nano"],
       ["nano", "anthropic", "claude-haiku-4-5-20251001"],
       ["nano", "openai", "gpt-5.4-nano"],
-      ["nano", "google", "gemini-3.1-flash-lite-preview"],
-      ["fast", "gateway", "google/gemini-3.1-flash-lite-preview"],
-      ["fast", "openrouter", "google/gemini-3.1-flash-lite-preview"],
+      ["nano", "google", "gemini-3.1-flash-lite"],
+      ["fast", "gateway", "google/gemini-3.1-flash-lite"],
+      ["fast", "openrouter", "google/gemini-3.1-flash-lite"],
       ["fast", "anthropic", "claude-haiku-4-5-20251001"],
       ["fast", "openai", "gpt-5.4-nano"],
       ["fast", "google", "gemini-3.5-flash"],
@@ -252,19 +252,19 @@ describe("createAI", () => {
       ["standard", "google", "gemini-3.5-flash"],
       ["powerful", "gateway", "google/gemini-3.1-pro-preview"],
       ["powerful", "openrouter", "google/gemini-3.1-pro-preview"],
-      ["powerful", "anthropic", "claude-opus-4-7"],
-      ["powerful", "openai", "gpt-5.4"],
+      ["powerful", "anthropic", "claude-opus-4-8"],
+      ["powerful", "openai", "gpt-5.5"],
       ["powerful", "google", "gemini-3.1-pro-preview"],
-      ["reasoning", "gateway", "anthropic/claude-opus-4.7"],
-      ["reasoning", "openrouter", "anthropic/claude-opus-4.7"],
-      ["reasoning", "anthropic", "claude-opus-4-7"],
-      ["reasoning", "openai", "gpt-5.4"],
+      ["reasoning", "gateway", "anthropic/claude-opus-4.8"],
+      ["reasoning", "openrouter", "anthropic/claude-opus-4.8"],
+      ["reasoning", "anthropic", "claude-opus-4-8"],
+      ["reasoning", "openai", "gpt-5.5"],
       ["reasoning", "google", "gemini-3.1-pro-preview"],
-      ["fast", "deepseek", "deepseek-v3.2"],
+      ["fast", "deepseek", "deepseek-v4-pro"],
       ["standard", "xai", "grok-4.3"],
-      ["standard", "qwen", "qwen3.6-plus"],
+      ["standard", "qwen", "qwen3.7-plus"],
       ["standard", "zai", "glm-4.7"],
-      ["standard", "moonshotai", "kimi-k2.6"],
+      ["standard", "moonshotai", "kimi-k2.7-code"],
       ["standard", "groq", "openai/gpt-oss-120b"],
     ] as const satisfies readonly [ModelTier, ProviderRoute, string][];
 
@@ -280,15 +280,11 @@ describe("createAI", () => {
       openRouterKey: "openrouter-key",
     });
 
-    expect(modelIdOf(ai.model("fast", { tools: true }))).toBe(
-      "google/gemini-3.1-flash-lite-preview",
-    );
+    expect(modelIdOf(ai.model("fast", { tools: true }))).toBe("google/gemini-3.1-flash-lite");
     expect(modelIdOf(ai.model("fast", { provider: "openrouter", tools: true }))).toBe(
-      "google/gemini-3.1-flash-lite-preview",
+      "google/gemini-3.1-flash-lite",
     );
-    expect(modelIdOf(ai.model("fast", { vision: true }))).toBe(
-      "google/gemini-3.1-flash-lite-preview",
-    );
+    expect(modelIdOf(ai.model("fast", { vision: true }))).toBe("google/gemini-3.1-flash-lite");
     expect(
       modelIdOf(
         ai.model("fast", {
@@ -297,7 +293,7 @@ describe("createAI", () => {
           vision: true,
         }),
       ),
-    ).toBe("google/gemini-3.1-flash-lite-preview");
+    ).toBe("google/gemini-3.1-flash-lite");
     expect(modelIdOf(ai.model("standard", { provider: "google", vision: true }))).toBe(
       "gemini-3.5-flash",
     );
@@ -349,7 +345,7 @@ describe("createAI", () => {
           tools: true,
         }),
       ),
-    ).toBe(OPENAI_MODELS.GPT_5_3_CODEX);
+    ).toBe(OPENAI_MODELS.GPT_5_5);
     expect(
       modelIdOf(
         ai.model("standard", {
@@ -377,7 +373,7 @@ describe("createAI", () => {
           tools: true,
         }),
       ),
-    ).toBe("gpt-5.3-codex");
+    ).toBe("gpt-5.5");
     expect(
       modelIdOf(
         ai.model("standard", {
@@ -394,7 +390,7 @@ describe("createAI", () => {
           vision: true,
         }),
       ),
-    ).toBe("qwen3.6-plus");
+    ).toBe("qwen3.7-plus");
     expect(
       modelIdOf(
         ai.model("reasoning", {
@@ -403,7 +399,7 @@ describe("createAI", () => {
           vision: true,
         }),
       ),
-    ).toBe("kimi-k2.6");
+    ).toBe("kimi-k2.7-code");
   });
 
   test("rejects incompatible capability requests before calling providers", () => {
@@ -413,30 +409,30 @@ describe("createAI", () => {
     });
 
     expect(() => ai.model("nano", { provider: "deepseek", vision: true })).toThrow(
-      'Model "deepseek/deepseek-v3.2" does not support vision input. Choose a vision-capable model or remove vision: true.',
+      'Model "deepseek/deepseek-v4-pro" does not support vision input. Choose a vision-capable model or remove vision: true.',
     );
     expect(() =>
-      ai.modelById("deepseek/deepseek-v3.2", {
+      ai.modelById("deepseek/deepseek-v4-pro", {
         provider: "openrouter",
         vision: true,
       }),
     ).toThrow(
-      'Model "deepseek/deepseek-v3.2" does not support vision input. Choose a vision-capable model or remove vision: true.',
+      'Model "deepseek/deepseek-v4-pro" does not support vision input. Choose a vision-capable model or remove vision: true.',
     );
     expect(() =>
-      ai.modelConfig("deepseek/deepseek-v3.2", {
+      ai.modelConfig("deepseek/deepseek-v4-pro", {
         provider: "openrouter",
         vision: true,
       }),
     ).toThrow(
-      'Model "deepseek/deepseek-v3.2" does not support vision input. Choose a vision-capable model or remove vision: true.',
+      'Model "deepseek/deepseek-v4-pro" does not support vision input. Choose a vision-capable model or remove vision: true.',
     );
   });
 
   test("reports actual capabilities for known model IDs", () => {
     const ai = createAI();
 
-    expect(ai.modelCapabilities({ modelId: "deepseek/deepseek-v3.2" })).toEqual({
+    expect(ai.modelCapabilities({ modelId: "deepseek/deepseek-v4-pro" })).toEqual({
       structured: true,
       tools: true,
       vision: false,
@@ -503,35 +499,35 @@ describe("createAI", () => {
     ).toBe("google/gemini-3.5-flash:nitro");
     expect(
       modelIdOf(
-        ai.modelById("moonshotai/kimi-k2.6", {
+        ai.modelById("moonshotai/kimi-k2.7-code", {
           openRouterVariant: "exacto",
           provider: "openrouter",
         }),
       ),
-    ).toBe("moonshotai/kimi-k2.6:exacto");
+    ).toBe("moonshotai/kimi-k2.7-code:exacto");
     expect(
       modelIdOf(
-        ai.modelById("moonshotai/kimi-k2.6:nitro", {
+        ai.modelById("moonshotai/kimi-k2.7-code:nitro", {
           openRouterVariant: "floor",
           provider: "openrouter",
         }),
       ),
-    ).toBe("moonshotai/kimi-k2.6:floor");
+    ).toBe("moonshotai/kimi-k2.7-code:floor");
     expect(
-      ai.modelConfig("moonshotai/kimi-k2.6", {
+      ai.modelConfig("moonshotai/kimi-k2.7-code", {
         openRouterVariant: "exacto",
         provider: "openrouter",
       }),
     ).toMatchObject({
-      id: "moonshotai/kimi-k2.6:exacto",
+      id: "moonshotai/kimi-k2.7-code:exacto",
     });
     expect(() =>
-      ai.modelById("openai/gpt-5.4", {
+      ai.modelById("openai/gpt-5.5", {
         openRouterVariant: "nitro",
         provider: "openai",
       }),
     ).toThrow(/only supported with provider "openrouter"/);
-    expect(() => ai.modelById("openai/gpt-5.4:nitro")).toThrow(
+    expect(() => ai.modelById("openai/gpt-5.5:nitro")).toThrow(
       /only supported with provider "openrouter"/,
     );
   });
@@ -548,7 +544,7 @@ describe("createAI", () => {
     const ai = createAI({ googleKey: "google-key" });
 
     expect(modelIdOf(ai.embeddingModel({ input: "image", provider: "gemini" }))).toBe(
-      "gemini-embedding-2-preview",
+      "gemini-embedding-2",
     );
   });
 
@@ -558,10 +554,10 @@ describe("createAI", () => {
     const openrouter = createAI({ openRouterKey: "openrouter-key" });
 
     expect(modelIdOf(voyage.embeddingModel({ input: "text", provider: "voyage" }))).toBe(
-      "voyage-3",
+      "voyage-4",
     );
     expect(modelIdOf(gemini.embeddingModel({ input: "text", provider: "gemini" }))).toBe(
-      "gemini-embedding-2-preview",
+      "gemini-embedding-2",
     );
     expect(modelIdOf(openrouter.embeddingModel({ input: "text", provider: "openrouter" }))).toBe(
       "openai/text-embedding-3-small",
@@ -592,7 +588,7 @@ describe("createAI", () => {
           voyage: "voyage-3-lite",
         },
         multimodalEmbed: {
-          gemini: "gemini-embedding-2-preview",
+          gemini: "gemini-embedding-2",
           openrouter: "google/gemini-embedding-001",
           voyage: "voyage-multimodal-3",
         },
@@ -610,7 +606,7 @@ describe("createAI", () => {
       "voyage-multimodal-3",
     );
     expect(modelIdOf(ai.embeddingModel({ input: "image", provider: "gemini" }))).toBe(
-      "gemini-embedding-2-preview",
+      "gemini-embedding-2",
     );
     expect(modelIdOf(ai.embeddingModel({ input: "image", provider: "openrouter" }))).toBe(
       "google/gemini-embedding-001",
@@ -647,10 +643,10 @@ describe("createAI", () => {
       createAI({
         moonshotKey: "moonshot-key",
         openRouterKey: "openrouter-key",
-      }).modelConfig(KIMI_MODELS.KIMI_K2_6, { provider: "openrouter" }),
+      }).modelConfig(KIMI_MODELS.KIMI_K2_7_CODE, { provider: "openrouter" }),
     ).toMatchObject({
       apiKey: "openrouter-key",
-      id: "moonshotai/kimi-k2.6",
+      id: "moonshotai/kimi-k2.7-code",
       provider: "openrouter",
       service: "moonshotai",
       serviceApiKey: "moonshot-key",

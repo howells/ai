@@ -64,20 +64,24 @@ export const LANGUAGE_MODEL_TASKS = [
 
 /** Supported Anthropic model IDs for language model tiers. */
 export const ANTHROPIC_MODELS = {
+  /** Most capable Claude model — premium tier, always-on thinking, for the hardest work. */
+  CLAUDE_FABLE_5: "anthropic/claude-fable-5",
   /** Fast Claude model for low-cost direct Anthropic routing. */
   CLAUDE_HAIKU_4_5: "anthropic/claude-haiku-4.5",
-  /** Frontier reasoning model for the reasoning slot. */
+  /** Prior-generation frontier reasoning model. */
   CLAUDE_OPUS_4_6: "anthropic/claude-opus-4.6",
-  /** Highest-quality Claude model in the RouterBase quality tier. */
+  /** Previous-generation Opus reasoning model. */
   CLAUDE_OPUS_4_7: "anthropic/claude-opus-4.7",
+  /** Current flagship Opus model — highest-quality reasoning default. */
+  CLAUDE_OPUS_4_8: "anthropic/claude-opus-4.8",
   /** Complex reasoning and coding model for the powerful slot. */
   CLAUDE_SONNET_4_6: "anthropic/claude-sonnet-4.6",
 } as const;
 
 /** Supported DeepSeek model IDs for language model tiers. */
 export const DEEPSEEK_MODELS = {
-  /** Fast, low-cost model with strong tool-calling value. */
-  DEEPSEEK_V3_2: "deepseek/deepseek-v3.2",
+  /** Current DeepSeek flagship for general, coding, and chat workloads. */
+  DEEPSEEK_V4_PRO: "deepseek/deepseek-v4-pro",
   /** Cheap million-token model for long-context/bulk work. */
   DEEPSEEK_V4_FLASH: "deepseek/deepseek-v4-flash",
 } as const;
@@ -91,7 +95,7 @@ export const GLM_MODELS = {
   /** Strong cheap 30B-class GLM option for bulk workloads. */
   GLM_4_7_FLASH: "z-ai/glm-4.7-flash",
   /** Current GLM flagship for coding and agent workflows. */
-  GLM_5: "z-ai/glm-5",
+  GLM_5_2: "z-ai/glm-5.2",
   /** Native multimodal GLM agent model. */
   GLM_5V_TURBO: "z-ai/glm-5v-turbo",
 } as const;
@@ -99,7 +103,7 @@ export const GLM_MODELS = {
 /** Supported Google model IDs for language model tiers. */
 export const GOOGLE_MODELS = {
   /** Latest lightweight Gemini model for fastest vision/tool routing. */
-  GEMINI_3_1_FLASH_LITE_PREVIEW: "google/gemini-3.1-flash-lite-preview",
+  GEMINI_3_1_FLASH_LITE: "google/gemini-3.1-flash-lite",
   /** Latest high-capability Gemini model for powerful/reasoning routing. */
   GEMINI_3_1_PRO_PREVIEW: "google/gemini-3.1-pro-preview",
   /** Latest high-quality multimodal default with strong quality/cost balance. */
@@ -110,10 +114,8 @@ export const GOOGLE_MODELS = {
 
 /** Supported OpenAI model IDs for language model tier overrides. */
 export const OPENAI_MODELS = {
-  /** Best OpenAI coding-specialist comparison point. */
-  GPT_5_3_CODEX: "openai/gpt-5.3-codex",
-  /** Current flagship OpenAI model for powerful direct routing. */
-  GPT_5_4: "openai/gpt-5.4",
+  /** Current flagship OpenAI model for powerful routing and coding (Codex runs on it). */
+  GPT_5_5: "openai/gpt-5.5",
   /** Current small OpenAI model for fast/default direct routing. */
   GPT_5_4_MINI: "openai/gpt-5.4-mini",
   /** Current low-cost OpenAI model for nano-style defaults. */
@@ -138,18 +140,18 @@ export const XAI_MODELS = {
 export const KIMI_MODELS = {
   /** Stronger value Kimi model for coding and vision comparisons. */
   KIMI_K2_5: "moonshotai/kimi-k2.5",
-  /** Current Kimi model for long-horizon coding and agent orchestration. */
-  KIMI_K2_6: "moonshotai/kimi-k2.6",
+  /** Current Kimi coding flagship for long-horizon coding and agent orchestration. */
+  KIMI_K2_7_CODE: "moonshotai/kimi-k2.7-code",
   /** Reasoning-optimized Kimi model for persistent tool-use workflows. */
   KIMI_K2_THINKING: "moonshotai/kimi-k2-thinking",
 } as const;
 
 /** Supported Qwen model IDs for language model tier overrides. */
 export const QWEN_MODELS = {
-  /** Best ultra-cheap Qwen text/tool option. */
-  QWEN_3_235B_A22B_2507: "qwen/qwen3-235b-a22b-2507",
-  /** High-quality Qwen vision/tool model. */
-  QWEN_3_6_PLUS: "qwen/qwen3.6-plus",
+  /** Open-weight Qwen MoE vision/reasoning model for bulk/chat workloads. */
+  QWEN_3_VL_235B_A22B: "qwen/qwen3-vl-235b-a22b-instruct",
+  /** Current high-quality Qwen vision/reasoning flagship. */
+  QWEN_3_7_PLUS: "qwen/qwen3.7-plus",
   /** Best free tool/json model for OpenRouter experiments. */
   QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE: "qwen/qwen3-next-80b-a3b-instruct:free",
 } as const;
@@ -164,22 +166,22 @@ export const OPENROUTER_MODELS = {
 export const MINIMAX_MODELS = {
   /** Faster value pick and RouterBase coding shelf candidate. */
   MINIMAX_M2_5: "minimax/minimax-m2.5",
-  /** High-quality, high-value general model. */
-  MINIMAX_M2_7: "minimax/minimax-m2.7",
+  /** Current MiniMax flagship — high-quality multimodal general model. */
+  MINIMAX_M3: "minimax/minimax-m3",
 } as const;
 
 /** Supported StepFun model IDs for Gateway/OpenRouter routing. */
 export const STEPFUN_MODELS = {
   /** OpenRouter-only high-value flash model. */
-  STEP_3_5_FLASH: "stepfun/step-3.5-flash",
+  STEP_3_7_FLASH: "stepfun/step-3.7-flash",
 } as const;
 
 /** Supported Xiaomi model IDs for Gateway/OpenRouter routing. */
 export const XIAOMI_MODELS = {
-  /** Very cheap, fast structured/tool model. */
-  MIMO_V2_FLASH: "xiaomi/mimo-v2-flash",
-  /** Long-context high-quality Xiaomi model. */
-  MIMO_V2_PRO: "xiaomi/mimo-v2-pro",
+  /** Cheap, fast native-multimodal Xiaomi model. */
+  MIMO_V2_5: "xiaomi/mimo-v2.5",
+  /** Long-context high-quality Xiaomi flagship. */
+  MIMO_V2_5_PRO: "xiaomi/mimo-v2.5-pro",
 } as const;
 
 /** Supported Inception Labs model IDs for extreme-throughput routing. */
@@ -190,8 +192,8 @@ export const INCEPTION_MODELS = {
 
 /** Supported Nex AGI model IDs for OpenRouter-only value routing. */
 export const NEX_AGI_MODELS = {
-  /** OpenRouter-only DeepSeek derivative from the cheap-quality shelf. */
-  DEEPSEEK_V3_1_NEX_N1: "nex-agi/deepseek-v3.1-nex-n1",
+  /** OpenRouter-only agentic MoE model for coding and tool-use workflows. */
+  NEX_N2_PRO: "nex-agi/nex-n2-pro",
 } as const;
 
 // ── Ollama local model constants ──────────────────────────────────────
@@ -214,6 +216,18 @@ export const OLLAMA_MODELS = {
 
 /** Canonical language model catalogue exposed by @howells/ai. */
 export const LANGUAGE_MODEL_CATALOG = [
+  {
+    id: ANTHROPIC_MODELS.CLAUDE_OPUS_4_8,
+    name: "Claude Opus 4.8",
+    service: "anthropic",
+    tasks: ["general", "reasoning", "coding", "agentic", "vision"],
+  },
+  {
+    id: ANTHROPIC_MODELS.CLAUDE_FABLE_5,
+    name: "Claude Fable 5",
+    service: "anthropic",
+    tasks: ["general", "reasoning", "coding", "agentic", "vision"],
+  },
   {
     id: ANTHROPIC_MODELS.CLAUDE_OPUS_4_7,
     name: "Claude Opus 4.7",
@@ -239,8 +253,8 @@ export const LANGUAGE_MODEL_CATALOG = [
     tasks: ["general", "chat"],
   },
   {
-    id: DEEPSEEK_MODELS.DEEPSEEK_V3_2,
-    name: "DeepSeek V3.2",
+    id: DEEPSEEK_MODELS.DEEPSEEK_V4_PRO,
+    name: "DeepSeek V4 Pro",
     service: "deepseek",
     tasks: ["general", "coding", "bulk", "chat"],
   },
@@ -251,8 +265,8 @@ export const LANGUAGE_MODEL_CATALOG = [
     tasks: ["bulk", "longContext"],
   },
   {
-    id: GLM_MODELS.GLM_5,
-    name: "GLM 5",
+    id: GLM_MODELS.GLM_5_2,
+    name: "GLM 5.2",
     service: "zai",
     tasks: ["coding", "agentic"],
   },
@@ -299,8 +313,8 @@ export const LANGUAGE_MODEL_CATALOG = [
     tasks: ["general", "reasoning", "longContext", "vision"],
   },
   {
-    id: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
-    name: "Gemini 3.1 Flash Lite Preview",
+    id: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE,
+    name: "Gemini 3.1 Flash Lite",
     service: "google",
     tasks: ["bulk", "vision"],
   },
@@ -311,8 +325,8 @@ export const LANGUAGE_MODEL_CATALOG = [
     tasks: ["bulk", "chat"],
   },
   {
-    id: KIMI_MODELS.KIMI_K2_6,
-    name: "Kimi K2.6",
+    id: KIMI_MODELS.KIMI_K2_7_CODE,
+    name: "Kimi K2.7 Code",
     service: "moonshotai",
     tasks: ["coding", "agentic", "longContext", "vision"],
   },
@@ -329,8 +343,8 @@ export const LANGUAGE_MODEL_CATALOG = [
     tasks: ["reasoning", "agentic", "coding"],
   },
   {
-    id: MINIMAX_MODELS.MINIMAX_M2_7,
-    name: "MiniMax M2.7",
+    id: MINIMAX_MODELS.MINIMAX_M3,
+    name: "MiniMax M3",
     service: "minimax",
     tasks: ["general", "agentic", "longContext"],
   },
@@ -341,8 +355,8 @@ export const LANGUAGE_MODEL_CATALOG = [
     tasks: ["coding", "bulk", "chat"],
   },
   {
-    id: NEX_AGI_MODELS.DEEPSEEK_V3_1_NEX_N1,
-    name: "DeepSeek V3.1 Nex N1",
+    id: NEX_AGI_MODELS.NEX_N2_PRO,
+    name: "Nex N2 Pro",
     service: "nexagi",
     tasks: ["coding", "bulk"],
   },
@@ -359,16 +373,10 @@ export const LANGUAGE_MODEL_CATALOG = [
     tasks: ["general", "chat"],
   },
   {
-    id: OPENAI_MODELS.GPT_5_4,
-    name: "GPT-5.4",
+    id: OPENAI_MODELS.GPT_5_5,
+    name: "GPT-5.5",
     service: "openai",
-    tasks: ["general", "reasoning", "coding", "creative", "longContext"],
-  },
-  {
-    id: OPENAI_MODELS.GPT_5_3_CODEX,
-    name: "GPT-5.3 Codex",
-    service: "openai",
-    tasks: ["coding", "agentic"],
+    tasks: ["general", "reasoning", "coding", "agentic", "creative", "longContext"],
   },
   {
     id: GROQ_MODELS.GPT_OSS_120B,
@@ -394,8 +402,8 @@ export const LANGUAGE_MODEL_CATALOG = [
     tasks: ["general", "reasoning", "agentic", "longContext", "vision"],
   },
   {
-    id: QWEN_MODELS.QWEN_3_235B_A22B_2507,
-    name: "Qwen3 235B A22B Instruct 2507",
+    id: QWEN_MODELS.QWEN_3_VL_235B_A22B,
+    name: "Qwen3-VL 235B A22B Instruct",
     service: "qwen",
     tasks: ["bulk", "chat"],
   },
@@ -406,26 +414,26 @@ export const LANGUAGE_MODEL_CATALOG = [
     tasks: ["bulk", "chat"],
   },
   {
-    id: QWEN_MODELS.QWEN_3_6_PLUS,
-    name: "Qwen3.6 Plus",
+    id: QWEN_MODELS.QWEN_3_7_PLUS,
+    name: "Qwen3.7 Plus",
     service: "qwen",
     tasks: ["vision", "reasoning", "longContext"],
   },
   {
-    id: STEPFUN_MODELS.STEP_3_5_FLASH,
-    name: "Step 3.5 Flash",
+    id: STEPFUN_MODELS.STEP_3_7_FLASH,
+    name: "Step 3.7 Flash",
     service: "stepfun",
     tasks: ["bulk", "chat"],
   },
   {
-    id: XIAOMI_MODELS.MIMO_V2_FLASH,
-    name: "MiMo-V2 Flash",
+    id: XIAOMI_MODELS.MIMO_V2_5,
+    name: "MiMo-V2.5",
     service: "xiaomi",
     tasks: ["bulk", "chat"],
   },
   {
-    id: XIAOMI_MODELS.MIMO_V2_PRO,
-    name: "MiMo-V2 Pro",
+    id: XIAOMI_MODELS.MIMO_V2_5_PRO,
+    name: "MiMo-V2.5 Pro",
     service: "xiaomi",
     tasks: ["general", "longContext"],
   },
@@ -476,6 +484,14 @@ export const VOYAGE_MODELS = {
   VOYAGE_3_5_LITE: "voyage-3.5-lite",
   /** 512d text embeddings — fast + cheap, good for high-volume. */
   VOYAGE_3_LITE: "voyage-3-lite",
+  /** Current default text embeddings — Voyage 4 family, shared vector space. */
+  VOYAGE_4: "voyage-4",
+  /** Best-quality text embeddings — Voyage 4 MoE flagship. */
+  VOYAGE_4_LARGE: "voyage-4-large",
+  /** Fast + cheap Voyage 4 text embeddings. */
+  VOYAGE_4_LITE: "voyage-4-lite",
+  /** Smallest Voyage 4 text embeddings (open weights). */
+  VOYAGE_4_NANO: "voyage-4-nano",
 } as const;
 
 // ── Google embedding model constants ──────────────────────────────────
@@ -484,8 +500,8 @@ export const VOYAGE_MODELS = {
 export const GOOGLE_EMBED_MODELS = {
   /** Gemini Embedding 001 — stable release. */
   GEMINI_EMBEDDING_1: "gemini-embedding-001",
-  /** Gemini Embedding 2 preview — Google's latest embedding model. */
-  GEMINI_EMBEDDING_2: "gemini-embedding-2-preview",
+  /** Gemini Embedding 2 — Google's latest embedding model (GA). */
+  GEMINI_EMBEDDING_2: "gemini-embedding-2",
 } as const;
 
 // ── OpenRouter embedding model constants ──────────────────────────────
@@ -510,14 +526,14 @@ export const DEFAULT_MODELS: ModelMatrix = {
   nano: {
     text: OPENAI_MODELS.GPT_5_4_NANO, // premium low-cost default
     tools: OPENAI_MODELS.GPT_5_4_NANO,
-    vision: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
-    visionTools: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
+    vision: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE,
+    visionTools: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE,
   },
   fast: {
-    text: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW, // recognizable fast premium default
-    tools: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
-    vision: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
-    visionTools: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
+    text: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE, // recognizable fast premium default
+    tools: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE,
+    vision: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE,
+    visionTools: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE,
   },
   standard: {
     text: GOOGLE_MODELS.GEMINI_3_5_FLASH, // high-quality multimodal default
@@ -532,10 +548,10 @@ export const DEFAULT_MODELS: ModelMatrix = {
     visionTools: GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW,
   },
   reasoning: {
-    text: ANTHROPIC_MODELS.CLAUDE_OPUS_4_7, // highest RouterBase quality tier
-    tools: ANTHROPIC_MODELS.CLAUDE_OPUS_4_7,
-    vision: ANTHROPIC_MODELS.CLAUDE_OPUS_4_7,
-    visionTools: ANTHROPIC_MODELS.CLAUDE_OPUS_4_7,
+    text: ANTHROPIC_MODELS.CLAUDE_OPUS_4_8, // current flagship Opus reasoning tier
+    tools: ANTHROPIC_MODELS.CLAUDE_OPUS_4_8,
+    vision: ANTHROPIC_MODELS.CLAUDE_OPUS_4_8,
+    visionTools: ANTHROPIC_MODELS.CLAUDE_OPUS_4_8,
   },
 
   // ── Retrieval ────────────────────────────────────────────────────────
@@ -543,7 +559,7 @@ export const DEFAULT_MODELS: ModelMatrix = {
     gemini: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2,
     ollama: OLLAMA_MODELS.QWEN_3_EMBEDDING_8B, // 4096d local text embeddings,
     openrouter: OPENROUTER_EMBED_MODELS.OPENAI_TEXT_EMBEDDING_3_SMALL,
-    voyage: VOYAGE_MODELS.VOYAGE_3, // 1024d text embeddings,
+    voyage: VOYAGE_MODELS.VOYAGE_4, // Voyage 4 text embeddings,
   },
   multimodalEmbed: {
     gemini: GOOGLE_EMBED_MODELS.GEMINI_EMBEDDING_2,
@@ -571,12 +587,12 @@ export const DEFAULT_TASK_MODELS: TaskModelMatrix = {
       tools: GLM_MODELS.GLM_4_7,
     },
     powerful: {
-      text: KIMI_MODELS.KIMI_K2_6,
-      tools: KIMI_MODELS.KIMI_K2_6,
+      text: KIMI_MODELS.KIMI_K2_7_CODE,
+      tools: KIMI_MODELS.KIMI_K2_7_CODE,
     },
     reasoning: {
-      text: ANTHROPIC_MODELS.CLAUDE_OPUS_4_7,
-      tools: ANTHROPIC_MODELS.CLAUDE_OPUS_4_7,
+      text: ANTHROPIC_MODELS.CLAUDE_OPUS_4_8,
+      tools: ANTHROPIC_MODELS.CLAUDE_OPUS_4_8,
     },
     standard: {
       text: GOOGLE_MODELS.GEMINI_3_5_FLASH,
@@ -599,7 +615,7 @@ export const DEFAULT_TASK_MODELS: TaskModelMatrix = {
   },
   chat: {
     fast: {
-      text: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
+      text: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE,
     },
     nano: {
       text: OPENAI_MODELS.GPT_5_4_NANO,
@@ -622,13 +638,13 @@ export const DEFAULT_TASK_MODELS: TaskModelMatrix = {
       tools: KIMI_MODELS.KIMI_K2_THINKING,
     },
     standard: {
-      text: OPENAI_MODELS.GPT_5_3_CODEX,
-      tools: OPENAI_MODELS.GPT_5_3_CODEX,
+      text: OPENAI_MODELS.GPT_5_5,
+      tools: OPENAI_MODELS.GPT_5_5,
     },
   },
   creative: {
     powerful: {
-      text: OPENAI_MODELS.GPT_5_4,
+      text: OPENAI_MODELS.GPT_5_5,
     },
     standard: {
       text: ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,
@@ -641,8 +657,8 @@ export const DEFAULT_TASK_MODELS: TaskModelMatrix = {
       tools: GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW,
     },
     reasoning: {
-      text: ANTHROPIC_MODELS.CLAUDE_OPUS_4_7,
-      tools: ANTHROPIC_MODELS.CLAUDE_OPUS_4_7,
+      text: ANTHROPIC_MODELS.CLAUDE_OPUS_4_8,
+      tools: ANTHROPIC_MODELS.CLAUDE_OPUS_4_8,
     },
     standard: {
       text: GOOGLE_MODELS.GEMINI_3_5_FLASH,
@@ -655,8 +671,8 @@ export const DEFAULT_TASK_MODELS: TaskModelMatrix = {
       tools: GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW,
     },
     reasoning: {
-      text: ANTHROPIC_MODELS.CLAUDE_OPUS_4_7,
-      tools: ANTHROPIC_MODELS.CLAUDE_OPUS_4_7,
+      text: ANTHROPIC_MODELS.CLAUDE_OPUS_4_8,
+      tools: ANTHROPIC_MODELS.CLAUDE_OPUS_4_8,
     },
     standard: {
       text: KIMI_MODELS.KIMI_K2_THINKING,
@@ -665,16 +681,16 @@ export const DEFAULT_TASK_MODELS: TaskModelMatrix = {
   },
   vision: {
     fast: {
-      vision: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
-      visionTools: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
+      vision: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE,
+      visionTools: GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE,
     },
     powerful: {
       vision: GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW,
       visionTools: GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW,
     },
     reasoning: {
-      vision: ANTHROPIC_MODELS.CLAUDE_OPUS_4_7,
-      visionTools: ANTHROPIC_MODELS.CLAUDE_OPUS_4_7,
+      vision: ANTHROPIC_MODELS.CLAUDE_OPUS_4_8,
+      visionTools: ANTHROPIC_MODELS.CLAUDE_OPUS_4_8,
     },
     standard: {
       vision: GOOGLE_MODELS.GEMINI_3_5_FLASH,
@@ -711,16 +727,16 @@ export const PROVIDER_DEFAULT_MODELS: ProviderLanguageModelMatrix = {
   anthropic: {
     fast: everyVariant(ANTHROPIC_MODELS.CLAUDE_HAIKU_4_5),
     nano: everyVariant(ANTHROPIC_MODELS.CLAUDE_HAIKU_4_5),
-    powerful: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_7),
-    reasoning: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_7),
+    powerful: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_8),
+    reasoning: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_8),
     standard: everyVariant(ANTHROPIC_MODELS.CLAUDE_SONNET_4_6),
   },
   deepseek: {
-    fast: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V3_2),
-    nano: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V3_2),
-    powerful: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V3_2),
-    reasoning: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V3_2),
-    standard: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V3_2),
+    fast: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V4_PRO),
+    nano: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V4_PRO),
+    powerful: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V4_PRO),
+    reasoning: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V4_PRO),
+    standard: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V4_PRO),
   },
   gateway: {
     fast: { ...DEFAULT_MODELS.fast },
@@ -731,7 +747,7 @@ export const PROVIDER_DEFAULT_MODELS: ProviderLanguageModelMatrix = {
   },
   google: {
     fast: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
-    nano: everyVariant(GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW),
+    nano: everyVariant(GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE),
     powerful: everyVariant(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW),
     reasoning: everyVariant(GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW),
     standard: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
@@ -744,11 +760,11 @@ export const PROVIDER_DEFAULT_MODELS: ProviderLanguageModelMatrix = {
     standard: everyVariant(GROQ_MODELS.GPT_OSS_120B),
   },
   moonshotai: {
-    fast: everyVariant(KIMI_MODELS.KIMI_K2_6),
-    nano: everyVariant(KIMI_MODELS.KIMI_K2_6),
-    powerful: everyVariant(KIMI_MODELS.KIMI_K2_6),
-    reasoning: everyVariant(KIMI_MODELS.KIMI_K2_6),
-    standard: everyVariant(KIMI_MODELS.KIMI_K2_6),
+    fast: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
+    nano: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
+    powerful: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
+    reasoning: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
+    standard: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
   },
   ollama: {
     fast: splitVariantModels({
@@ -775,8 +791,8 @@ export const PROVIDER_DEFAULT_MODELS: ProviderLanguageModelMatrix = {
   openai: {
     fast: everyVariant(OPENAI_MODELS.GPT_5_4_NANO),
     nano: everyVariant(OPENAI_MODELS.GPT_5_4_NANO),
-    powerful: everyVariant(OPENAI_MODELS.GPT_5_4),
-    reasoning: everyVariant(OPENAI_MODELS.GPT_5_4),
+    powerful: everyVariant(OPENAI_MODELS.GPT_5_5),
+    reasoning: everyVariant(OPENAI_MODELS.GPT_5_5),
     standard: everyVariant(OPENAI_MODELS.GPT_5_4_MINI),
   },
   openrouter: {
@@ -788,16 +804,16 @@ export const PROVIDER_DEFAULT_MODELS: ProviderLanguageModelMatrix = {
   },
   qwen: {
     fast: splitVariantModels({
-      text: QWEN_MODELS.QWEN_3_235B_A22B_2507,
-      vision: QWEN_MODELS.QWEN_3_6_PLUS,
+      text: QWEN_MODELS.QWEN_3_VL_235B_A22B,
+      vision: QWEN_MODELS.QWEN_3_7_PLUS,
     }),
     nano: splitVariantModels({
-      text: QWEN_MODELS.QWEN_3_235B_A22B_2507,
-      vision: QWEN_MODELS.QWEN_3_6_PLUS,
+      text: QWEN_MODELS.QWEN_3_VL_235B_A22B,
+      vision: QWEN_MODELS.QWEN_3_7_PLUS,
     }),
-    powerful: everyVariant(QWEN_MODELS.QWEN_3_6_PLUS),
-    reasoning: everyVariant(QWEN_MODELS.QWEN_3_6_PLUS),
-    standard: everyVariant(QWEN_MODELS.QWEN_3_6_PLUS),
+    powerful: everyVariant(QWEN_MODELS.QWEN_3_7_PLUS),
+    reasoning: everyVariant(QWEN_MODELS.QWEN_3_7_PLUS),
+    standard: everyVariant(QWEN_MODELS.QWEN_3_7_PLUS),
   },
   xai: {
     fast: everyVariant(XAI_MODELS.GROK_4_3),
@@ -816,11 +832,11 @@ export const PROVIDER_DEFAULT_MODELS: ProviderLanguageModelMatrix = {
       vision: GLM_MODELS.GLM_5V_TURBO,
     }),
     powerful: splitVariantModels({
-      text: GLM_MODELS.GLM_5,
+      text: GLM_MODELS.GLM_5_2,
       vision: GLM_MODELS.GLM_5V_TURBO,
     }),
     reasoning: splitVariantModels({
-      text: GLM_MODELS.GLM_5,
+      text: GLM_MODELS.GLM_5_2,
       vision: GLM_MODELS.GLM_5V_TURBO,
     }),
     standard: splitVariantModels({
@@ -834,8 +850,8 @@ export const PROVIDER_DEFAULT_MODELS: ProviderLanguageModelMatrix = {
 export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
   anthropic: {
     agentic: {
-      powerful: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_7),
-      reasoning: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_7),
+      powerful: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_8),
+      reasoning: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_8),
       standard: everyVariant(ANTHROPIC_MODELS.CLAUDE_SONNET_4_6),
     },
     bulk: {
@@ -848,7 +864,7 @@ export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
     },
     coding: {
       powerful: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_6),
-      reasoning: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_7),
+      reasoning: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_8),
       standard: everyVariant(ANTHROPIC_MODELS.CLAUDE_SONNET_4_6),
     },
     creative: {
@@ -856,40 +872,40 @@ export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
       standard: everyVariant(ANTHROPIC_MODELS.CLAUDE_SONNET_4_6),
     },
     longContext: {
-      powerful: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_7),
-      reasoning: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_7),
+      powerful: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_8),
+      reasoning: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_8),
       standard: everyVariant(ANTHROPIC_MODELS.CLAUDE_SONNET_4_6),
     },
     reasoning: {
-      powerful: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_7),
-      reasoning: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_7),
+      powerful: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_8),
+      reasoning: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_8),
     },
     vision: {
-      powerful: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_7),
-      reasoning: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_7),
+      powerful: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_8),
+      reasoning: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_8),
       standard: everyVariant(ANTHROPIC_MODELS.CLAUDE_SONNET_4_6),
     },
   },
   deepseek: {
     agentic: {
-      powerful: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V3_2),
-      standard: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V3_2),
+      powerful: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V4_PRO),
+      standard: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V4_PRO),
     },
     bulk: {
       fast: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V4_FLASH),
       standard: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V4_FLASH),
     },
     chat: {
-      fast: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V3_2),
-      standard: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V3_2),
+      fast: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V4_PRO),
+      standard: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V4_PRO),
     },
     coding: {
-      powerful: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V3_2),
-      standard: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V3_2),
+      powerful: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V4_PRO),
+      standard: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V4_PRO),
     },
     creative: {
-      powerful: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V3_2),
-      standard: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V3_2),
+      powerful: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V4_PRO),
+      standard: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V4_PRO),
     },
     longContext: {
       powerful: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V4_FLASH),
@@ -902,8 +918,8 @@ export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
       standard: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
     },
     bulk: {
-      fast: everyVariant(GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW),
-      nano: everyVariant(GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW),
+      fast: everyVariant(GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE),
+      nano: everyVariant(GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE),
     },
     chat: {
       fast: everyVariant(GOOGLE_MODELS.GEMINI_3_5_FLASH),
@@ -954,38 +970,38 @@ export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
   },
   moonshotai: {
     agentic: {
-      powerful: everyVariant(KIMI_MODELS.KIMI_K2_6),
-      reasoning: everyVariant(KIMI_MODELS.KIMI_K2_6),
-      standard: everyVariant(KIMI_MODELS.KIMI_K2_6),
+      powerful: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
+      reasoning: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
+      standard: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
     },
     bulk: {
-      fast: everyVariant(KIMI_MODELS.KIMI_K2_6),
-      standard: everyVariant(KIMI_MODELS.KIMI_K2_6),
+      fast: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
+      standard: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
     },
     chat: {
-      fast: everyVariant(KIMI_MODELS.KIMI_K2_6),
-      standard: everyVariant(KIMI_MODELS.KIMI_K2_6),
+      fast: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
+      standard: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
     },
     coding: {
-      powerful: everyVariant(KIMI_MODELS.KIMI_K2_6),
-      standard: everyVariant(KIMI_MODELS.KIMI_K2_6),
+      powerful: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
+      standard: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
     },
     creative: {
-      powerful: everyVariant(KIMI_MODELS.KIMI_K2_6),
+      powerful: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
       standard: everyVariant(KIMI_MODELS.KIMI_K2_5),
     },
     longContext: {
-      powerful: everyVariant(KIMI_MODELS.KIMI_K2_6),
-      standard: everyVariant(KIMI_MODELS.KIMI_K2_6),
+      powerful: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
+      standard: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
     },
     reasoning: {
-      powerful: everyVariant(KIMI_MODELS.KIMI_K2_6),
-      reasoning: everyVariant(KIMI_MODELS.KIMI_K2_6),
-      standard: everyVariant(KIMI_MODELS.KIMI_K2_6),
+      powerful: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
+      reasoning: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
+      standard: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
     },
     vision: {
-      powerful: everyVariant(KIMI_MODELS.KIMI_K2_6),
-      reasoning: everyVariant(KIMI_MODELS.KIMI_K2_6),
+      powerful: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
+      reasoning: everyVariant(KIMI_MODELS.KIMI_K2_7_CODE),
       standard: everyVariant(KIMI_MODELS.KIMI_K2_5),
     },
   },
@@ -1026,8 +1042,8 @@ export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
   },
   openai: {
     agentic: {
-      powerful: everyVariant(OPENAI_MODELS.GPT_5_3_CODEX),
-      standard: everyVariant(OPENAI_MODELS.GPT_5_3_CODEX),
+      powerful: everyVariant(OPENAI_MODELS.GPT_5_5),
+      standard: everyVariant(OPENAI_MODELS.GPT_5_5),
     },
     bulk: {
       fast: everyVariant(OPENAI_MODELS.GPT_5_4_NANO),
@@ -1039,64 +1055,64 @@ export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
       standard: everyVariant(OPENAI_MODELS.GPT_5_4_MINI),
     },
     coding: {
-      powerful: everyVariant(OPENAI_MODELS.GPT_5_3_CODEX),
-      reasoning: everyVariant(OPENAI_MODELS.GPT_5_4),
-      standard: everyVariant(OPENAI_MODELS.GPT_5_3_CODEX),
+      powerful: everyVariant(OPENAI_MODELS.GPT_5_5),
+      reasoning: everyVariant(OPENAI_MODELS.GPT_5_5),
+      standard: everyVariant(OPENAI_MODELS.GPT_5_5),
     },
     creative: {
-      powerful: everyVariant(OPENAI_MODELS.GPT_5_4),
+      powerful: everyVariant(OPENAI_MODELS.GPT_5_5),
       standard: everyVariant(OPENAI_MODELS.GPT_5_4_MINI),
     },
     longContext: {
-      powerful: everyVariant(OPENAI_MODELS.GPT_5_4),
-      reasoning: everyVariant(OPENAI_MODELS.GPT_5_4),
+      powerful: everyVariant(OPENAI_MODELS.GPT_5_5),
+      reasoning: everyVariant(OPENAI_MODELS.GPT_5_5),
     },
     reasoning: {
-      powerful: everyVariant(OPENAI_MODELS.GPT_5_4),
-      reasoning: everyVariant(OPENAI_MODELS.GPT_5_4),
+      powerful: everyVariant(OPENAI_MODELS.GPT_5_5),
+      reasoning: everyVariant(OPENAI_MODELS.GPT_5_5),
     },
     vision: {
       fast: everyVariant(OPENAI_MODELS.GPT_5_4_NANO),
-      powerful: everyVariant(OPENAI_MODELS.GPT_5_4),
-      reasoning: everyVariant(OPENAI_MODELS.GPT_5_4),
+      powerful: everyVariant(OPENAI_MODELS.GPT_5_5),
+      reasoning: everyVariant(OPENAI_MODELS.GPT_5_5),
       standard: everyVariant(OPENAI_MODELS.GPT_5_4_MINI),
     },
   },
   qwen: {
     agentic: {
-      powerful: everyVariant(QWEN_MODELS.QWEN_3_6_PLUS),
-      standard: everyVariant(QWEN_MODELS.QWEN_3_6_PLUS),
+      powerful: everyVariant(QWEN_MODELS.QWEN_3_7_PLUS),
+      standard: everyVariant(QWEN_MODELS.QWEN_3_7_PLUS),
     },
     bulk: {
-      fast: everyVariant(QWEN_MODELS.QWEN_3_235B_A22B_2507),
+      fast: everyVariant(QWEN_MODELS.QWEN_3_VL_235B_A22B),
       nano: everyVariant(QWEN_MODELS.QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE),
-      standard: everyVariant(QWEN_MODELS.QWEN_3_235B_A22B_2507),
+      standard: everyVariant(QWEN_MODELS.QWEN_3_VL_235B_A22B),
     },
     chat: {
-      fast: everyVariant(QWEN_MODELS.QWEN_3_235B_A22B_2507),
+      fast: everyVariant(QWEN_MODELS.QWEN_3_VL_235B_A22B),
       nano: everyVariant(QWEN_MODELS.QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE),
     },
     coding: {
-      fast: everyVariant(QWEN_MODELS.QWEN_3_235B_A22B_2507),
-      powerful: everyVariant(QWEN_MODELS.QWEN_3_6_PLUS),
-      standard: everyVariant(QWEN_MODELS.QWEN_3_235B_A22B_2507),
+      fast: everyVariant(QWEN_MODELS.QWEN_3_VL_235B_A22B),
+      powerful: everyVariant(QWEN_MODELS.QWEN_3_7_PLUS),
+      standard: everyVariant(QWEN_MODELS.QWEN_3_VL_235B_A22B),
     },
     creative: {
-      powerful: everyVariant(QWEN_MODELS.QWEN_3_6_PLUS),
-      standard: everyVariant(QWEN_MODELS.QWEN_3_235B_A22B_2507),
+      powerful: everyVariant(QWEN_MODELS.QWEN_3_7_PLUS),
+      standard: everyVariant(QWEN_MODELS.QWEN_3_VL_235B_A22B),
     },
     longContext: {
-      powerful: everyVariant(QWEN_MODELS.QWEN_3_6_PLUS),
-      standard: everyVariant(QWEN_MODELS.QWEN_3_6_PLUS),
+      powerful: everyVariant(QWEN_MODELS.QWEN_3_7_PLUS),
+      standard: everyVariant(QWEN_MODELS.QWEN_3_7_PLUS),
     },
     reasoning: {
-      powerful: everyVariant(QWEN_MODELS.QWEN_3_6_PLUS),
-      reasoning: everyVariant(QWEN_MODELS.QWEN_3_6_PLUS),
-      standard: everyVariant(QWEN_MODELS.QWEN_3_6_PLUS),
+      powerful: everyVariant(QWEN_MODELS.QWEN_3_7_PLUS),
+      reasoning: everyVariant(QWEN_MODELS.QWEN_3_7_PLUS),
+      standard: everyVariant(QWEN_MODELS.QWEN_3_7_PLUS),
     },
     vision: {
-      powerful: everyVariant(QWEN_MODELS.QWEN_3_6_PLUS),
-      standard: everyVariant(QWEN_MODELS.QWEN_3_6_PLUS),
+      powerful: everyVariant(QWEN_MODELS.QWEN_3_7_PLUS),
+      standard: everyVariant(QWEN_MODELS.QWEN_3_7_PLUS),
     },
   },
   xai: {
@@ -1138,8 +1154,8 @@ export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
   },
   zai: {
     agentic: {
-      powerful: everyVariant(GLM_MODELS.GLM_5),
-      standard: everyVariant(GLM_MODELS.GLM_5),
+      powerful: everyVariant(GLM_MODELS.GLM_5_2),
+      standard: everyVariant(GLM_MODELS.GLM_5_2),
     },
     bulk: {
       fast: everyVariant(GLM_MODELS.GLM_4_7_FLASH),
@@ -1150,21 +1166,21 @@ export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
       standard: everyVariant(GLM_MODELS.GLM_4_7),
     },
     coding: {
-      powerful: everyVariant(GLM_MODELS.GLM_5),
-      standard: everyVariant(GLM_MODELS.GLM_5),
+      powerful: everyVariant(GLM_MODELS.GLM_5_2),
+      standard: everyVariant(GLM_MODELS.GLM_5_2),
     },
     creative: {
-      powerful: everyVariant(GLM_MODELS.GLM_5),
+      powerful: everyVariant(GLM_MODELS.GLM_5_2),
       standard: everyVariant(GLM_MODELS.GLM_4_7),
     },
     longContext: {
-      powerful: everyVariant(GLM_MODELS.GLM_5),
-      standard: everyVariant(GLM_MODELS.GLM_5),
+      powerful: everyVariant(GLM_MODELS.GLM_5_2),
+      standard: everyVariant(GLM_MODELS.GLM_5_2),
     },
     reasoning: {
-      powerful: everyVariant(GLM_MODELS.GLM_5),
-      reasoning: everyVariant(GLM_MODELS.GLM_5),
-      standard: everyVariant(GLM_MODELS.GLM_5),
+      powerful: everyVariant(GLM_MODELS.GLM_5_2),
+      reasoning: everyVariant(GLM_MODELS.GLM_5_2),
+      standard: everyVariant(GLM_MODELS.GLM_5_2),
     },
     vision: {
       fast: everyVariant(GLM_MODELS.GLM_5V_TURBO),
@@ -1206,6 +1222,8 @@ const LANGUAGE_MODEL_FEATURES: Record<string, { tools: boolean; vision: boolean 
       {
         tools: true,
         vision: new Set<string>([
+          ANTHROPIC_MODELS.CLAUDE_FABLE_5,
+          ANTHROPIC_MODELS.CLAUDE_OPUS_4_8,
           ANTHROPIC_MODELS.CLAUDE_OPUS_4_7,
           ANTHROPIC_MODELS.CLAUDE_OPUS_4_6,
           ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,
@@ -1215,16 +1233,15 @@ const LANGUAGE_MODEL_FEATURES: Record<string, { tools: boolean; vision: boolean 
           GOOGLE_MODELS.GEMINI_3_5_FLASH,
           GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
           GOOGLE_MODELS.GEMINI_3_1_PRO_PREVIEW,
-          GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE_PREVIEW,
-          KIMI_MODELS.KIMI_K2_6,
+          GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE,
+          KIMI_MODELS.KIMI_K2_7_CODE,
           KIMI_MODELS.KIMI_K2_5,
           OPENAI_MODELS.GPT_5_4_NANO,
           OPENAI_MODELS.GPT_5_4_MINI,
-          OPENAI_MODELS.GPT_5_4,
-          OPENAI_MODELS.GPT_5_3_CODEX,
+          OPENAI_MODELS.GPT_5_5,
           OPENROUTER_MODELS.FREE,
           XAI_MODELS.GROK_4_3,
-          QWEN_MODELS.QWEN_3_6_PLUS,
+          QWEN_MODELS.QWEN_3_7_PLUS,
           OLLAMA_MODELS.GEMMA_4_31B,
           OLLAMA_MODELS.QWEN_3_6_35B,
         ]).has(model.id),
@@ -1490,6 +1507,9 @@ const PROVIDER_MODEL_IDS: Record<string, Partial<Record<ProviderRoute, string>>>
   "anthropic/claude-opus-4.7": {
     anthropic: "claude-opus-4-7",
   },
+  "anthropic/claude-opus-4.8": {
+    anthropic: "claude-opus-4-8",
+  },
   "anthropic/claude-sonnet-4-6": {
     anthropic: "claude-sonnet-4-6",
     gateway: "anthropic/claude-sonnet-4.6",
@@ -1508,13 +1528,13 @@ const PROVIDER_MODEL_IDS: Record<string, Partial<Record<ProviderRoute, string>>>
     google: "gemini-3-flash-preview",
   },
   "google/gemini-3.1-flash-lite": {
-    gateway: "google/gemini-3.1-flash-lite-preview",
-    google: "gemini-3.1-flash-lite-preview",
-    openrouter: "google/gemini-3.1-flash-lite-preview",
+    gateway: "google/gemini-3.1-flash-lite",
+    google: "gemini-3.1-flash-lite",
+    openrouter: "google/gemini-3.1-flash-lite",
   },
   "google/gemini-3.1-flash-lite-preview": {
-    gateway: "google/gemini-3.1-flash-lite-preview",
-    google: "gemini-3.1-flash-lite-preview",
+    gateway: "google/gemini-3.1-flash-lite",
+    google: "gemini-3.1-flash-lite",
   },
   "google/gemini-3.1-pro": {
     gateway: "google/gemini-3.1-pro-preview",
@@ -1534,8 +1554,8 @@ const PROVIDER_MODEL_IDS: Record<string, Partial<Record<ProviderRoute, string>>>
   "openai/gpt-oss-20b": {
     groq: "openai/gpt-oss-20b",
   },
-  "qwen/qwen3.6-plus": {
-    gateway: "alibaba/qwen3.6-plus",
+  "qwen/qwen3.7-plus": {
+    gateway: "alibaba/qwen3.7-plus",
   },
   "x-ai/grok-4.3": {
     gateway: "xai/grok-4.3",
@@ -1550,8 +1570,8 @@ const PROVIDER_MODEL_IDS: Record<string, Partial<Record<ProviderRoute, string>>>
   "z-ai/glm-4.7-flash": {
     gateway: "zai/glm-4.7-flash",
   },
-  "z-ai/glm-5": {
-    gateway: "zai/glm-5",
+  "z-ai/glm-5.2": {
+    gateway: "zai/glm-5.2",
   },
   "z-ai/glm-5v-turbo": {
     gateway: "zai/glm-5v-turbo",
@@ -1559,7 +1579,8 @@ const PROVIDER_MODEL_IDS: Record<string, Partial<Record<ProviderRoute, string>>>
 };
 
 const GATEWAY_UNAVAILABLE_MODEL_IDS = new Set<string>([
-  NEX_AGI_MODELS.DEEPSEEK_V3_1_NEX_N1,
+  ANTHROPIC_MODELS.CLAUDE_FABLE_5,
+  NEX_AGI_MODELS.NEX_N2_PRO,
   GROQ_MODELS.GPT_OSS_120B,
   GROQ_MODELS.GPT_OSS_20B,
   OLLAMA_MODELS.GEMMA_4_31B,
@@ -1567,9 +1588,9 @@ const GATEWAY_UNAVAILABLE_MODEL_IDS = new Set<string>([
   OLLAMA_MODELS.QWEN_3_6_35B,
   OLLAMA_MODELS.QWEN_3_CODER_30B,
   OPENROUTER_MODELS.FREE,
-  QWEN_MODELS.QWEN_3_235B_A22B_2507,
+  QWEN_MODELS.QWEN_3_VL_235B_A22B,
   QWEN_MODELS.QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE,
-  STEPFUN_MODELS.STEP_3_5_FLASH,
+  STEPFUN_MODELS.STEP_3_7_FLASH,
 ]);
 
 /** Request configuration fields supported by each provider route. */

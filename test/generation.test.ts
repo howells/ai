@@ -62,7 +62,7 @@ describe("resolveGenerationOptions", () => {
 
   test("maps OpenAI reasoning, verbosity, structured output, and service tier", () => {
     const result = resolveGenerationOptions({
-      modelId: "openai/gpt-5.4",
+      modelId: "openai/gpt-5.5",
       parallelTools: false,
       provider: "openai",
       reasoning: "max",
@@ -358,7 +358,7 @@ describe("resolveGenerationOptions", () => {
 
   test("adds gateway options and inferred direct-provider options when modelId is known", () => {
     const result = resolveGenerationOptions({
-      modelId: "openai/gpt-5.4",
+      modelId: "openai/gpt-5.5",
       provider: "gateway",
       reasoning: "medium",
       user: "agent-search",
