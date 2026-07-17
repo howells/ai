@@ -57,13 +57,13 @@
     "format": "howells-oxfmt --write src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts README.md"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^3.0.86",
-    "@ai-sdk/gateway": "^3.0.134",
-    "@ai-sdk/google": "^3.0.83",
-    "@ai-sdk/openai": "^3.0.74",
+    "@ai-sdk/anthropic": "^4.0.0",
+    "@ai-sdk/gateway": "^4.0.0",
+    "@ai-sdk/google": "^4.0.0",
+    "@ai-sdk/openai": "^4.0.0",
     "@ai-sdk/react": "catalog:",
     "@howells/envy": "catalog:",
-    "@openrouter/ai-sdk-provider": "^2.9.1",
+    "@openrouter/ai-sdk-provider": "^3.0.0",
     "ai": "catalog:",
     "voyage-ai-provider": "^4.0.0",
     "zod": "catalog:"

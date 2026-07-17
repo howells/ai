@@ -5,7 +5,7 @@
  * provider actually understands into AI SDK providerOptions.
  */
 
-import { stepCountIs } from "ai";
+import { isStepCount } from "ai";
 import { inferProvider } from "./models";
 import type {
   CacheTTL,
@@ -628,7 +628,7 @@ export function resolveGenerationOptions(
     resolved.toolChoice = options.tools;
   }
   if (options.maxToolSteps !== undefined) {
-    resolved.stopWhen = stepCountIs(options.maxToolSteps);
+    resolved.stopWhen = isStepCount(options.maxToolSteps);
   }
   if (providerOptions) {
     resolved.providerOptions = providerOptions;

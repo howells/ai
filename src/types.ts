@@ -2,7 +2,7 @@
  * Howells AI shared types.
  */
 
-import type { CallSettings, JSONValue, StopCondition, ToolChoice, ToolSet } from "ai";
+import type { JSONValue, RequestOptions, StopCondition, ToolChoice, ToolSet } from "ai";
 import type { ProviderRouteId } from "./providers/registry";
 
 /**
@@ -427,10 +427,10 @@ export interface GenerationOptions {
   /** AI SDK max retries. */
   maxRetries?: number;
   /** AI SDK timeout. */
-  timeout?: CallSettings["timeout"];
+  timeout?: RequestOptions["timeout"];
   /** Tool-use policy. */
   tools?: ToolPolicy;
-  /** Maximum tool loop steps. Sets stopWhen to stepCountIs(maxToolSteps). */
+  /** Maximum tool loop steps. Sets stopWhen to isStepCount(maxToolSteps). */
   maxToolSteps?: number;
   /** Whether providers should allow parallel tool calls when configurable. */
   parallelTools?: boolean;
@@ -497,7 +497,7 @@ export interface ResolvedGenerationOptions {
   stopSequences?: string[];
   seed?: number;
   maxRetries?: number;
-  timeout?: CallSettings["timeout"];
+  timeout?: RequestOptions["timeout"];
   toolChoice?: ToolChoice<ToolSet>;
   stopWhen?: StopCondition<ToolSet>;
   providerOptions?: GenerationProviderOptions;
