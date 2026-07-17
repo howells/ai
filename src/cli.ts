@@ -4,6 +4,7 @@ import { loadDotenv } from "@howells/envy/dotenv";
 import { createAI, generateText, streamText } from "./index";
 import { envValue } from "./env";
 import type { RuntimeEnvKey } from "./env";
+import { isProviderRoute, PROVIDER_ROUTES } from "./providers/registry";
 import {
   canRouteModelToProvider,
   LANGUAGE_MODEL_CATALOG,
@@ -65,20 +66,7 @@ interface SmokeResult {
   error?: string;
 }
 
-const LANGUAGE_PROVIDERS = [
-  "gateway",
-  "openrouter",
-  "anthropic",
-  "openai",
-  "google",
-  "deepseek",
-  "xai",
-  "qwen",
-  "zai",
-  "moonshotai",
-  "groq",
-  "ollama",
-] as const satisfies readonly ProviderRoute[];
+const LANGUAGE_PROVIDERS = PROVIDER_ROUTES;
 
 const DEFAULT_PROMPT = "Reply with exactly OK.";
 
@@ -130,7 +118,7 @@ function parseProvider(value: string | undefined): ProviderRoute | undefined {
   if (!value) {
     return undefined;
   }
-  if ((LANGUAGE_PROVIDERS as readonly string[]).includes(value)) {
+  if (isProviderRoute(value)) {
     return value as ProviderRoute;
   }
   throw new Error(`Unknown provider "${value}".`);
@@ -268,7 +256,7 @@ function help(): void {
   print(`@howells/ai CLI
 
 Usage:
-  ai models [--provider gateway|openrouter|anthropic|openai|google] [--task general|coding|agentic|chat|bulk|vision|reasoning|longContext|creative] [--json]
+  ai models [--provider ${PROVIDER_ROUTES.join("|")}] [--task general|coding|agentic|chat|bulk|vision|reasoning|longContext|creative] [--json]
   ai providers [--json]
   ai doctor [--live] [--json]
   ai test [--provider <provider>] [--model <id>] [--json]

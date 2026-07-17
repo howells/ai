@@ -9,7 +9,7 @@ import { defineEnv } from "@howells/envy";
 import { z } from "zod";
 
 /** Runtime environment schema for provider keys and deployment hints. */
-export const envSchema = defineEnv({
+const envSchema = defineEnv({
   optional: {
     AI_GATEWAY_API_KEY: z.string().min(1),
     ANTHROPIC_API_KEY: z.string().min(1),
@@ -32,13 +32,13 @@ export const envSchema = defineEnv({
 });
 
 /** Parsed server-side environment returned by the package env boundary. */
-export type RuntimeEnv = ReturnType<typeof envSchema.parseServer>;
+type RuntimeEnv = ReturnType<typeof envSchema.parseServer>;
 
 /** Environment key accepted by envValue and provider key lookups. */
 export type RuntimeEnvKey = keyof RuntimeEnv;
 
 /** Parse a server environment object with the shared Envy schema. */
-export function readRuntimeEnv(input: Record<string, unknown> = process.env): RuntimeEnv {
+function readRuntimeEnv(input: Record<string, unknown> = process.env): RuntimeEnv {
   return envSchema.parseServer(input);
 }
 

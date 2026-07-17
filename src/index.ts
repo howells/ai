@@ -46,6 +46,12 @@ export {
 } from "ai";
 // Client factory
 export { createAI } from "./client";
+export {
+  PROVIDER_DEFINITION_BY_ID,
+  PROVIDER_DEFINITIONS,
+  PROVIDER_ROUTES,
+  isProviderRoute,
+} from "./providers/registry";
 
 // Generation config resolver
 export { resolveGenerationOptions } from "./generation";
@@ -128,7 +134,7 @@ export type {
   PromptCachePolicy,
   ProviderConfigCapabilities,
   ProviderLanguageModelMatrix,
-  ProviderModelConfig,
+  ProviderModelDescriptor,
   ProviderRoute,
   Quantization,
   ReasoningEffort,

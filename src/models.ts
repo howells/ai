@@ -21,6 +21,7 @@ import type {
   TaskModelMatrix,
   TierModelMatrix,
 } from "./types";
+import { PROVIDER_DEFINITIONS } from "./providers/registry";
 
 type PartialTaskModelMatrix = Partial<
   Record<ModelTask, Partial<Record<ModelTier, Partial<TierModelMatrix>>>>
@@ -1594,104 +1595,9 @@ const GATEWAY_UNAVAILABLE_MODEL_IDS = new Set<string>([
 ]);
 
 /** Request configuration fields supported by each provider route. */
-export const PROVIDER_CONFIG_CAPABILITIES: Record<ProviderRoute, ProviderConfigCapabilities> = {
-  anthropic: {
-    agentAttribution: false,
-    apiKey: true,
-    appAttribution: false,
-    baseURL: false,
-    headers: false,
-    modelId: true,
-  },
-  deepseek: {
-    agentAttribution: false,
-    apiKey: true,
-    appAttribution: false,
-    baseURL: true,
-    headers: false,
-    modelId: true,
-  },
-  gateway: {
-    agentAttribution: false,
-    apiKey: true,
-    appAttribution: false,
-    baseURL: false,
-    headers: false,
-    modelId: true,
-  },
-  google: {
-    agentAttribution: false,
-    apiKey: true,
-    appAttribution: false,
-    baseURL: false,
-    headers: false,
-    modelId: true,
-  },
-  groq: {
-    agentAttribution: false,
-    apiKey: true,
-    appAttribution: false,
-    baseURL: true,
-    headers: false,
-    modelId: true,
-  },
-  moonshotai: {
-    agentAttribution: false,
-    apiKey: true,
-    appAttribution: false,
-    baseURL: true,
-    headers: false,
-    modelId: true,
-  },
-  ollama: {
-    agentAttribution: false,
-    apiKey: false,
-    appAttribution: false,
-    baseURL: true,
-    headers: false,
-    modelId: true,
-  },
-  openai: {
-    agentAttribution: false,
-    apiKey: true,
-    appAttribution: false,
-    baseURL: false,
-    headers: false,
-    modelId: true,
-  },
-  openrouter: {
-    agentAttribution: true,
-    apiKey: true,
-    appAttribution: true,
-    baseURL: true,
-    headers: true,
-    modelId: true,
-  },
-  qwen: {
-    agentAttribution: false,
-    apiKey: true,
-    appAttribution: false,
-    baseURL: true,
-    headers: false,
-    modelId: true,
-  },
-  xai: {
-    agentAttribution: false,
-    apiKey: true,
-    appAttribution: false,
-    baseURL: true,
-    headers: false,
-    modelId: true,
-  },
-  zai: {
-    agentAttribution: false,
-    apiKey: true,
-    appAttribution: false,
-    baseURL: true,
-    headers: false,
-    modelId: true,
-  },
-};
+export const PROVIDER_CONFIG_CAPABILITIES = Object.fromEntries(
+  PROVIDER_DEFINITIONS.map(({ capabilities, id }) => [id, capabilities]),
+) as Record<ProviderRoute, ProviderConfigCapabilities>;
 
 function stripProviderPrefix(modelId: string): string {
   const slash = modelId.indexOf("/");

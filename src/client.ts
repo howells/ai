@@ -40,7 +40,6 @@ import {
   getLanguageModelCapabilities,
   inferModelService,
   LANGUAGE_MODEL_CAPABILITIES,
-  MODEL_SERVICE_ENV_VARS,
   PROVIDER_CONFIG_CAPABILITIES,
   resolveModels,
   resolveLanguageModelVariant,
@@ -72,7 +71,8 @@ import type {
   ModelOptions,
   ModelService,
   ModelTier,
-  ProviderModelConfig,
+  ProviderModelConnection,
+  ProviderModelDescriptor,
   ProviderRoute,
   ResolvedGenerationOptions,
   TaskModelMatrix,
@@ -169,14 +169,8 @@ export interface AIClient {
    */
   modelById: (modelId: string, options?: ModelOptions) => LanguageModel;
 
-  /**
-   * Get a provider-neutral model config for non-AI-SDK runtimes.
-   *
-   * Prefer `model()`/`modelById()` when the runtime accepts AI SDK models.
-   * This returns the provider-resolved model ID plus a capability matrix so
-   * callers can pass along only the fields their runtime supports.
-   */
-  modelConfig: (modelId: string, options?: ModelOptions) => ProviderModelConfig;
+  /** Return credential-free model identity and route metadata. Safe to serialize. */
+  modelDescriptor: (modelId: string, options?: ModelOptions) => ProviderModelDescriptor;
 
   /**
    * Return the structured/tool/vision capability flags for a model selection.
@@ -237,6 +231,11 @@ export interface AIClient {
   readonly taskMatrix: Readonly<TaskModelMatrix>;
 }
 
+/** Server-only client surface with explicit access to connection credentials. */
+export interface AIServerClient extends AIClient {
+  modelConnection: (modelId: string, options?: ModelOptions) => ProviderModelConnection;
+}
+
 /**
  * Create a configured AI client.
  *
@@ -246,6 +245,18 @@ export interface AIClient {
  * @param config - Optional configuration. Defaults work with env vars.
  */
 export function createAI(config?: AIConfig): AIClient {
+  return createClient(config, false) as AIClient;
+}
+
+/** Create a server-only client that can resolve secret-bearing connection data. */
+export function createAIServer(config?: AIConfig): AIServerClient {
+  return createClient(config, true) as AIServerClient;
+}
+
+function createClient(
+  config: AIConfig | undefined,
+  includeConnection: boolean,
+): AIClient | AIServerClient {
   const matrix = resolveModels(config?.models);
   const taskMatrix = resolveTaskModels(config?.models?.tasks);
 
@@ -324,8 +335,7 @@ export function createAI(config?: AIConfig): AIClient {
       available.push(provider);
     }
   }
-  // Ollama needs no key: available when a base URL is set, or by the
-  // localhost default when not on Vercel (serverless cannot reach localhost).
+  // Ollama is deliberately opt-in. Never infer a reachable localhost service.
   if (isProviderConfigured("ollama")) {
     available.push("ollama");
   }
@@ -477,8 +487,7 @@ export function createAI(config?: AIConfig): AIClient {
       if (config?.ollamaBaseURL ?? envValue("OLLAMA_BASE_URL")) {
         return true;
       }
-      // The localhost default only applies off-Vercel.
-      return !envValue("VERCEL_ENV");
+      return false;
     }
 
     return Boolean(getProviderApiKey(provider));
@@ -530,13 +539,13 @@ export function createAI(config?: AIConfig): AIClient {
     return getConfiguredServiceApiKey(config, service);
   }
 
-  function resolveModelConfig(modelId: string, options?: ModelOptions): ProviderModelConfig {
+  function resolveModelDescriptor(
+    modelId: string,
+    options?: ModelOptions,
+  ): ProviderModelDescriptor {
     const provider = resolveRequestedProvider(options);
     assertOpenRouterVariantAllowed(provider, options);
     assertOpenRouterModelIdAllowed(modelId, provider);
-    if (options?.provider || options?.free) {
-      assertExplicitProviderConfigured(provider);
-    }
     if (provider && !canRouteModelToProvider(modelId, provider) && modelId.includes("/")) {
       validateProviderMatch(modelId, provider);
     }
@@ -553,35 +562,49 @@ export function createAI(config?: AIConfig): AIClient {
         : provider === "ollama"
           ? "ollama"
           : (inferModelService(modelId) ?? inferModelService(resolvedId));
+    const requiredEnvironmentVariables = [providerKeyEnv(provider)];
+
+    return {
+      capabilities,
+      canonicalId: modelId,
+      provider,
+      providerModelId: resolvedId,
+      requiredEnvironmentVariables,
+      ...(service ? { service } : {}),
+    };
+  }
+
+  function resolveModelConnection(
+    modelId: string,
+    options?: ModelOptions,
+  ): ProviderModelConnection {
+    const descriptor = resolveModelDescriptor(modelId, options);
+    const { provider, service } = descriptor;
+    assertExplicitProviderConfigured(provider);
     const serviceApiKey = service ? getServiceApiKey(service) : undefined;
-    const serviceApiKeyEnv = service ? MODEL_SERVICE_ENV_VARS[service] : undefined;
 
     if (provider === "openrouter") {
       const requestConfig = openrouter.requestConfig(options);
       return {
-        provider,
-        id: resolvedId,
-        capabilities,
-        ...(service ? { service } : {}),
-        apiKey: requestConfig.apiKey,
-        ...(serviceApiKey ? { serviceApiKey } : {}),
-        ...(serviceApiKeyEnv ? { serviceApiKeyEnv } : {}),
+        ...descriptor,
         baseURL: requestConfig.baseURL,
         url: requestConfig.baseURL,
-        headers: requestConfig.headers,
-        ...(requestConfig.user ? { user: requestConfig.user } : {}),
+        credentials: {
+          apiKey: requestConfig.apiKey,
+          ...(serviceApiKey ? { serviceApiKey } : {}),
+          headers: requestConfig.headers,
+          ...(requestConfig.user ? { user: requestConfig.user } : {}),
+        },
       };
     }
 
     if (provider === "ollama") {
       const requestConfig = ollama.requestConfig();
       return {
-        capabilities,
-        id: resolvedId,
-        provider,
-        service: "ollama",
+        ...descriptor,
         baseURL: requestConfig.baseURL,
         url: requestConfig.url,
+        credentials: {},
       };
     }
 
@@ -589,27 +612,23 @@ export function createAI(config?: AIConfig): AIClient {
       const requestConfig =
         compatibleProviders[provider as keyof typeof compatibleProviders].requestConfig();
       return {
-        provider,
-        id: resolvedId,
-        capabilities,
-        ...(service ? { service } : {}),
-        apiKey: requestConfig.apiKey,
-        ...(serviceApiKey ? { serviceApiKey } : {}),
-        ...(serviceApiKeyEnv ? { serviceApiKeyEnv } : {}),
+        ...descriptor,
         baseURL: requestConfig.baseURL,
         url: requestConfig.url,
+        credentials: {
+          apiKey: requestConfig.apiKey,
+          ...(serviceApiKey ? { serviceApiKey } : {}),
+        },
       };
     }
 
     const apiKey = getProviderApiKey(provider);
     return {
-      capabilities,
-      id: resolvedId,
-      provider,
-      ...(service ? { service } : {}),
-      ...(apiKey ? { apiKey } : {}),
-      ...(serviceApiKey ? { serviceApiKey } : {}),
-      ...(serviceApiKeyEnv ? { serviceApiKeyEnv } : {}),
+      ...descriptor,
+      credentials: {
+        ...(apiKey ? { apiKey } : {}),
+        ...(serviceApiKey ? { serviceApiKey } : {}),
+      },
     };
   }
 
@@ -697,19 +716,26 @@ export function createAI(config?: AIConfig): AIClient {
     },
 
     modelCapabilities(options) {
-      if ("modelId" in (options ?? {})) {
-        const { modelId } = options as { modelId?: string };
-        const capabilities = modelId ? getLanguageModelCapabilities(modelId) : undefined;
-        if (capabilities) {
-          return capabilities;
-        }
+      const capabilities = options?.modelId
+        ? getLanguageModelCapabilities(options.modelId)
+        : undefined;
+      if (capabilities) {
+        return capabilities;
       }
       return LANGUAGE_MODEL_CAPABILITIES[resolveLanguageModelVariant(options)];
     },
 
-    modelConfig(modelId, options) {
-      return resolveModelConfig(modelId, options);
+    modelDescriptor(modelId, options) {
+      return resolveModelDescriptor(modelId, options);
     },
+
+    ...(includeConnection
+      ? {
+          modelConnection(modelId: string, options?: ModelOptions) {
+            return resolveModelConnection(modelId, options);
+          },
+        }
+      : {}),
 
     rerankModel() {
       return voyage.rerankModel(matrix.rerank);

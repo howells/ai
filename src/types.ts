@@ -3,6 +3,7 @@
  */
 
 import type { CallSettings, JSONValue, StopCondition, ToolChoice, ToolSet } from "ai";
+import type { ProviderRouteId } from "./providers/registry";
 
 /**
  * Language model tiers.
@@ -74,7 +75,7 @@ export type EmbeddingProviderRoute = "voyage" | "gemini" | "openrouter" | "ollam
 export type EmbeddingModelSlot = "embed" | "multimodalEmbed";
 
 /** Slots that return retrieval support models. */
-export type RetrievalModelSlot = EmbeddingModelSlot | "rerank";
+type RetrievalModelSlot = EmbeddingModelSlot | "rerank";
 
 /** Any named model slot that can be overridden in the model matrix. */
 export type ModelSlot = ModelTier | RetrievalModelSlot;
@@ -142,7 +143,7 @@ export interface AIConfig {
   groqKey?: string;
   /**
    * Ollama base URL for the local provider route.
-   * Defaults to process.env.OLLAMA_BASE_URL, then http://localhost:11434/v1.
+   * Defaults to process.env.OLLAMA_BASE_URL. Ollama is unavailable when omitted.
    * No API key is required.
    */
   ollamaBaseURL?: string;
@@ -172,19 +173,7 @@ export interface AIConfig {
  * - "groq"       — direct Groq OpenAI-compatible API
  * - "ollama"     — local Ollama server via its OpenAI-compatible API (no key)
  */
-export type ProviderRoute =
-  | "openrouter"
-  | "gateway"
-  | "anthropic"
-  | "openai"
-  | "google"
-  | "deepseek"
-  | "xai"
-  | "qwen"
-  | "zai"
-  | "moonshotai"
-  | "groq"
-  | "ollama";
+export type ProviderRoute = ProviderRouteId;
 
 /** Input family for provider-neutral embedding model selection. */
 export type EmbeddingInputKind = "text" | "image";
@@ -530,17 +519,24 @@ export interface ProviderConfigCapabilities {
   agentAttribution: boolean;
 }
 
-/** Provider-neutral model config for runtimes that do not accept AI SDK models. */
-export interface ProviderModelConfig {
+/** Credential-free model identity and route capabilities. Safe to serialize. */
+export interface ProviderModelDescriptor {
   provider: ProviderRoute;
-  id: string;
+  canonicalId: string;
+  providerModelId: string;
   capabilities: ProviderConfigCapabilities;
   service?: ModelService;
-  apiKey?: string;
-  serviceApiKey?: string;
-  serviceApiKeyEnv?: string;
+  requiredEnvironmentVariables: readonly string[];
+}
+
+/** Secret-bearing server connection data. Never expose this to a browser. */
+export interface ProviderModelConnection extends ProviderModelDescriptor {
   baseURL?: string;
   url?: string;
-  headers?: Record<string, string>;
-  user?: string;
+  credentials: {
+    apiKey?: string;
+    serviceApiKey?: string;
+    headers?: Record<string, string>;
+    user?: string;
+  };
 }

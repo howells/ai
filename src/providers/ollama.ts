@@ -3,9 +3,6 @@ import type { EmbeddingModel, LanguageModel } from "ai";
 import { envValue } from "../env";
 import type { ModelOptions } from "../types";
 
-/** Default OpenAI-compatible endpoint for a local Ollama server. */
-export const OLLAMA_DEFAULT_BASE_URL = "http://localhost:11434/v1";
-
 /**
  * Ollama ignores the Authorization header but the OpenAI SDK requires a
  * non-empty key, so we send a stable placeholder.
@@ -30,7 +27,8 @@ export interface OllamaProvider {
  * Create a provider adapter for Ollama's OpenAI-compatible API.
  *
  * No API key is required. The base URL resolves from the explicit config
- * value, then OLLAMA_BASE_URL, then the localhost default. Reasoning models
+ * value, then OLLAMA_BASE_URL. There is deliberately no implicit localhost
+ * default. Reasoning models
  * served by Ollama (qwen3.6, gpt-oss) return chain-of-thought in a separate
  * `reasoning` field, so message content arrives clean; `reasoning_effort`
  * is accepted and maps onto Ollama think levels.
@@ -39,7 +37,11 @@ export function createOllamaProvider(baseURL?: string): OllamaProvider {
   let client: ReturnType<typeof createOpenAI> | null = null;
 
   function getBaseURL(): string {
-    return baseURL ?? envValue("OLLAMA_BASE_URL") ?? OLLAMA_DEFAULT_BASE_URL;
+    const configuredURL = baseURL ?? envValue("OLLAMA_BASE_URL");
+    if (!configuredURL) {
+      throw new Error("Ollama requires ollamaBaseURL or OLLAMA_BASE_URL.");
+    }
+    return configuredURL;
   }
 
   function getClient() {

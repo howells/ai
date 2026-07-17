@@ -377,19 +377,21 @@ const reranker = ai.rerankModel();
 
 ## Non-AI-SDK Runtimes
 
-Some frameworks accept config objects instead of AI SDK models:
+Use the root package for credential-free model metadata that is safe to log or
+send across a server/client boundary:
 
 ```typescript
-const model = ai.modelConfig("deepseek/deepseek-v4-pro", {
+const model = ai.modelDescriptor("deepseek/deepseek-v4-pro", {
   provider: "openrouter",
   agent: "materials-agent",
 });
-// { provider, id, service, capabilities, apiKey, serviceApiKey, baseURL, headers, user }
+// { provider, canonicalId, providerModelId, service, capabilities,
+//   requiredEnvironmentVariables }
 ```
 
 The `capabilities` field describes which config fields the selected provider
-can consume, so callers can pass through the useful fields without branching on
-one provider-specific helper.
+can consume. Descriptors never contain keys, authorization headers, or user
+attribution values.
 
 | Provider     | API Key | Base URL | Headers | App Attribution | Agent Attribution |
 | ------------ | ------- | -------- | ------- | --------------- | ----------------- |
@@ -405,28 +407,57 @@ one provider-specific helper.
 | `moonshotai` | yes     | yes      | no      | no              | no                |
 | `groq`       | yes     | yes      | no      | no              | no                |
 
-For OpenRouter direct HTTP clients, request an OpenRouter model config and pass
-`user` in the request body:
+For a direct HTTP client, import the explicit server-only surface. Never return
+this object from an API route or pass it into a Client Component:
 
 ```typescript
-const config = ai.modelConfig("deepseek/deepseek-v4-pro", {
+import { createAIServer } from "@howells/ai/server";
+
+const serverAI = createAIServer({
+  app: { name: "My App", url: "https://example.com" },
+});
+const connection = serverAI.modelConnection("deepseek/deepseek-v4-pro", {
   provider: "openrouter",
   agent: "nl-search",
 });
-await fetch(`${config.baseURL}/chat/completions`, {
+await fetch(`${connection.baseURL}/chat/completions`, {
   method: "POST",
   headers: {
-    Authorization: `Bearer ${config.apiKey}`,
-    ...config.headers,
+    Authorization: `Bearer ${connection.credentials.apiKey}`,
+    ...connection.credentials.headers,
     "Content-Type": "application/json",
   },
   body: JSON.stringify({
-    model: "deepseek/deepseek-v4-pro",
+    model: connection.providerModelId,
     messages,
-    user: config.user,
+    user: connection.credentials.user,
   }),
 });
 ```
+
+### Migrating from 0.2 to 0.3
+
+`modelConfig()` was removed. Use `modelDescriptor()` anywhere you need
+serializable, credential-free metadata. Code that intentionally needs an
+operational HTTP connection must move to the server-only entry point:
+
+```typescript
+// Before (0.2)
+const config = ai.modelConfig("openai/gpt-5.5", { provider: "openai" });
+
+// After (0.3), safe in shared code
+const descriptor = ai.modelDescriptor("openai/gpt-5.5", { provider: "openai" });
+
+// After (0.3), server-only and may contain credentials
+import { createAIServer } from "@howells/ai/server";
+const connection = createAIServer().modelConnection("openai/gpt-5.5", {
+  provider: "openai",
+});
+```
+
+Ollama is no longer implicitly available at localhost. Configure
+`ollamaBaseURL` or `OLLAMA_BASE_URL` to opt in; an explicit unconfigured Ollama
+request fails with the same actionable configuration error as other routes.
 
 ## Escape Hatch
 
@@ -612,10 +643,10 @@ const ai = createAI({
 });
 ```
 
-Service keys are exposed through `ai.availableServices` and `ai.modelConfig()`
-for runtimes that can use provider-specific credentials. The same keys also
-enable direct OpenAI-compatible AI SDK routes for DeepSeek, xAI, Qwen, Z.ai, and
-Moonshot/Kimi.
+Configured services are reported through `ai.availableServices`. Secret-bearing
+connection data is available only through `createAIServer()` from
+`@howells/ai/server`. The same keys enable direct OpenAI-compatible AI SDK routes
+for DeepSeek, xAI, Qwen, Z.ai, and Moonshot/Kimi.
 
 ## Architecture
 

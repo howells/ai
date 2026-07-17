@@ -3,6 +3,9 @@ packages:
   - "apps/*"
 allowBuilds:
   sharp: true
+overrides:
+  dompurify: 3.4.11
+  postcss: 8.5.10
 catalog:
   "@ai-sdk/react": "^3.0.211"
   "@howells/envy": "^0.3.7"

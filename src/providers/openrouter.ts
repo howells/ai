@@ -19,20 +19,12 @@ interface OpenRouterRequestConfig {
   user?: string;
 }
 
-interface OpenRouterModelConfig {
-  id: `${string}/${string}`;
-  url: string;
-  apiKey: string;
-  headers?: Record<string, string>;
-}
-
 /** Minimal OpenRouter provider adapter used by the AI client. */
 export interface OpenRouterProvider {
   model: (modelId: string, options?: ModelOptions) => LanguageModel;
   embedModel: (
     modelId: string,
   ) => ReturnType<ReturnType<typeof createOpenRouter>["textEmbeddingModel"]>;
-  modelConfig: (modelId: `${string}/${string}`, options?: ModelOptions) => OpenRouterModelConfig;
   requestConfig: (options?: ModelOptions) => OpenRouterRequestConfig;
 }
 
@@ -95,15 +87,6 @@ export function createOpenRouterProvider(
     model(modelId, options) {
       const user = getUser(options);
       return getClient()(modelId, user ? { user } : {});
-    },
-    modelConfig(modelId, _options) {
-      const headers = getHeaders();
-      return {
-        apiKey: getApiKey(),
-        id: modelId,
-        url: OPENROUTER_BASE_URL,
-        ...(Object.keys(headers).length > 0 ? { headers } : {}),
-      };
     },
     requestConfig(options) {
       const user = getUser(options);

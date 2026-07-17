@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { createAI, KIMI_MODELS, OPENAI_MODELS, OPENROUTER_EMBED_MODELS, QWEN_MODELS } from "../src";
 import type { ModelTier, ProviderRoute } from "../src";
+import { createAIServer } from "../src/server";
 
 const ENV_KEYS = [
   "AI_GATEWAY_API_KEY",
@@ -79,9 +80,7 @@ describe("createAI", () => {
       expect(() => ai.modelById("google/gemini-3.5-flash", { provider })).toThrow(
         `Provider "${provider}" was explicitly requested but ${envVar} is not configured.`,
       );
-      expect(() => ai.modelConfig("google/gemini-3.5-flash", { provider })).toThrow(
-        `Provider "${provider}" was explicitly requested but ${envVar} is not configured.`,
-      );
+      expect(() => ai.modelDescriptor("provider-native-model", { provider })).not.toThrow();
     }
   });
 
@@ -204,7 +203,7 @@ describe("createAI", () => {
       'Model "qwen/qwen3-vl-235b-a22b-instruct" is not available through provider "gateway". Use OpenRouter or choose a Gateway-supported model.',
     );
     expect(() =>
-      ai.modelConfig(QWEN_MODELS.QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE, {
+      ai.modelDescriptor(QWEN_MODELS.QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE, {
         provider: "gateway",
       }),
     ).toThrow(
@@ -420,7 +419,7 @@ describe("createAI", () => {
       'Model "deepseek/deepseek-v4-pro" does not support vision input. Choose a vision-capable model or remove vision: true.',
     );
     expect(() =>
-      ai.modelConfig("deepseek/deepseek-v4-pro", {
+      ai.modelDescriptor("deepseek/deepseek-v4-pro", {
         provider: "openrouter",
         vision: true,
       }),
@@ -514,12 +513,12 @@ describe("createAI", () => {
       ),
     ).toBe("moonshotai/kimi-k2.7-code:floor");
     expect(
-      ai.modelConfig("moonshotai/kimi-k2.7-code", {
+      ai.modelDescriptor("moonshotai/kimi-k2.7-code", {
         openRouterVariant: "exacto",
         provider: "openrouter",
       }),
     ).toMatchObject({
-      id: "moonshotai/kimi-k2.7-code:exacto",
+      providerModelId: "moonshotai/kimi-k2.7-code:exacto",
     });
     expect(() =>
       ai.modelById("openai/gpt-5.5", {
@@ -613,9 +612,9 @@ describe("createAI", () => {
     );
   });
 
-  test("exposes provider-neutral runtime model config", () => {
+  test("separates serializable descriptors from server connections", () => {
     const env = process.env.NODE_ENV ?? "development";
-    const ai = createAI({
+    const ai = createAIServer({
       anthropicKey: "anthropic-key",
       app: { name: "Howells AI", url: "https://github.com/howells/ai" },
       gatewayKey: "gateway-key",
@@ -623,8 +622,7 @@ describe("createAI", () => {
       xaiKey: "xai-key",
     });
 
-    expect(ai.modelConfig("anthropic/claude-sonnet-4.6")).toMatchObject({
-      apiKey: "gateway-key",
+    expect(ai.modelDescriptor("anthropic/claude-sonnet-4.6")).toMatchObject({
       capabilities: {
         agentAttribution: false,
         apiKey: true,
@@ -633,60 +631,55 @@ describe("createAI", () => {
         headers: false,
         modelId: true,
       },
-      id: "anthropic/claude-sonnet-4.6",
+      canonicalId: "anthropic/claude-sonnet-4.6",
+      providerModelId: "anthropic/claude-sonnet-4.6",
       provider: "gateway",
       service: "anthropic",
-      serviceApiKey: "anthropic-key",
-      serviceApiKeyEnv: "ANTHROPIC_API_KEY",
+      requiredEnvironmentVariables: ["AI_GATEWAY_API_KEY"],
     });
     expect(
-      createAI({
+      createAIServer({
         moonshotKey: "moonshot-key",
         openRouterKey: "openrouter-key",
-      }).modelConfig(KIMI_MODELS.KIMI_K2_7_CODE, { provider: "openrouter" }),
+      }).modelConnection(KIMI_MODELS.KIMI_K2_7_CODE, { provider: "openrouter" }),
     ).toMatchObject({
-      apiKey: "openrouter-key",
-      id: "moonshotai/kimi-k2.7-code",
+      credentials: { apiKey: "openrouter-key", serviceApiKey: "moonshot-key" },
+      providerModelId: "moonshotai/kimi-k2.7-code",
       provider: "openrouter",
       service: "moonshotai",
-      serviceApiKey: "moonshot-key",
-      serviceApiKeyEnv: "MOONSHOT_API_KEY",
     });
     expect(
-      ai.modelConfig("x-ai/grok-4.3", {
+      ai.modelConnection("x-ai/grok-4.3", {
         provider: "xai",
       }),
     ).toMatchObject({
-      apiKey: "xai-key",
       baseURL: "https://api.x.ai/v1",
       capabilities: {
         apiKey: true,
         baseURL: true,
         modelId: true,
       },
-      id: "grok-4.3",
+      credentials: { apiKey: "xai-key", serviceApiKey: "xai-key" },
+      providerModelId: "grok-4.3",
       provider: "xai",
       service: "xai",
-      serviceApiKey: "xai-key",
-      serviceApiKeyEnv: "XAI_API_KEY",
       url: "https://api.x.ai/v1",
     });
     expect(
-      ai.modelConfig("anthropic/claude-sonnet-4.6", {
+      ai.modelConnection("anthropic/claude-sonnet-4.6", {
         provider: "anthropic",
       }),
     ).toMatchObject({
-      apiKey: "anthropic-key",
-      id: "claude-sonnet-4-6",
+      credentials: { apiKey: "anthropic-key", serviceApiKey: "anthropic-key" },
+      providerModelId: "claude-sonnet-4-6",
       provider: "anthropic",
     });
     expect(
-      ai.modelConfig("anthropic/claude-sonnet-4-6", {
+      ai.modelConnection("anthropic/claude-sonnet-4-6", {
         agent: "search",
         provider: "openrouter",
       }),
     ).toMatchObject({
-      apiKey: "openrouter-key",
       baseURL: "https://openrouter.ai/api/v1",
       capabilities: {
         agentAttribution: true,
@@ -696,10 +689,13 @@ describe("createAI", () => {
         headers: true,
         modelId: true,
       },
-      id: "anthropic/claude-sonnet-4.6",
+      credentials: {
+        apiKey: "openrouter-key",
+        user: `search/${env}`,
+      },
+      providerModelId: "anthropic/claude-sonnet-4.6",
       provider: "openrouter",
       url: "https://openrouter.ai/api/v1",
-      user: `search/${env}`,
     });
   });
 });
