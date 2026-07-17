@@ -1,6 +1,4 @@
 /** Benchmark metric keys that can be selected for comparison and sorting. */
-export type MetricKey = "ttft" | "tokensPerSecond" | "totalTime";
-
 /** Format a millisecond duration for compact table display. */
 export function formatMs(ms: number): string {
   if (ms < 1000) {
@@ -10,7 +8,7 @@ export function formatMs(ms: number): string {
 }
 
 /** Format raw token-per-second throughput without the unit suffix. */
-export function formatTps(value: number): string {
+function formatTps(value: number): string {
   if (value === 0) {
     return "0";
   }
@@ -40,46 +38,3 @@ export function formatUsd(value: number): string {
   }
   return `$${value.toFixed(2)}`;
 }
-
-/** Pluralize a count-sensitive label with an optional irregular plural form. */
-export function pluralize(n: number, single: string, plural?: string): string {
-  if (n === 1) {
-    return single;
-  }
-  return plural ?? `${single}s`;
-}
-
-/** UI metadata for one benchmark metric. */
-export interface MetricMeta {
-  short: string;
-  full: string;
-  description: string;
-  /** Direction "lower" means lower-is-better; "higher" means higher-is-better. */
-  direction: "lower" | "higher";
-  unit: string;
-}
-
-/** Display metadata for benchmark metrics used by tables, legends, and charts. */
-export const METRIC_META: Record<MetricKey, MetricMeta> = {
-  tokensPerSecond: {
-    description: "Streaming throughput once the model starts generating. Higher is better.",
-    direction: "higher",
-    full: "Tokens per second",
-    short: "TPS",
-    unit: "t/s",
-  },
-  totalTime: {
-    description: "End-to-end wall time from request to last token. Lower is better.",
-    direction: "lower",
-    full: "Total time",
-    short: "TOTAL",
-    unit: "ms · s",
-  },
-  ttft: {
-    description: "Latency from request to the first streamed token. Lower is better.",
-    direction: "lower",
-    full: "Time to first token",
-    short: "TTFT",
-    unit: "ms · s",
-  },
-};

@@ -1,374 +1,605 @@
+import { randomUUID } from "node:crypto";
 import { createAI, streamText, visionMessage } from "@howells/ai";
-import type { ModelService, ProviderRoute } from "@howells/ai";
+import type { GenerationOptions, ModelService } from "@howells/ai";
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { z } from "zod";
+import { apiErrorResponse, assertTrustedOrigin, BenchmarkApiError } from "../../../lib/api-errors";
+import { requireBenchmarkSession } from "../../../lib/benchmark-auth";
 import {
-  buildBenchmarkGenerationOptions,
-  DEFAULT_ADVANCED_OPTIONS,
-} from "../../../lib/benchmark-options";
+  BENCHMARK_PROTOCOL_VERSION,
+  BenchmarkRunSpecSchema,
+  BenchmarkStreamEventSchema,
+} from "../../../lib/benchmark-contracts";
 import type {
-  BenchmarkAdvancedOptions,
-  BenchmarkReasoningMode,
-} from "../../../lib/benchmark-options";
-import { benchmarkOptionsHash, persistBenchmarkResult } from "../../../lib/benchmark-history";
+  BenchmarkRunSpec,
+  BenchmarkStreamEvent,
+  BenchmarkStreamEventPayload,
+} from "../../../lib/benchmark-contracts";
+import type { BenchmarkJob } from "../../../lib/benchmark-run";
+import { expandBenchmarkRun } from "../../../lib/benchmark-run";
+import { getBenchmarkPolicy } from "../../../lib/benchmark-policy";
+import { suppressProviderStreamError } from "../../../lib/provider-errors";
+import {
+  finalizeBenchmarkRun,
+  loadBenchmarkRunStatus,
+  markBenchmarkAttempt,
+  persistBenchmarkSample,
+  remainingDailyAttempts,
+  reserveBenchmarkRun,
+} from "../../../lib/benchmark-store";
+import type { PersistedSample } from "../../../lib/benchmark-store";
 import { loadBenchmarkEnv } from "../../../lib/server-env";
 
-/** Allow benchmark streams to run for up to five minutes. */
 export const maxDuration = 300;
 
-interface RunDef {
-  model: string;
-  provider: ProviderRoute;
-  label?: string;
-  /** Optional OpenRouter backing provider slug for this specific run. */
-  routeProvider?: string;
-  /** Optional reasoning mode override for this specific run. */
-  reasoning?: BenchmarkReasoningMode;
-}
-
-interface BenchmarkRequest {
-  /** Single prompt (legacy) or array of prompts for multi-round averaging. */
-  prompt: string | string[];
-  /** Optional image URLs or data URLs applied to every prompt round. */
-  images?: string[];
-  runs: RunDef[];
-  maxTokens?: number;
-  options?: BenchmarkAdvancedOptions;
-}
-
-interface BenchmarkResult {
-  model: string;
-  provider: ProviderRoute;
-  label: string;
-  ttft: number;
-  totalTime: number;
-  outputTokens: number;
-  inputTokens: number;
-  tokensPerSecond: number;
-  costUsd?: number;
-  output: string;
-  error?: string;
-  region: string;
-  /** Which round this result is from (0-indexed). Only present in multi-round mode. */
-  round?: number;
-  /** Averaged result across all rounds. Only present on summary results. */
-  averaged?: boolean;
-}
-
-/** Return configured providers and services for benchmark UI availability checks. */
-export function GET() {
+/** Return authenticated, secret-free provider availability and safety limits. */
+export async function GET(request: Request) {
   loadBenchmarkEnv();
-
-  const ai = createAI({
-    app: { name: "Howells AI Benchmark", url: "https://github.com/howells/ai" },
-  });
-
-  return NextResponse.json({
-    availableProviders: ai.availableProviders,
-    availableServices: ai.availableServices satisfies readonly ModelService[],
-  });
+  try {
+    await requireBenchmarkSession(request);
+    const policy = getBenchmarkPolicy();
+    const ai = benchmarkClient();
+    const response = NextResponse.json({
+      availableProviders: ai.availableProviders,
+      availableServices: ai.availableServices satisfies readonly ModelService[],
+      limits: {
+        activeRuns: policy.activeRunLimit,
+        dailyAttempts: policy.dailyAttemptLimit,
+        exploreConcurrency: 4,
+        images: 4,
+        maxOutputTokens: 4096,
+        requestBytes: 20 * 1024 * 1024,
+        rigorousConcurrency: 1,
+        runAttempts: policy.runAttemptLimit,
+      },
+      remainingDailyAttempts: await remainingDailyAttempts(),
+    });
+    response.headers.set("Cache-Control", "private, no-store");
+    return response;
+  } catch (error) {
+    return apiErrorResponse(error);
+  }
 }
 
-async function executeRun(
-  ai: ReturnType<typeof createAI>,
-  run: RunDef,
-  prompt: string,
-  images: readonly string[],
-  maxTokens: number,
-  region: string,
-  options?: BenchmarkAdvancedOptions,
-  round?: number,
-): Promise<BenchmarkResult> {
-  const label = run.label ?? `${run.provider}/${run.model}`;
-  const start = performance.now();
-  const openRouterVariant =
-    run.provider === "openrouter" && options?.openRouterVariant !== "off"
-      ? options?.openRouterVariant
-      : undefined;
-  const resultModel =
-    openRouterVariant && !run.model.endsWith(`:${openRouterVariant}`)
-      ? `${run.model.replace(/:(nitro|exacto|floor)$/, "")}:${openRouterVariant}`
-      : run.model;
-  const resultLabel =
-    openRouterVariant && !label.endsWith(`:${openRouterVariant}`)
-      ? `${label} :${openRouterVariant}`
-      : label;
-
+/** Validate, reserve, execute, persist, and stream one benchmark run. */
+export async function POST(request: Request) {
+  loadBenchmarkEnv();
   try {
-    const model = ai.modelById(run.model, {
-      provider: run.provider,
-      ...(images.length > 0 ? { vision: true } : {}),
-      ...(openRouterVariant ? { openRouterVariant } : {}),
-    });
-    const runOptions: BenchmarkAdvancedOptions | undefined =
-      (run.routeProvider && run.provider === "openrouter") || run.reasoning
-        ? {
-            ...(options ?? DEFAULT_ADVANCED_OPTIONS),
-            ...(run.routeProvider && run.provider === "openrouter"
-              ? {
-                  allowProviders: [run.routeProvider],
-                  fallbacks: false,
-                }
-              : {}),
-            ...(run.reasoning ? { reasoning: run.reasoning } : {}),
-          }
-        : options;
-
-    const result = streamText({
-      model,
-      ...(images.length > 0 ? { messages: [visionMessage(prompt, images)] } : { prompt }),
-      ...ai.generationOptions(
-        buildBenchmarkGenerationOptions({
-          maxTokens,
-          modelId: run.model,
-          options: runOptions,
-          provider: run.provider,
-        }),
-      ),
-    });
-
-    let ttft: number | null = null;
-    let output = "";
-
-    for await (const delta of result.textStream) {
-      if (ttft === null) {
-        ttft = performance.now() - start;
-      }
-      output += delta;
+    const policy = getBenchmarkPolicy();
+    assertTrustedOrigin(request, policy.canonicalOrigin);
+    const session = await requireBenchmarkSession(request);
+    const contentType = request.headers.get("content-type") ?? "";
+    if (!contentType.toLowerCase().startsWith("application/json")) {
+      throw new BenchmarkApiError(
+        400,
+        "benchmark/content-type",
+        "Send an application/json request.",
+      );
+    }
+    const contentLength = Number(request.headers.get("content-length") ?? "0");
+    if (Number.isFinite(contentLength) && contentLength > 20 * 1024 * 1024) {
+      throw new BenchmarkApiError(
+        413,
+        "benchmark/request-too-large",
+        "The benchmark request exceeds 20 MB.",
+      );
+    }
+    const rawBody = await request.text();
+    if (Buffer.byteLength(rawBody, "utf-8") > 20 * 1024 * 1024) {
+      throw new BenchmarkApiError(
+        413,
+        "benchmark/request-too-large",
+        "The benchmark request exceeds 20 MB.",
+      );
+    }
+    const spec = BenchmarkRunSpecSchema.parse(JSON.parse(rawBody));
+    validateImages(spec.images ?? []);
+    const expanded = expandBenchmarkRun(spec);
+    if (expanded.jobs.length === 0) {
+      throw new BenchmarkApiError(
+        422,
+        "benchmark/no-matching-jobs",
+        "No benchmark jobs matched the retry selection.",
+      );
+    }
+    if (expanded.reservedAttempts > policy.runAttemptLimit) {
+      throw new BenchmarkApiError(
+        422,
+        "benchmark/run-limit-exceeded",
+        `This run requires ${expanded.reservedAttempts} attempts; the limit is ${policy.runAttemptLimit}.`,
+        { requestedAttempts: expanded.reservedAttempts, runAttemptLimit: policy.runAttemptLimit },
+      );
     }
 
-    const totalTime = performance.now() - start;
-    const usage = await result.usage;
-    const providerMetadata = await Promise.resolve(
-      (result as { providerMetadata?: unknown }).providerMetadata,
-    );
-    const outTokens = usage.outputTokens ?? 0;
-    const inTokens = usage.inputTokens ?? 0;
-    const costUsd = extractCostUsd(providerMetadata) ?? extractCostUsd(usage);
+    const ai = benchmarkClient();
+    for (const route of spec.routes) {
+      ai.modelDescriptor(route.model, { provider: route.provider });
+      if (!ai.availableProviders.includes(route.provider)) {
+        throw new BenchmarkApiError(
+          422,
+          "benchmark/provider-unavailable",
+          `Provider ${route.provider} is not configured.`,
+          { provider: route.provider },
+        );
+      }
+    }
 
-    return {
-      model: resultModel,
-      provider: run.provider,
-      label: resultLabel,
-      ttft: Math.round(ttft ?? totalTime),
-      totalTime: Math.round(totalTime),
-      outputTokens: outTokens,
-      inputTokens: inTokens,
-      tokensPerSecond: totalTime > 0 ? Math.round((outTokens / (totalTime / 1000)) * 10) / 10 : 0,
-      ...(costUsd !== undefined ? { costUsd } : {}),
-      output: output.slice(0, 500),
-      region,
-      round,
-    };
+    const proposedRunId = randomUUID();
+    const reservation = await reserveBenchmarkRun(session.id, proposedRunId, spec, expanded);
+    if (reservation.existing) {
+      const status = await loadBenchmarkRunStatus(session.id, reservation.runId);
+      const response = NextResponse.json({
+        cohortHash: reservation.cohortHash,
+        existing: true,
+        runId: reservation.runId,
+        status,
+      });
+      response.headers.set("Cache-Control", "private, no-store");
+      return response;
+    }
+
+    return benchmarkStream({
+      ai,
+      cohortHash: reservation.cohortHash,
+      jobs: expanded.jobs,
+      request,
+      runId: reservation.runId,
+      sessionId: session.id,
+      spec,
+    });
   } catch (error) {
-    const totalTime = performance.now() - start;
+    if (error instanceof SyntaxError) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "benchmark/invalid-json",
+            message: "The benchmark request body is not valid JSON.",
+          },
+        },
+        { status: 400 },
+      );
+    }
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "benchmark/invalid-request",
+            message: "The benchmark run specification is invalid.",
+          },
+        },
+        { status: 422 },
+      );
+    }
+    return apiErrorResponse(error);
+  }
+}
+
+function benchmarkStream({
+  ai,
+  cohortHash,
+  jobs,
+  request,
+  runId,
+  sessionId,
+  spec,
+}: {
+  ai: ReturnType<typeof createAI>;
+  cohortHash: string;
+  jobs: readonly BenchmarkJob[];
+  request: Request;
+  runId: string;
+  sessionId: string;
+  spec: BenchmarkRunSpec;
+}): Response {
+  const encoder = new TextEncoder();
+  const abortController = new AbortController();
+  let closed = false;
+  let sequence = 0;
+  let attemptedJobs = 0;
+  let failedJobs = 0;
+  let successfulJobs = 0;
+  let heartbeat: ReturnType<typeof setInterval> | undefined;
+  const hardTimeout = setTimeout(() => {
+    abortController.abort("timeout");
+  }, 295_000);
+  const abortFromRequest = () => {
+    abortController.abort("client-disconnect");
+  };
+  request.signal.addEventListener("abort", abortFromRequest, { once: true });
+
+  const stream = new ReadableStream<Uint8Array>({
+    cancel() {
+      closed = true;
+      abortController.abort("stream-cancelled");
+    },
+    start(controller) {
+      const send = (event: BenchmarkStreamEventPayload) => {
+        if (closed) {
+          return;
+        }
+        const envelope = BenchmarkStreamEventSchema.parse({
+          ...event,
+          runId,
+          sequence,
+          version: BENCHMARK_PROTOCOL_VERSION,
+        });
+        sequence += 1;
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(envelope)}\n\n`));
+      };
+
+      heartbeat = setInterval(() => {
+        send({ completedJobs: successfulJobs + failedJobs, type: "heartbeat" });
+      }, 15_000);
+
+      void (async () => {
+        let terminal: "completed" | "partial" | "cancelled" | "failed" = "failed";
+        try {
+          send({ cohortHash, totalJobs: jobs.length, type: "started" });
+          const concurrency = spec.mode === "rigorous" ? 1 : Math.min(4, jobs.length);
+          const pendingSamples: {
+            job: BenchmarkJob;
+            ordinal: number;
+            outcome: Awaited<ReturnType<typeof executeJob>>;
+          }[] = [];
+          const flushSamples = async () => {
+            const batch = pendingSamples.splice(0);
+            await Promise.all(
+              batch.map(async ({ job, ordinal, outcome }) =>
+                persistBenchmarkSample(sessionId, runId, job, ordinal, outcome.sample),
+              ),
+            );
+            for (const { outcome } of batch) {
+              if (outcome.event.type === "sample-result") {
+                successfulJobs += 1;
+              } else {
+                failedJobs += 1;
+              }
+              send({
+                ...outcome.event,
+                completedJobs: successfulJobs + failedJobs,
+              });
+            }
+          };
+          await runWithConcurrency(jobs, concurrency, async (job, ordinal) => {
+            if (abortController.signal.aborted) {
+              return;
+            }
+            await markBenchmarkAttempt(runId);
+            const outcome = await executeJob(ai, spec, job, abortController.signal);
+            attemptedJobs += outcome.attemptsUsed;
+            for (let attempt = 1; attempt < outcome.attemptsUsed; attempt += 1) {
+              await markBenchmarkAttempt(runId);
+            }
+            pendingSamples.push({ job, ordinal, outcome });
+            if (spec.mode === "rigorous" && endsMeasuredBlock(jobs, ordinal)) {
+              await flushSamples();
+            }
+          });
+          await flushSamples();
+
+          if (abortController.signal.aborted) {
+            terminal = "cancelled";
+            send({ attemptedJobs, type: "cancelled" });
+          } else {
+            terminal = failedJobs === 0 ? "completed" : successfulJobs === 0 ? "failed" : "partial";
+            send({ attemptedJobs, failedJobs, successfulJobs, type: "completed" });
+          }
+        } catch {
+          failedJobs += 1;
+          terminal = abortController.signal.aborted ? "cancelled" : "failed";
+          if (terminal === "cancelled") {
+            send({ attemptedJobs, type: "cancelled" });
+          } else {
+            send({ attemptedJobs, failedJobs, successfulJobs, type: "completed" });
+          }
+        } finally {
+          try {
+            await finalizeBenchmarkRun(runId, terminal);
+          } finally {
+            closed = true;
+            if (heartbeat) {
+              clearInterval(heartbeat);
+            }
+            clearTimeout(hardTimeout);
+            request.signal.removeEventListener("abort", abortFromRequest);
+            try {
+              controller.close();
+            } catch {
+              // The browser may already have cancelled the response stream.
+            }
+          }
+        }
+      })();
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Cache-Control": "private, no-cache, no-store, no-transform",
+      Connection: "keep-alive",
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "X-Accel-Buffering": "no",
+    },
+  });
+}
+
+function endsMeasuredBlock(jobs: readonly BenchmarkJob[], ordinal: number): boolean {
+  const current = jobs[ordinal];
+  const next = jobs[ordinal + 1];
+  return (
+    !current ||
+    !next ||
+    current.phase !== next.phase ||
+    current.promptCaseId !== next.promptCaseId ||
+    current.sampleIndex !== next.sampleIndex
+  );
+}
+
+async function executeJob(
+  ai: ReturnType<typeof createAI>,
+  spec: BenchmarkRunSpec,
+  job: BenchmarkJob,
+  abortSignal: AbortSignal,
+): Promise<{
+  attemptsUsed: number;
+  event:
+    | Omit<
+        Extract<BenchmarkStreamEvent, { type: "sample-result" }>,
+        "runId" | "sequence" | "version" | "completedJobs"
+      >
+    | Omit<
+        Extract<BenchmarkStreamEvent, { type: "sample-error" }>,
+        "runId" | "sequence" | "version" | "completedJobs"
+      >;
+  sample: PersistedSample;
+}> {
+  const start = performance.now();
+  const descriptor = ai.modelDescriptor(job.route.model, { provider: job.route.provider });
+  try {
+    const model = ai.modelById(job.route.model, {
+      provider: job.route.provider,
+      ...(spec.images?.length ? { vision: true } : {}),
+    });
+    const result = streamText({
+      abortSignal,
+      maxRetries: 0,
+      model,
+      onError: suppressProviderStreamError,
+      ...(spec.images?.length
+        ? { messages: [visionMessage(job.prompt, spec.images)] }
+        : { prompt: job.prompt }),
+      ...ai.generationOptions(generationOptions(spec, job)),
+    });
+
+    let firstTokenAt: number | undefined;
+    let output = "";
+    for await (const delta of result.textStream) {
+      firstTokenAt ??= performance.now();
+      output += delta;
+    }
+    const finishedAt = performance.now();
+    const usage = await result.usage;
+    const response = await result.response;
+    const providerMetadata = await result.providerMetadata;
+    const ttftMs = Math.round((firstTokenAt ?? finishedAt) - start);
+    const generationDurationMs = Math.max(0, Math.round(finishedAt - (firstTokenAt ?? finishedAt)));
+    const totalDurationMs = Math.round(finishedAt - start);
+    const costUsd = extractCostUsd(providerMetadata) ?? extractCostUsd(usage);
+    const costMicros = costUsd === undefined ? undefined : Math.round(costUsd * 1_000_000);
+    const resolvedModelId = response.modelId || descriptor.providerModelId;
+    const backingProvider =
+      extractMetadataString(
+        providerMetadata,
+        new Set(["provider", "providerName", "provider_name"]),
+      ) ?? job.route.routeProvider;
+    const attemptsUsed = successfulAttemptCount(spec, resolvedModelId);
+    const sample: PersistedSample = {
+      ...(costMicros === undefined ? {} : { costMicros }),
+      ...(backingProvider ? { backingProvider } : {}),
+      generationDurationMs,
+      inputTokens: usage.inputTokens ?? 0,
+      outputTokens: usage.outputTokens ?? 0,
+      resolvedModelId,
+      status: "success",
+      totalDurationMs,
+      ttftMs,
+    };
     return {
-      error: error instanceof Error ? error.message : String(error),
-      inputTokens: 0,
-      label: resultLabel,
-      model: resultModel,
-      output: "",
-      outputTokens: 0,
-      provider: run.provider,
-      region,
-      round,
-      tokensPerSecond: 0,
-      totalTime: Math.round(totalTime),
-      ttft: 0,
+      attemptsUsed,
+      event: {
+        ...(costMicros === undefined ? {} : { costMicros }),
+        generationDurationMs,
+        inputTokens: usage.inputTokens ?? 0,
+        output: spec.mode === "explore" ? output : "",
+        outputTokens: usage.outputTokens ?? 0,
+        phase: job.phase,
+        promptCaseId: job.promptCaseId,
+        provider: job.route.provider,
+        providerModelId: resolvedModelId,
+        requestedModelId: job.route.model,
+        sampleId: job.id,
+        sampleIndex: job.sampleIndex,
+        totalDurationMs,
+        ttftMs,
+        type: "sample-result",
+      },
+      sample,
+    };
+  } catch {
+    const code = abortSignal.aborted ? "provider/aborted" : "provider/generation-failed";
+    return {
+      attemptsUsed: abortSignal.aborted
+        ? 1
+        : 1 + (spec.mode === "explore" ? (spec.options?.fallbackModels?.length ?? 0) : 0),
+      event: {
+        code,
+        phase: job.phase,
+        promptCaseId: job.promptCaseId,
+        provider: job.route.provider,
+        requestedModelId: job.route.model,
+        sampleId: job.id,
+        sampleIndex: job.sampleIndex,
+        type: "sample-error",
+      },
+      sample: {
+        errorCode: code,
+        resolvedModelId: descriptor.providerModelId,
+        status: abortSignal.aborted ? "cancelled" : "error",
+        totalDurationMs: Math.round(performance.now() - start),
+      },
     };
   }
 }
 
-const COST_KEYS = new Set([
-  "cost",
-  "costUsd",
-  "cost_usd",
-  "totalCost",
-  "total_cost",
-  "totalCostUsd",
-  "total_cost_usd",
-]);
-
-function numericCost(value: unknown): number | undefined {
-  const parsed =
-    typeof value === "number"
-      ? value
-      : typeof value === "string"
-        ? Number.parseFloat(value)
-        : Number.NaN;
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+function successfulAttemptCount(spec: BenchmarkRunSpec, resolvedModelId: string): number {
+  if (spec.mode !== "explore") {
+    return 1;
+  }
+  const fallbackIndex = spec.options?.fallbackModels?.indexOf(resolvedModelId) ?? -1;
+  return fallbackIndex < 0 ? 1 : fallbackIndex + 2;
 }
+
+function generationOptions(spec: BenchmarkRunSpec, job: BenchmarkJob): GenerationOptions {
+  if (spec.mode === "rigorous") {
+    return {
+      cache: "off",
+      maxOutputTokens: spec.maxOutputTokens,
+      maxRetries: 0,
+      modelId: job.route.model,
+      provider: job.route.provider,
+      reasoning: "off",
+      routing: { fallbacks: false },
+      seed: spec.seed + job.sampleIndex,
+      serviceTier: "standard",
+    };
+  }
+  return {
+    cache: spec.options?.cache ? "ephemeral" : "off",
+    fallbackModels: spec.options?.fallbackModels,
+    maxOutputTokens: spec.maxOutputTokens,
+    maxRetries: 0,
+    modelId: job.route.model,
+    provider: job.route.provider,
+    reasoning: job.route.reasoning ?? "off",
+    responseHealing: spec.options?.responseHealing,
+    routing: job.route.routeProvider ? { allow: [job.route.routeProvider] } : undefined,
+    serviceTier: spec.options?.serviceTier,
+    webSearch: spec.options?.webSearch,
+  };
+}
+
+async function runWithConcurrency<T>(
+  items: readonly T[],
+  concurrency: number,
+  run: (item: T, index: number) => Promise<void>,
+): Promise<void> {
+  let nextIndex = 0;
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      const item = items[index];
+      if (item !== undefined) {
+        await run(item, index);
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: concurrency }, worker));
+}
+
+function validateImages(images: readonly string[]): void {
+  let totalBytes = 0;
+  for (const image of images) {
+    if (image.startsWith("data:")) {
+      if (!/^data:image\/(png|jpeg|webp|gif);base64,/i.test(image)) {
+        throw new BenchmarkApiError(
+          422,
+          "benchmark/image-type",
+          "Only PNG, JPEG, WebP, and GIF data images are supported.",
+        );
+      }
+      const encoded = image.slice(image.indexOf(",") + 1);
+      totalBytes += Math.floor((encoded.length * 3) / 4);
+      continue;
+    }
+    let url: URL;
+    try {
+      url = new URL(image);
+    } catch {
+      throw new BenchmarkApiError(
+        422,
+        "benchmark/image-url",
+        "Image URLs must be valid HTTPS URLs.",
+      );
+    }
+    if (url.protocol !== "https:" || url.username || url.password) {
+      throw new BenchmarkApiError(
+        422,
+        "benchmark/image-url",
+        "Image URLs must use HTTPS without embedded credentials.",
+      );
+    }
+    totalBytes += Buffer.byteLength(image, "utf-8");
+  }
+  if (totalBytes > 20 * 1024 * 1024) {
+    throw new BenchmarkApiError(
+      413,
+      "benchmark/images-too-large",
+      "Images exceed the 20 MB request limit.",
+    );
+  }
+}
+
+const COST_KEYS = new Set(["cost", "costUsd", "cost_usd", "totalCost", "total_cost"]);
 
 function extractCostUsd(value: unknown, depth = 0): number | undefined {
   if (!value || depth > 5 || typeof value !== "object") {
     return undefined;
   }
-
   for (const [key, child] of Object.entries(value)) {
     if (COST_KEYS.has(key)) {
-      const cost = numericCost(child);
-      if (cost !== undefined) {
+      const cost =
+        typeof child === "number"
+          ? child
+          : typeof child === "string"
+            ? Number.parseFloat(child)
+            : Number.NaN;
+      if (Number.isFinite(cost) && cost >= 0) {
         return cost;
       }
     }
   }
-
   for (const child of Object.values(value)) {
     const cost = extractCostUsd(child, depth + 1);
     if (cost !== undefined) {
       return cost;
     }
   }
-
   return undefined;
 }
 
-function averageResults(results: BenchmarkResult[]): BenchmarkResult {
-  const firstResult = results[0];
-  if (!firstResult) {
-    throw new Error("Cannot average an empty benchmark result set");
+function extractMetadataString(
+  value: unknown,
+  keys: ReadonlySet<string>,
+  depth = 0,
+): string | undefined {
+  if (!value || depth > 5 || typeof value !== "object") {
+    return undefined;
   }
-
-  const valid = results.filter((r) => !r.error);
-  if (valid.length === 0) {
-    return { ...firstResult, averaged: true, round: undefined };
+  for (const [key, child] of Object.entries(value)) {
+    if (keys.has(key) && typeof child === "string" && child.length > 0) {
+      return child;
+    }
   }
-
-  const firstValid = valid[0];
-  if (!firstValid) {
-    return { ...firstResult, averaged: true, round: undefined };
+  for (const child of Object.values(value)) {
+    const match = extractMetadataString(child, keys, depth + 1);
+    if (match) {
+      return match;
+    }
   }
-
-  const avg = (fn: (r: BenchmarkResult) => number) =>
-    Math.round(valid.reduce((sum, r) => sum + fn(r), 0) / valid.length);
-
-  const avgTps =
-    Math.round((valid.reduce((sum, r) => sum + r.tokensPerSecond, 0) / valid.length) * 10) / 10;
-  const totalCostUsd = valid.reduce((sum, r) => sum + (r.costUsd ?? 0), 0);
-
-  return {
-    model: firstValid.model,
-    provider: firstValid.provider,
-    label: firstValid.label,
-    ttft: avg((r) => r.ttft),
-    totalTime: avg((r) => r.totalTime),
-    outputTokens: avg((r) => r.outputTokens),
-    inputTokens: avg((r) => r.inputTokens),
-    tokensPerSecond: avgTps,
-    ...(totalCostUsd > 0 ? { costUsd: totalCostUsd } : {}),
-    output: "",
-    region: firstValid.region,
-    averaged: true,
-  };
+  return undefined;
 }
 
-/**
- * Stream model benchmark results for one or more prompts and provider routes.
- *
- * Each server-sent event contains either an individual run result or an averaged
- * summary for multi-round requests.
- */
-export async function POST(request: NextRequest) {
-  loadBenchmarkEnv();
-
-  const body = (await request.json()) as BenchmarkRequest;
-  const { runs, maxTokens = 200, options } = body;
-
-  const prompts = Array.isArray(body.prompt) ? body.prompt : [body.prompt];
-  const images = (body.images ?? []).map((image) => image.trim()).filter(Boolean);
-
-  const firstPrompt = prompts[0];
-
-  if (!firstPrompt || !runs?.length) {
-    return NextResponse.json({ error: "prompt(s) and runs[] are required" }, { status: 400 });
-  }
-
-  const ai = createAI({
-    app: { name: "Howells AI Benchmark", url: "https://github.com/howells/ai" },
-  });
-
-  const region = process.env.VERCEL_REGION ?? process.env.AWS_REGION ?? "local";
-  const multiRound = prompts.length > 1;
-  const optionsHash = benchmarkOptionsHash({ images, maxTokens, options });
-  const pendingHistoryWrites: Promise<void>[] = [];
-
-  const encoder = new TextEncoder();
-  const stream = new ReadableStream({
-    async start(controller) {
-      const send = (data: BenchmarkResult, promptText: string) => {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
-        pendingHistoryWrites.push(
-          persistBenchmarkResult({
-            optionsHash,
-            prompt: promptText,
-            result: data,
-          }).catch((error) => {
-            console.warn("Failed to persist benchmark result:", error);
-          }),
-        );
-      };
-
-      if (!multiRound) {
-        // Single prompt - fire all runs in parallel (original behavior)
-        await Promise.all(
-          runs.map(async (run) => {
-            await executeRun(ai, run, firstPrompt, images, maxTokens, region, options).then(
-              (result) => {
-                send(result, firstPrompt);
-              },
-            );
-          }),
-        );
-      } else {
-        // Multi-round - run each prompt sequentially, all runs in parallel per round
-        const allResults = new Map<string, BenchmarkResult[]>();
-
-        for (let round = 0; round < prompts.length; round += 1) {
-          const promptForRound = prompts[round] ?? "";
-          const roundResults = await Promise.all(
-            runs.map(
-              async (run) =>
-                await executeRun(
-                  ai,
-                  run,
-                  promptForRound,
-                  images,
-                  maxTokens,
-                  region,
-                  options,
-                  round,
-                ),
-            ),
-          );
-
-          // Stream each round's results
-          for (const result of roundResults) {
-            send(result, promptForRound);
-            const key = `${result.provider}:${result.model}`;
-            const existing = allResults.get(key) ?? [];
-            existing.push(result);
-            allResults.set(key, existing);
-          }
-        }
-
-        // Send averaged summaries
-        const averagedPrompt = prompts.join("\n\n---\n\n");
-        for (const results of allResults.values()) {
-          send(averageResults(results), averagedPrompt);
-        }
-      }
-
-      await Promise.allSettled(pendingHistoryWrites);
-      controller.enqueue(encoder.encode("data: [DONE]\n\n"));
-      controller.close();
-    },
-  });
-
-  return new Response(stream, {
-    headers: {
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-      "Content-Type": "text/event-stream",
-    },
-  });
+function benchmarkClient() {
+  return createAI({ app: { name: "Howells AI Benchmark", url: "https://github.com/howells/ai" } });
 }

@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: benchmark_test
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.5.2
+      - uses: actions/setup-node@v4
+        with:
+          cache: pnpm
+          node-version: 22.18.0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - run: pnpm install --frozen-lockfile
+      - name: Package lint, types, and deterministic tests
+        run: pnpm lint && pnpm check-types && pnpm test
+      - name: Package build
+        run: pnpm build
+      - name: Database contracts
+        env:
+          PGPASSWORD: postgres
+        run: >-
+          psql -h 127.0.0.1 -U postgres -d benchmark_test
+          -f apps/benchmark/migrations/0001_hardened_benchmark.sql
+          -f apps/benchmark/test/database.integration.sql
+      - name: Benchmark types and build
+        run: pnpm --filter @howells/ai-benchmark check-types && pnpm benchmark:build
+      - name: Browser checks
+        run: pnpm --filter @howells/ai-benchmark exec playwright install --with-deps chromium && pnpm --filter @howells/ai-benchmark test:e2e
+      - name: Package dry run and public import boundary
+        run: npm pack --dry-run && node -e "Promise.all([import('./dist/index.mjs'), import('./dist/server.mjs')])"
+      - name: Dependency audit
+        run: pnpm audit --audit-level high

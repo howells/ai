@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { z } from "zod";
+import { apiErrorResponse } from "../../../../lib/api-errors";
+import { requireBenchmarkSession } from "../../../../lib/benchmark-auth";
+import { loadBenchmarkEnv } from "../../../../lib/server-env";
 
 interface OpenRouterEndpoint {
   provider_name?: string;
@@ -29,31 +33,50 @@ function endpointUrl(modelId: string): string {
 
 /** Proxy OpenRouter endpoint metadata for one model ID. */
 export async function GET(request: NextRequest) {
-  const model = request.nextUrl.searchParams.get("model")?.trim();
+  loadBenchmarkEnv();
+  try {
+    await requireBenchmarkSession(request);
+    const model = z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .regex(/^[a-zA-Z0-9._:/-]+$/)
+      .parse(request.nextUrl.searchParams.get("model"));
 
-  if (!model) {
-    return NextResponse.json({ error: "model is required" }, { status: 400 });
-  }
-
-  const response = await fetch(endpointUrl(model), {
-    headers: {
-      Accept: "application/json",
-    },
-    next: { revalidate },
-  });
-
-  if (!response.ok) {
-    return NextResponse.json(
-      {
-        error: `OpenRouter endpoints request failed: HTTP ${response.status}`,
+    const response = await fetch(endpointUrl(model), {
+      headers: {
+        Accept: "application/json",
       },
-      { status: response.status },
-    );
-  }
+      next: { revalidate },
+    });
 
-  const payload = (await response.json()) as OpenRouterEndpointResponse;
-  return NextResponse.json({
-    endpoints: payload.data?.endpoints ?? [],
-    model: payload.data?.id ?? model,
-  });
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "openrouter/upstream-error",
+            message: "OpenRouter metadata is unavailable.",
+          },
+        },
+        { status: 502 },
+      );
+    }
+
+    const payload = (await response.json()) as OpenRouterEndpointResponse;
+    const result = NextResponse.json({
+      endpoints: payload.data?.endpoints ?? [],
+      model: payload.data?.id ?? model,
+    });
+    result.headers.set("Cache-Control", "private, no-store");
+    return result;
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: { code: "openrouter/invalid-model", message: "A valid model ID is required." } },
+        { status: 422 },
+      );
+    }
+    return apiErrorResponse(error);
+  }
 }

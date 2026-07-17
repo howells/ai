@@ -1,36 +1,33 @@
-import type { ProviderRoute } from "@howells/ai";
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { loadBenchmarkHistory } from "../../../../lib/benchmark-history";
+import { z } from "zod";
+import { apiErrorResponse } from "../../../../lib/api-errors";
+import { requireBenchmarkSession } from "../../../../lib/benchmark-auth";
+import { loadCohortHistory } from "../../../../lib/benchmark-store";
+import { loadBenchmarkEnv } from "../../../../lib/server-env";
 
-/** Allow history aggregation enough time for remote serverless databases. */
 export const maxDuration = 60;
 
-/** Return historical benchmark summaries for the requested model/provider filters. */
-export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const models = parseCsv(searchParams.get("models"));
-  const providers = parseCsv(searchParams.get("providers")) as ProviderRoute[];
+const QuerySchema = z.string().regex(/^[a-f0-9]{64}$/);
 
+/** Return database-native aggregates for one exact authenticated cohort. */
+export async function GET(request: Request) {
+  loadBenchmarkEnv();
   try {
-    const history = await loadBenchmarkHistory({ models, providers });
-    return NextResponse.json(history);
-  } catch (error) {
-    console.warn("Failed to load benchmark history:", error);
-    return NextResponse.json({
-      available: false,
-      error: error instanceof Error ? error.message : String(error),
-      providers: [],
+    await requireBenchmarkSession(request);
+    const cohortHash = QuerySchema.parse(new URL(request.url).searchParams.get("cohort"));
+    const response = NextResponse.json({
+      cohortHash,
+      rows: await loadCohortHistory(cohortHash),
     });
+    response.headers.set("Cache-Control", "private, no-store");
+    return response;
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: { code: "history/invalid-cohort", message: "A valid cohort hash is required." } },
+        { status: 422 },
+      );
+    }
+    return apiErrorResponse(error);
   }
-}
-
-function parseCsv(value: string | null): string[] {
-  if (!value) {
-    return [];
-  }
-  return value
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
 }
