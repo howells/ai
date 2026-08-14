@@ -94,6 +94,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 26.0.1
+      oxlint-tsgolint:
+        specifier: 0.23.0
+        version: 0.23.0
       tsdown:
         specifier: ^0.22.3
         version: 0.22.3(typescript@6.0.3)(unrun@0.2.37)

@@ -71,6 +71,7 @@
   "devDependencies": {
     "@howells/lint": "catalog:",
     "@types/node": "catalog:",
+    "oxlint-tsgolint": "0.23.0",
     "tsdown": "^0.22.3",
     "typescript": "catalog:"
   },
