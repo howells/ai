@@ -39,10 +39,10 @@ jobs:
         with:
           bun-version: 1.3.14
       - run: pnpm install --frozen-lockfile
-      - name: Package lint, types, and deterministic tests
-        run: pnpm lint && pnpm check-types && pnpm test
-      - name: Package build
-        run: pnpm build
+      - name: Package lint, types, and build
+        run: pnpm lint && pnpm check-types && pnpm build
+      - name: Deterministic tests
+        run: pnpm test
       - name: Database contracts
         env:
           PGPASSWORD: postgres
