@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { createAI, KIMI_MODELS, OPENAI_MODELS, OPENROUTER_EMBED_MODELS, QWEN_MODELS } from "../src";
+import {
+  createAI,
+  KIMI_MODELS,
+  NEX_AGI_MODELS,
+  OPENAI_MODELS,
+  OPENROUTER_EMBED_MODELS,
+  QWEN_MODELS,
+} from "../src";
 import type { ModelTier, ProviderRoute } from "../src";
 import { createAIServer } from "../src/server";
 
@@ -196,11 +203,11 @@ describe("createAI", () => {
     const ai = createAI({ gatewayKey: "gateway-key" });
 
     expect(() =>
-      ai.modelById(QWEN_MODELS.QWEN_3_VL_235B_A22B, {
+      ai.modelById(NEX_AGI_MODELS.NEX_N2_PRO, {
         provider: "gateway",
       }),
     ).toThrow(
-      'Model "qwen/qwen3-vl-235b-a22b-instruct" is not available through provider "gateway". Use OpenRouter or choose a Gateway-supported model.',
+      'Model "nex-agi/nex-n2-pro" is not available through provider "gateway". Use OpenRouter or choose a Gateway-supported model.',
     );
     expect(() =>
       ai.modelDescriptor(QWEN_MODELS.QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE, {

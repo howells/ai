@@ -5,6 +5,18 @@ import { createAI, generateText, streamText } from "./index";
 import { envValue } from "./env";
 import type { RuntimeEnvKey } from "./env";
 import { isProviderRoute, PROVIDER_ROUTES } from "./providers/registry";
+import { benchCompare } from "./bench";
+import {
+  compareModel,
+  discountedModels,
+  fetchGatewayCatalog,
+  fetchOpenRouterCatalog,
+  resolveCatalogId,
+} from "./catalog";
+import { auditAgainstCatalogs, roleDistribution, scanFleet, summariseUsage } from "./audit";
+import { MODEL_DECISION_SET } from "./decisions";
+import { LATENCY_CLASSES } from "./taxonomy";
+import type { LatencyClass } from "./taxonomy";
 import {
   canRouteModelToProvider,
   LANGUAGE_MODEL_CATALOG,
@@ -23,7 +35,16 @@ import type {
   ProviderRoute,
 } from "./types";
 
-type Command = "help" | "models" | "providers" | "doctor" | "test" | "bench";
+type Command =
+  | "help"
+  | "models"
+  | "providers"
+  | "doctor"
+  | "test"
+  | "bench"
+  | "catalog"
+  | "compare"
+  | "audit";
 
 interface CliOptions {
   command: Command;
@@ -37,6 +58,18 @@ interface CliOptions {
   model?: string;
   prompt: string;
   maxTokens: number;
+  /** Routes to measure in `bench`, in order. */
+  routes?: readonly ProviderRoute[];
+  /** Measured runs per route in `bench`. */
+  runs: number;
+  /** Include the per-model endpoint sweep that carries discounts. */
+  discounts: boolean;
+  /** Directory of repositories for `audit`. */
+  root?: string;
+  /** Show only discounted models in `catalog`. */
+  discountedOnly: boolean;
+  /** Latency class deciding which statistic ranks routes in `bench`. */
+  latencyClass?: LatencyClass;
 }
 
 interface ProviderStatus {
@@ -163,11 +196,40 @@ function parseCommand(value: string | undefined): Command {
     value === "providers" ||
     value === "doctor" ||
     value === "test" ||
-    value === "bench"
+    value === "bench" ||
+    value === "catalog" ||
+    value === "compare" ||
+    value === "audit"
   ) {
     return value;
   }
   throw new Error(`Unknown command "${value}".`);
+}
+
+function parseLatencyClass(value: string | undefined): LatencyClass | undefined {
+  if (!value) {
+    return undefined;
+  }
+  if ((LATENCY_CLASSES as readonly string[]).includes(value)) {
+    return value as LatencyClass;
+  }
+  throw new Error(`Unknown latency class "${value}".`);
+}
+
+function parseRoutes(value: string | undefined): readonly ProviderRoute[] | undefined {
+  if (!value) {
+    return undefined;
+  }
+  return value
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .map((entry) => {
+      if (!isProviderRoute(entry)) {
+        throw new Error(`Unknown provider "${entry}".`);
+      }
+      return entry as ProviderRoute;
+    });
 }
 
 function parseCliOptions(argv: readonly string[]): CliOptions {
@@ -176,15 +238,25 @@ function parseCliOptions(argv: readonly string[]): CliOptions {
   if (!Number.isFinite(maxTokens) || maxTokens < 1) {
     throw new Error("--max-tokens must be a positive number.");
   }
+  const runs = Number(readFlag(argv, "--runs") ?? "3");
+  if (!Number.isFinite(runs) || runs < 1) {
+    throw new Error("--runs must be a positive number.");
+  }
 
   return {
     command,
+    discounts: hasFlag(argv, "--discounts"),
+    discountedOnly: hasFlag(argv, "--discounted"),
     json: hasFlag(argv, "--json"),
     live: hasFlag(argv, "--live"),
     maxTokens,
     model: readFlag(argv, "--model"),
     prompt: readFlag(argv, "--prompt") ?? DEFAULT_PROMPT,
     provider: parseProvider(readFlag(argv, "--provider")),
+    latencyClass: parseLatencyClass(readFlag(argv, "--latency")),
+    root: readFlag(argv, "--root"),
+    routes: parseRoutes(readFlag(argv, "--routes")),
+    runs,
     schema: hasFlag(argv, "--schema"),
     task: parseTask(readFlag(argv, "--task")),
     tier: parseTier(readFlag(argv, "--tier")),
@@ -260,7 +332,10 @@ Usage:
   ai providers [--json]
   ai doctor [--live] [--json]
   ai test [--provider <provider>] [--model <id>] [--json]
-  ai bench [--provider <provider>] [--task <task>] [--model <id>] [--prompt "..."] [--json]
+  ai bench [--provider <provider>] [--routes a,b,c] [--runs N] [--latency interactive|background|batch] [--task <task>] [--model <id>] [--prompt "..."] [--json]
+  ai catalog [--discounted] [--json]
+  ai compare [--model <id>] [--discounts] [--json]
+  ai audit [--root <dir>] [--json]
   ai <command> --schema
 
 Commands:
@@ -268,7 +343,10 @@ Commands:
   providers  Show configured provider routes without revealing secrets.
   doctor     Validate local configuration; add --live for smoke calls.
   test       Run live smoke tests against configured provider/model routes.
-  bench      Measure one streaming generation call with TTFT and throughput.
+  bench      Measure streaming latency. With --routes, compare routes on one model.
+  catalog    Fetch live router catalogues; --discounted lists active discounts.
+  compare    Price the model catalogue across every router, discounts included.
+  audit      Scan a directory of repos for pinned models and reconcile with the market.
 
 Agent surface:
   --json      Stable JSON envelope: { success, data, metadata }.
@@ -656,7 +734,220 @@ async function commandTest(options: CliOptions): Promise<number> {
   return failures.length === 0 ? 0 : 1;
 }
 
+async function loadCatalogs(options: CliOptions) {
+  const [openrouter, gateway] = await Promise.all([
+    fetchOpenRouterCatalog({ includeEndpoints: options.discounts }),
+    fetchGatewayCatalog(),
+  ]);
+  return { catalogs: [openrouter, gateway], gateway, openrouter };
+}
+
+function priceCell(
+  price: { inputPerMillion: number; outputPerMillion: number } | undefined,
+): string {
+  return price ? `${price.inputPerMillion.toFixed(2)}/${price.outputPerMillion.toFixed(2)}` : "-";
+}
+
+async function commandCatalog(options: CliOptions): Promise<number> {
+  const { catalogs, gateway, openrouter } = await loadCatalogs({ ...options, discounts: true });
+
+  if (options.discountedOnly) {
+    const rows = discountedModels(openrouter).map(({ endpoint, entry }) => ({
+      model: entry.id,
+      discount: `${Math.round(endpoint.discount * 100)}%`,
+      upstream: endpoint.providerName,
+      "usd/1M in/out": priceCell(endpoint.price),
+      list: priceCell(entry.price),
+      gateway: resolveCatalogId(entry.id, gateway) ? "yes" : "no",
+    }));
+    if (options.json) {
+      json({ discounted: rows, fetchedAt: openrouter.fetchedAt });
+    } else {
+      print(table(rows));
+      print();
+      print(`catalog: ${rows.length} models discounted on OpenRouter`);
+    }
+    return 0;
+  }
+
+  const summary = catalogs.map((catalog) => ({
+    router: catalog.router,
+    models: catalog.entries.length,
+    priced: catalog.entries.filter((entry) => entry.price).length,
+    fetchedAt: catalog.fetchedAt,
+  }));
+
+  if (options.json) {
+    json({ catalogs: summary });
+  } else {
+    print(table(summary));
+  }
+  return 0;
+}
+
+async function commandCompare(options: CliOptions): Promise<number> {
+  const { catalogs } = await loadCatalogs(options);
+  const modelIds = options.model
+    ? [options.model]
+    : LANGUAGE_MODEL_CATALOG.filter(
+        (entry) => !("service" in entry && entry.service === "ollama"),
+      ).map((entry) => entry.id);
+
+  const comparisons = modelIds.map((modelId) => compareModel(modelId, catalogs));
+  const rows = comparisons.map((comparison) => {
+    const or = comparison.routes.openrouter;
+    const gw = comparison.routes.gateway;
+    return {
+      model: comparison.canonicalId,
+      openrouter: priceCell(or?.price),
+      discount: or?.bestDiscount ? `${Math.round(or.bestDiscount.discount * 100)}%` : "",
+      gateway: gw ? priceCell(gw.price) : "ABSENT",
+      cheapest: comparison.cheapestRouter ?? "-",
+      saving:
+        comparison.savingAgainstDearest > 0.005
+          ? `${Math.round(comparison.savingAgainstDearest * 100)}%`
+          : "parity",
+    };
+  });
+
+  if (options.json) {
+    json({ comparisons, decisionSet: MODEL_DECISION_SET });
+  } else {
+    print(table(rows));
+  }
+  return 0;
+}
+
+async function commandAudit(options: CliOptions): Promise<number> {
+  const root = options.root ?? join(process.cwd(), "..");
+  const sites = await scanFleet({ root });
+  const summaries = summariseUsage(sites);
+  const { catalogs } = await loadCatalogs({ ...options, discounts: true });
+  const findings = auditAgainstCatalogs(summaries, catalogs);
+  const roles = roleDistribution(sites);
+
+  if (options.json) {
+    json({ findings, roles, root, sites: sites.length, summaries });
+    return findings.length === 0 ? 0 : 1;
+  }
+
+  print("Model usage across the fleet");
+  print(
+    table(
+      summaries.slice(0, 30).map((summary) => ({
+        model: summary.modelId,
+        sites: summary.siteCount,
+        projects: summary.projects.length,
+        roles: summary.roles
+          .slice(0, 3)
+          .map((entry) => `${entry.role}:${entry.count}`)
+          .join(" "),
+        routes: summary.routes.map((entry) => `${entry.route}:${entry.count}`).join(" "),
+      })),
+    ),
+  );
+  print();
+  print("Workload roles");
+  print(
+    table(
+      roles.map((row) => ({
+        role: row.role,
+        sites: row.count,
+        models: row.models.length,
+        modality: row.profile?.modality ?? "-",
+        contract: row.profile?.contract ?? "-",
+        latency: row.profile?.latency ?? "-",
+        stakes: row.profile?.stakes ?? "-",
+      })),
+    ),
+  );
+  print();
+  print("Findings");
+  print(
+    table(
+      findings.map((finding) => ({
+        model: finding.modelId,
+        kind: finding.kind,
+        sites: finding.siteCount,
+        projects: finding.projects.slice(0, 4).join(","),
+        detail: finding.detail,
+      })),
+    ),
+  );
+  print();
+  print(
+    `audit: ${sites.length} call sites, ${summaries.length} models, ${findings.length} findings`,
+  );
+  return findings.length === 0 ? 0 : 1;
+}
+
+async function commandBenchCompare(options: CliOptions, routes: readonly ProviderRoute[]) {
+  const ai = createAI({
+    app: { name: "Howells AI CLI", url: "https://github.com/howells/ai" },
+  });
+  const canonicalModelId =
+    options.model ??
+    resolveProviderLanguageModelId(
+      ai.matrix,
+      options.tier ?? "fast",
+      options.variant ?? "text",
+      routes[0] ?? "gateway",
+      options.task ?? "general",
+      ai.taskMatrix,
+    );
+
+  const comparison = await benchCompare({
+    ai,
+    maxOutputTokens: options.maxTokens,
+    modelId: canonicalModelId,
+    routes,
+    runs: options.runs,
+    ...(options.latencyClass ? { latencyClass: options.latencyClass } : {}),
+    ...(options.prompt === DEFAULT_PROMPT ? {} : { prompt: options.prompt }),
+  });
+
+  if (options.json) {
+    json(
+      comparison,
+      comparison.results.some((result) => result.statistics),
+    );
+  } else {
+    print(
+      table(
+        comparison.results.map((result) => ({
+          route: result.route,
+          model: result.resolvedModelId,
+          "total ms": result.statistics?.medianTotalMs ?? "-",
+          "ttft ms": result.statistics?.medianTtftMs ?? "-",
+          "iqr ms": result.statistics?.iqrTtftMs ?? "-",
+          "tok/s": result.statistics?.medianOutputTokensPerSecond ?? "-",
+          runs: result.statistics?.sampleCount ?? 0,
+          error: result.errors[0]?.slice(0, 60) ?? "",
+        })),
+      ),
+    );
+    print();
+    print(
+      `ranked on:           ${comparison.metric === "ttft" ? "time to first token" : "total completion time"}`,
+    );
+    print(`recommended route:   ${comparison.fastest ?? "none"}`);
+    print(`fastest first token: ${comparison.fastestByTtft ?? "none"}`);
+    print(`fastest total time:  ${comparison.fastestByTotal ?? "none"}`);
+    print(`fastest throughput:  ${comparison.fastestByThroughput ?? "none"}`);
+    if (comparison.metricDisagrees) {
+      print();
+      print("note: TTFT and total time disagree here, so the metric chose the winner.");
+    }
+  }
+
+  return comparison.results.some((result) => result.statistics) ? 0 : 1;
+}
+
 async function commandBench(options: CliOptions): Promise<number> {
+  if (options.routes && options.routes.length > 0) {
+    return await commandBenchCompare(options, options.routes);
+  }
+
   const ai = createAI({
     app: { name: "Howells AI CLI", url: "https://github.com/howells/ai" },
   });
@@ -745,6 +1036,15 @@ async function main(): Promise<number> {
     }
     case "bench": {
       return await commandBench(options);
+    }
+    case "catalog": {
+      return await commandCatalog(options);
+    }
+    case "compare": {
+      return await commandCompare(options);
+    }
+    case "audit": {
+      return await commandAudit(options);
     }
   }
 }

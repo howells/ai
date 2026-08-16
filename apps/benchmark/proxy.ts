@@ -8,6 +8,9 @@ export function proxy(request: NextRequest) {
     path === "/login" ||
     path === "/sandbox" ||
     path.startsWith("/api/auth/") ||
+    // Guarded by its own bearer secret, and called by scripts that hold no
+    // session cookie.
+    path === "/api/route-bench" ||
     path.startsWith("/_next/") ||
     path === "/favicon.ico"
   ) {

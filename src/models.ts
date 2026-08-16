@@ -1555,6 +1555,9 @@ const PROVIDER_MODEL_IDS: Record<string, Partial<Record<ProviderRoute, string>>>
   "openai/gpt-oss-20b": {
     groq: "openai/gpt-oss-20b",
   },
+  "qwen/qwen3-vl-235b-a22b-instruct": {
+    gateway: "alibaba/qwen3-vl-235b-a22b-instruct",
+  },
   "qwen/qwen3.7-plus": {
     gateway: "alibaba/qwen3.7-plus",
   },
@@ -1579,19 +1582,27 @@ const PROVIDER_MODEL_IDS: Record<string, Partial<Record<ProviderRoute, string>>>
   },
 };
 
+/**
+ * Models the Gateway does not serve.
+ *
+ * Verified against the live Gateway catalogue on 2026-08-16 with
+ * `ai compare`. Five entries were removed as wrong on that date — Gateway
+ * serves Fable 5, both GPT-OSS sizes, Qwen3-VL 235B and Step 3.7 Flash — so
+ * re-verify rather than extend this list from memory.
+ *
+ * The `:free` Qwen model stays listed even though Gateway serves the paid
+ * model behind it: ":free" is an OpenRouter tier, and resolving it to a billed
+ * Gateway route would turn a free call into a charged one silently. Ollama
+ * models are local and have no Gateway route by definition.
+ */
 const GATEWAY_UNAVAILABLE_MODEL_IDS = new Set<string>([
-  ANTHROPIC_MODELS.CLAUDE_FABLE_5,
   NEX_AGI_MODELS.NEX_N2_PRO,
-  GROQ_MODELS.GPT_OSS_120B,
-  GROQ_MODELS.GPT_OSS_20B,
   OLLAMA_MODELS.GEMMA_4_31B,
   OLLAMA_MODELS.GPT_OSS_120B,
   OLLAMA_MODELS.QWEN_3_6_35B,
   OLLAMA_MODELS.QWEN_3_CODER_30B,
   OPENROUTER_MODELS.FREE,
-  QWEN_MODELS.QWEN_3_VL_235B_A22B,
   QWEN_MODELS.QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE,
-  STEPFUN_MODELS.STEP_3_7_FLASH,
 ]);
 
 /** Request configuration fields supported by each provider route. */

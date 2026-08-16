@@ -206,9 +206,99 @@ ai models --task coding
 ai bench --provider gateway --task coding --tier fast --prompt "Reply in one sentence."
 ```
 
-Use `--json` on `models`, `providers`, `doctor`, `test`, and `bench` for
-scriptable output. The CLI loads local keys from `.env`, `.env.local`, and
-`apps/benchmark/.env.local`, and never prints secret values.
+Use `--json` on every command for scriptable output. The CLI loads local keys
+from `.env`, `.env.local`, and `apps/benchmark/.env.local`, and never prints
+secret values.
+
+## Choosing Models With Evidence
+
+Four commands answer the three questions that decide a model: what it costs,
+how fast it is, and how well it does the job.
+
+```bash
+ai catalog --discounted                       # live OpenRouter discounts
+ai compare                                    # every catalogue model priced across routers
+ai compare --model deepseek/deepseek-v4-pro --discounts
+ai bench --model anthropic/claude-sonnet-4.6 --routes openrouter,anthropic --runs 3
+ai audit --root ~/Sites                       # who pins what, and where it disagrees
+```
+
+- **`catalog`** reads the live OpenRouter and Vercel Gateway catalogues.
+  Discounts live only on OpenRouter's per-model `endpoints` API, so
+  `--discounted` sweeps it.
+- **`compare`** resolves one canonical model across routers, including vendor
+  prefixes that differ (`z-ai` against `zai`, `qwen` against `alibaba`), and
+  reports the cheapest effective price with discounts applied.
+- **`bench`** measures time to first token and output throughput. Every figure
+  is measured locally in milliseconds and summarised by median and IQR, because
+  routers publish price but not speed: OpenRouter returns null for latency and
+  throughput on every endpoint it serves.
+- **`audit`** walks a directory of repositories, finds every pinned model ID,
+  infers its workload and route, and reconciles the result against the live
+  catalogues. Findings name the projects affected, so the output is a work list.
+
+The same logic is importable: `@howells/ai/catalog`, `@howells/ai/bench`,
+`@howells/ai/eval`, `@howells/ai/decisions`.
+
+## Evaluating A Discrete Task
+
+`@howells/ai/eval` runs a fixed set of cases against several candidate models
+and ranks them on score, cost, and speed. A suite is data, so it lives in the
+repo that owns the workload.
+
+```ts
+import { evalCompare, jsonShapeGrader } from "@howells/ai/eval";
+
+const suite = {
+  id: "material-classify",
+  version: "1.0.0",
+  task: "bulk",
+  grader: jsonShapeGrader,
+  system: "Reply with JSON only.",
+  cases: [
+    {
+      id: "oak-matte",
+      prompt: 'Classify: "brushed oak veneer, matte lacquer".',
+      expected: { material: "oak", finish: "matte" },
+    },
+  ],
+};
+
+const ranked = await evalCompare({
+  ai,
+  suite,
+  candidates: [
+    { modelId: "deepseek/deepseek-v4-flash", route: "openrouter" },
+    { modelId: "google/gemini-3.5-flash", route: "gateway" },
+  ],
+  inputPricePerMillion: { "deepseek/deepseek-v4-flash": 0.06 },
+  outputPricePerMillion: { "deepseek/deepseek-v4-flash": 0.12 },
+});
+
+ranked.best; // highest score
+ranked.bestValue; // best score per dollar within 5% of the top score
+```
+
+Bump `suite.version` on any case change. Scores are comparable only within one
+version, and quietly comparing across revisions is how eval results turn into
+folklore.
+
+## Versioned Decisions
+
+`@howells/ai/decisions` stamps the matrix with a version, a review date, and the
+evidence behind it, so a consumer can tell which opinion it is running without a
+network call.
+
+```ts
+import { MODEL_DECISION_SET, resolveDecision } from "@howells/ai/decisions";
+
+MODEL_DECISION_SET.version; // "2026.08.16"
+MODEL_DECISION_SET.evidence; // ["catalog", "fleet-usage", "judgement"]
+resolveDecision("standard", "text", "coding").modelId;
+```
+
+`evidence` is deliberately narrow. A cell backed only by judgement says so, and
+claiming measurement that has not happened would make the stamp worthless.
 
 ## Model Matrix
 

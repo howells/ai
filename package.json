@@ -39,7 +39,32 @@
       "import": "./dist/server.mjs",
       "default": "./dist/server.mjs"
     },
-    "./package.json": "./package.json"
+    "./catalog": {
+      "types": "./dist/catalog.d.mts",
+      "import": "./dist/catalog.mjs",
+      "default": "./dist/catalog.mjs"
+    },
+    "./bench": {
+      "types": "./dist/bench.d.mts",
+      "import": "./dist/bench.mjs",
+      "default": "./dist/bench.mjs"
+    },
+    "./eval": {
+      "types": "./dist/eval.d.mts",
+      "import": "./dist/eval.mjs",
+      "default": "./dist/eval.mjs"
+    },
+    "./decisions": {
+      "types": "./dist/decisions.d.mts",
+      "import": "./dist/decisions.mjs",
+      "default": "./dist/decisions.mjs"
+    },
+    "./package.json": "./package.json",
+    "./taxonomy": {
+      "types": "./dist/taxonomy.d.mts",
+      "import": "./dist/taxonomy.mjs",
+      "default": "./dist/taxonomy.mjs"
+    }
   },
   "publishConfig": {
     "access": "public"

@@ -94,6 +94,11 @@ const GATEWAY_MODEL_IDS_USED = new Set([
   "openai/gpt-5.4-mini",
   "openai/gpt-5.5",
   "alibaba/qwen3.7-plus",
+  "alibaba/qwen3-vl-235b-a22b-instruct",
+  "anthropic/claude-fable-5",
+  "openai/gpt-oss-120b",
+  "openai/gpt-oss-20b",
+  "stepfun/step-3.7-flash",
   "xiaomi/mimo-v2.5",
   "xiaomi/mimo-v2.5-pro",
   "xai/grok-4.3",
@@ -448,11 +453,18 @@ describe("provider helpers", () => {
       expect(GATEWAY_MODEL_IDS_USED.has(resolveProviderModelId(model.id, "gateway"))).toBe(true);
     }
 
-    expect(canRouteModelToProvider(QWEN_MODELS.QWEN_3_VL_235B_A22B, "gateway")).toBe(false);
+    // Verified against the live Gateway catalogue on 2026-08-16: Gateway does
+    // serve Qwen3-VL and Step 3.7 Flash, under Gateway's own vendor prefix.
+    expect(canRouteModelToProvider(QWEN_MODELS.QWEN_3_VL_235B_A22B, "gateway")).toBe(true);
+    expect(resolveProviderModelId(QWEN_MODELS.QWEN_3_VL_235B_A22B, "gateway")).toBe(
+      "alibaba/qwen3-vl-235b-a22b-instruct",
+    );
+    expect(canRouteModelToProvider(STEPFUN_MODELS.STEP_3_7_FLASH, "gateway")).toBe(true);
+
+    // A free OpenRouter tier must not silently resolve to a billed Gateway route.
     expect(canRouteModelToProvider(QWEN_MODELS.QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE, "gateway")).toBe(
       false,
     );
-    expect(canRouteModelToProvider(STEPFUN_MODELS.STEP_3_7_FLASH, "gateway")).toBe(false);
     expect(canRouteModelToProvider(NEX_AGI_MODELS.NEX_N2_PRO, "gateway")).toBe(false);
   });
 
@@ -483,6 +495,6 @@ describe("provider helpers", () => {
     expect(canRouteModelToProvider(DEEPSEEK_MODELS.DEEPSEEK_V4_PRO, "deepseek")).toBe(true);
     expect(canRouteModelToProvider(KIMI_MODELS.KIMI_K2_7_CODE, "xai")).toBe(false);
     expect(canRouteModelToProvider(QWEN_MODELS.QWEN_3_VL_235B_A22B, "openrouter")).toBe(true);
-    expect(canRouteModelToProvider(QWEN_MODELS.QWEN_3_VL_235B_A22B, "gateway")).toBe(false);
+    expect(canRouteModelToProvider(QWEN_MODELS.QWEN_3_VL_235B_A22B, "gateway")).toBe(true);
   });
 });
