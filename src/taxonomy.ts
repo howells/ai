@@ -248,6 +248,53 @@ export function preferenceForWorkload(profile: WorkloadProfile): "auto" | "cheap
   return profile.latency === "batch" ? "cheapest" : "auto";
 }
 
+/**
+ * Precisions acceptable when sorting upstreams by price.
+ *
+ * Sorting on price alone can buy a quantization downgrade. Measured
+ * 2026-08-16 across OpenRouter's upstreams: `z-ai/glm-4.7` sorts to DeepInfra
+ * at fp4 ($0.400/M) ahead of StreamLake at fp8 ($0.480/M) — 17% saved for a
+ * precision drop. `deepseek/deepseek-v4-pro` sorts to StreamLake at fp8
+ * ($0.348/M), the same precision as the CoreWeave default it replaces at
+ * $1.150/M.
+ *
+ * So the floor is a no-op on one model and load-bearing on the other, and the
+ * caller cannot tell which without checking. That asymmetry is the argument
+ * for applying it by default rather than offering it as an option: it costs
+ * nothing where it does not bite.
+ */
+export const DEFAULT_QUANTIZATION_FLOOR = ["fp8", "fp16", "bf16", "fp32"] as const;
+
+/** Upstream selection constraints for a request. */
+export interface WorkloadRouting {
+  /** Which axis to sort candidate upstreams on. */
+  prefer: "auto" | "cheapest" | "fastest";
+  /**
+   * Acceptable precisions. Omitted unless sorting by price, because a floor
+   * only matters when something is actively selecting the cheapest option.
+   */
+  quantizations?: readonly string[];
+}
+
+/**
+ * Full upstream routing constraints implied by a workload.
+ *
+ * Prefer this over {@link preferenceForWorkload}: sorting by price without a
+ * precision floor is the trade this exists to prevent. Pass
+ * `allowAnyQuantization` only when the workload genuinely tolerates a
+ * downgrade — bulk work whose output is checked, and never a judge.
+ */
+export function routingForWorkload(
+  profile: WorkloadProfile,
+  options: { allowAnyQuantization?: boolean } = {},
+): WorkloadRouting {
+  const prefer = preferenceForWorkload(profile);
+  if (prefer !== "cheapest" || options.allowAnyQuantization) {
+    return { prefer };
+  }
+  return { prefer, quantizations: DEFAULT_QUANTIZATION_FLOOR };
+}
+
 /** Classify a source-derived string into a workload role, if one matches. */
 export function classifyRole(haystack: string): WorkloadRole | undefined {
   for (const signal of ROLE_SIGNALS) {

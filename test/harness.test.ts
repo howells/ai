@@ -1,12 +1,19 @@
 import { describe, expect, test } from "bun:test";
-import { bestDiscountedEndpoint, compareModel, resolveCatalogId } from "../src/catalog";
+import {
+  bestDiscountedEndpoint,
+  compareModel,
+  resolveCatalogId,
+  worstCaseContextLength,
+} from "../src/catalog";
 import type { CatalogEntry, RouterCatalog } from "../src/catalog";
 import { containsGrader, exactMatchGrader, jsonShapeGrader, keywordGrader } from "../src/eval";
 import { MODEL_DECISION_SET, resolveDecision } from "../src/decisions";
 import {
   classifyRole,
   exceedsStakesCeiling,
+  DEFAULT_QUANTIZATION_FLOOR,
   preferenceForWorkload,
+  routingForWorkload,
   rankingMetric,
   WORKLOAD_ROLES,
 } from "../src/taxonomy";
@@ -347,5 +354,52 @@ describe("routing preference", () => {
   test("leaves background work on the default route", () => {
     expect(preferenceForWorkload(WORKLOAD_ROLES.extraction)).toBe("auto");
     expect(preferenceForWorkload(WORKLOAD_ROLES.editorial)).toBe("auto");
+  });
+});
+
+describe("upstream routing constraints", () => {
+  test("floors precision by default whenever it sorts on price", () => {
+    const batch = routingForWorkload(WORKLOAD_ROLES.embed);
+    expect(batch.prefer).toBe("cheapest");
+    expect(batch.quantizations).toEqual(DEFAULT_QUANTIZATION_FLOOR);
+    expect(batch.quantizations).not.toContain("fp4");
+  });
+
+  test("omits the floor when nothing is selecting on price", () => {
+    expect(routingForWorkload(WORKLOAD_ROLES.converse).quantizations).toBeUndefined();
+    expect(routingForWorkload(WORKLOAD_ROLES.extraction).quantizations).toBeUndefined();
+  });
+
+  test("allows a downgrade only when asked for explicitly", () => {
+    const relaxed = routingForWorkload(WORKLOAD_ROLES.embed, { allowAnyQuantization: true });
+    expect(relaxed.prefer).toBe("cheapest");
+    expect(relaxed.quantizations).toBeUndefined();
+  });
+
+  test("reports the shortest context window a price sort could land on", () => {
+    const entry = {
+      id: "z-ai/glm-4.7",
+      name: "GLM 4.7",
+      router: "openrouter" as const,
+      price: { inputPerMillion: 0.4, outputPerMillion: 1.75 },
+      contextLength: 204_800,
+      inputModalities: ["text"],
+      endpoints: [
+        {
+          providerName: "Novita",
+          discount: 0,
+          price: { inputPerMillion: 0.54, outputPerMillion: 2 },
+          contextLength: 204_800,
+        },
+        {
+          providerName: "Mancer 2",
+          discount: 0,
+          price: { inputPerMillion: 0.4, outputPerMillion: 1.75 },
+          contextLength: 131_072,
+        },
+      ],
+    };
+    expect(worstCaseContextLength(entry)).toBe(131_072);
+    expect(worstCaseContextLength({ ...entry, endpoints: [] })).toBeUndefined();
   });
 });

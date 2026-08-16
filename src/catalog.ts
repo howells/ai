@@ -490,6 +490,22 @@ export function compareModel(
   };
 }
 
+/**
+ * Smallest context window among the upstreams serving a model.
+ *
+ * Upstreams differ in more than price and precision: measured 2026-08-16,
+ * `z-ai/glm-4.7` ranges from 131,072 to 204,800 tokens depending on which
+ * provider answers. A price sort can therefore land a caller on a shorter
+ * window than the catalogue's headline figure, which matters to anyone
+ * running near the limit. Returns undefined when no endpoint reports one.
+ */
+export function worstCaseContextLength(entry: CatalogEntry): number | undefined {
+  const lengths = entry.endpoints
+    .map((endpoint) => endpoint.contextLength)
+    .filter((length): length is number => typeof length === "number");
+  return lengths.length > 0 ? Math.min(...lengths) : undefined;
+}
+
 /** Every model with an active discount, deepest first. */
 export function discountedModels(
   catalog: RouterCatalog,
