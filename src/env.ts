@@ -13,6 +13,7 @@ const envSchema = defineEnv({
   optional: {
     AI_GATEWAY_API_KEY: z.string().min(1),
     ANTHROPIC_API_KEY: z.string().min(1),
+    CEREBRAS_API_KEY: z.string().min(1),
     DEEPSEEK_API_KEY: z.string().min(1),
     GOOGLE_GEMINI_API_KEY: z.string().min(1),
     GROQ_API_KEY: z.string().min(1),

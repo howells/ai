@@ -34,6 +34,7 @@ export type ModelService =
   | "openai"
   | "google"
   | "groq"
+  | "cerebras"
   | "deepseek"
   | "inception"
   | "minimax"
@@ -171,6 +172,7 @@ export interface AIConfig {
  * - "zai"        — direct Z.ai OpenAI-compatible API
  * - "moonshotai" — direct Moonshot/Kimi OpenAI-compatible API
  * - "groq"       — direct Groq OpenAI-compatible API
+ * - "cerebras"   — direct Cerebras OpenAI-compatible API, for latency-critical open weights
  * - "ollama"     — local Ollama server via its OpenAI-compatible API (no key)
  */
 export type ProviderRoute = ProviderRouteId;

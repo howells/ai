@@ -4,6 +4,8 @@ import type { CatalogEntry, RouterCatalog } from "../src/catalog";
 import { containsGrader, exactMatchGrader, jsonShapeGrader, keywordGrader } from "../src/eval";
 import { MODEL_DECISION_SET, resolveDecision } from "../src/decisions";
 import { classifyRole, rankingMetric, WORKLOAD_ROLES } from "../src/taxonomy";
+import { canRouteModelToProvider, resolveProviderModelId } from "../src/models";
+import { PROVIDER_ROUTES } from "../src/providers/registry";
 import { auditAgainstCatalogs, roleDistribution, summariseUsage } from "../src/audit";
 import type { FleetCallSite } from "../src/audit";
 
@@ -289,5 +291,23 @@ describe("workload taxonomy", () => {
     expect(rows.map((row) => row.role)).toContain("unnamed");
     expect(rows.find((row) => row.role === "embed")?.profile?.modality).toBe("embed");
     expect(rows.find((row) => row.role === "unnamed")?.profile).toBeUndefined();
+  });
+});
+
+describe("cerebras route", () => {
+  test("is a first-class provider route", () => {
+    expect(PROVIDER_ROUTES).toContain("cerebras");
+  });
+
+  test("maps canonical open-weight IDs onto Cerebras-native names", () => {
+    expect(resolveProviderModelId("openai/gpt-oss-120b", "cerebras")).toBe("gpt-oss-120b");
+    expect(resolveProviderModelId("qwen/qwen3-235b-a22b-2507", "cerebras")).toBe(
+      "qwen-3-235b-a22b-instruct",
+    );
+    expect(canRouteModelToProvider("openai/gpt-oss-120b", "cerebras")).toBe(true);
+  });
+
+  test("does not claim models Cerebras cannot serve", () => {
+    expect(canRouteModelToProvider("anthropic/claude-opus-4.8", "cerebras")).toBe(false);
   });
 });

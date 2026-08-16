@@ -123,6 +123,24 @@ export const OPENAI_MODELS = {
   GPT_5_4_NANO: "openai/gpt-5.4-nano",
 } as const;
 
+/**
+ * Supported Cerebras model IDs for latency-critical open-weight routing.
+ *
+ * Cerebras serves a small open-weight lineup on custom silicon at very high
+ * throughput. It is a latency choice, never a general default, and any route
+ * promoted onto it should carry a fidelity eval — MaterialGraph's vision
+ * triage moved material recall from 71% to 100% when it switched, but the
+ * result only counts because the eval was run.
+ */
+export const CEREBRAS_MODELS = {
+  /** Vision model behind MaterialGraph and DesignRound image triage. */
+  GEMMA_4_31B: "gemma-4-31b",
+  /** OpenAI open-weight 120B served on Cerebras silicon. */
+  GPT_OSS_120B: "gpt-oss-120b",
+  /** Large Qwen MoE for high-throughput bulk text. */
+  QWEN_3_235B: "qwen-3-235b-a22b-instruct",
+} as const;
+
 /** Supported Groq model IDs for direct high-throughput routing. */
 export const GROQ_MODELS = {
   /** OpenAI open-weight 120B model served directly by Groq. */
@@ -700,6 +718,22 @@ export const DEFAULT_TASK_MODELS: TaskModelMatrix = {
   },
 } as const;
 
+/**
+ * Cerebras tiers. Text runs on the open-weight lineup; every vision variant
+ * routes to Gemma, the only multimodal model Cerebras serves.
+ */
+function splitCerebrasTiers(): Record<ModelTier, TierModelMatrix> {
+  const text = splitVariantModels({
+    text: CEREBRAS_MODELS.GPT_OSS_120B,
+    vision: CEREBRAS_MODELS.GEMMA_4_31B,
+  });
+  const bulk = splitVariantModels({
+    text: CEREBRAS_MODELS.QWEN_3_235B,
+    vision: CEREBRAS_MODELS.GEMMA_4_31B,
+  });
+  return { fast: bulk, nano: bulk, powerful: text, reasoning: text, standard: text };
+}
+
 function everyVariant(modelId: string): TierModelMatrix {
   return {
     text: modelId,
@@ -732,6 +766,7 @@ export const PROVIDER_DEFAULT_MODELS: ProviderLanguageModelMatrix = {
     reasoning: everyVariant(ANTHROPIC_MODELS.CLAUDE_OPUS_4_8),
     standard: everyVariant(ANTHROPIC_MODELS.CLAUDE_SONNET_4_6),
   },
+  cerebras: splitCerebrasTiers(),
   deepseek: {
     fast: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V4_PRO),
     nano: everyVariant(DEEPSEEK_MODELS.DEEPSEEK_V4_PRO),
@@ -1457,6 +1492,7 @@ const DIRECT_PROVIDER_PREFIXES: Record<string, ProviderRoute> = {
 /** Environment variable names used to configure direct model services. */
 export const MODEL_SERVICE_ENV_VARS: Partial<Record<ModelService, string>> = {
   anthropic: "ANTHROPIC_API_KEY",
+  cerebras: "CEREBRAS_API_KEY",
   deepseek: "DEEPSEEK_API_KEY",
   google: "GOOGLE_GEMINI_API_KEY",
   groq: "GROQ_API_KEY",
@@ -1550,10 +1586,14 @@ const PROVIDER_MODEL_IDS: Record<string, Partial<Record<ProviderRoute, string>>>
     google: "gemini-3.5-flash",
   },
   "openai/gpt-oss-120b": {
+    cerebras: "gpt-oss-120b",
     groq: "openai/gpt-oss-120b",
   },
   "openai/gpt-oss-20b": {
     groq: "openai/gpt-oss-20b",
+  },
+  "qwen/qwen3-235b-a22b-2507": {
+    cerebras: "qwen-3-235b-a22b-instruct",
   },
   "qwen/qwen3-vl-235b-a22b-instruct": {
     gateway: "alibaba/qwen3-vl-235b-a22b-instruct",

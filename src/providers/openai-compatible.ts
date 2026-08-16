@@ -7,7 +7,10 @@ import type { ModelOptions, ModelService, ProviderRoute } from "../types";
 /** Configuration needed to create a direct OpenAI-compatible provider client. */
 export interface OpenAICompatibleProviderConfig {
   /** Public provider route represented by this compatible client. */
-  provider: Extract<ProviderRoute, "deepseek" | "xai" | "qwen" | "zai" | "moonshotai" | "groq">;
+  provider: Extract<
+    ProviderRoute,
+    "deepseek" | "xai" | "qwen" | "zai" | "moonshotai" | "groq" | "cerebras"
+  >;
   /** Underlying service key used for availability and service reporting. */
   service: ModelService;
   /** Explicit API key passed to createAI, if one was supplied. */

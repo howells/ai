@@ -127,6 +127,15 @@ export const PROVIDER_DEFINITIONS = [
   },
   {
     benchmarkVisible: true,
+    capabilities: directCapabilities(true),
+    environmentVariable: "CEREBRAS_API_KEY",
+    id: "cerebras",
+    kind: "remote",
+    label: "Cerebras",
+    service: "cerebras",
+  },
+  {
+    benchmarkVisible: true,
     capabilities: {
       agentAttribution: false,
       apiKey: false,

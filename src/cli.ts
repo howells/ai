@@ -4,7 +4,7 @@ import { loadDotenv } from "@howells/envy/dotenv";
 import { createAI, generateText, streamText } from "./index";
 import { envValue } from "./env";
 import type { RuntimeEnvKey } from "./env";
-import { isProviderRoute, PROVIDER_ROUTES } from "./providers/registry";
+import { isProviderRoute, PROVIDER_DEFINITIONS, PROVIDER_ROUTES } from "./providers/registry";
 import { benchCompare } from "./bench";
 import {
   compareModel,
@@ -403,67 +403,34 @@ function commandSchema(command: Command): object {
   };
 }
 
+/**
+ * Provider configuration status, derived from the registry.
+ *
+ * Deriving rather than listing is deliberate: this file previously carried a
+ * hand-written array that silently omitted any newly added route, which is the
+ * same failure mode as a hand-maintained availability list.
+ */
 function providerStatuses(): ProviderStatus[] {
+  const routes = PROVIDER_DEFINITIONS.map((definition): ProviderStatus => {
+    const key = definition.environmentVariable as RuntimeEnvKey;
+    // Gateway also authenticates via OIDC when running on Vercel.
+    if (definition.id === "gateway") {
+      return {
+        configured: hasEnv(key) || hasEnv("VERCEL_ENV"),
+        provider: "gateway",
+        source: hasEnv(key) ? key : hasEnv("VERCEL_ENV") ? "VERCEL_ENV" : "-",
+      };
+    }
+    return {
+      configured: hasEnv(key),
+      provider: definition.id as ProviderRoute,
+      source: envSource(key),
+    };
+  });
+
+  // Voyage serves embeddings and reranking only, so it is not a language route.
   return [
-    {
-      configured: hasEnv("AI_GATEWAY_API_KEY") || hasEnv("VERCEL_ENV"),
-      provider: "gateway",
-      source: hasEnv("AI_GATEWAY_API_KEY")
-        ? "AI_GATEWAY_API_KEY"
-        : hasEnv("VERCEL_ENV")
-          ? "VERCEL_ENV"
-          : "-",
-    },
-    {
-      configured: hasEnv("OPENROUTER_API_KEY"),
-      provider: "openrouter",
-      source: envSource("OPENROUTER_API_KEY"),
-    },
-    {
-      configured: hasEnv("ANTHROPIC_API_KEY"),
-      provider: "anthropic",
-      source: envSource("ANTHROPIC_API_KEY"),
-    },
-    {
-      configured: hasEnv("OPENAI_API_KEY"),
-      provider: "openai",
-      source: envSource("OPENAI_API_KEY"),
-    },
-    {
-      configured: hasEnv("GOOGLE_GEMINI_API_KEY"),
-      provider: "google",
-      source: envSource("GOOGLE_GEMINI_API_KEY"),
-    },
-    {
-      configured: hasEnv("DEEPSEEK_API_KEY"),
-      provider: "deepseek",
-      source: envSource("DEEPSEEK_API_KEY"),
-    },
-    {
-      configured: hasEnv("XAI_API_KEY"),
-      provider: "xai",
-      source: envSource("XAI_API_KEY"),
-    },
-    {
-      configured: hasEnv("QWEN_API_KEY"),
-      provider: "qwen",
-      source: envSource("QWEN_API_KEY"),
-    },
-    {
-      configured: hasEnv("ZAI_API_KEY"),
-      provider: "zai",
-      source: envSource("ZAI_API_KEY"),
-    },
-    {
-      configured: hasEnv("MOONSHOT_API_KEY"),
-      provider: "moonshotai",
-      source: envSource("MOONSHOT_API_KEY"),
-    },
-    {
-      configured: hasEnv("GROQ_API_KEY"),
-      provider: "groq",
-      source: envSource("GROQ_API_KEY"),
-    },
+    ...routes,
     {
       configured: hasEnv("VOYAGE_API_KEY"),
       provider: "voyage",

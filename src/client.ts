@@ -82,6 +82,11 @@ const OPENROUTER_VARIANTS = new Set(["nitro", "exacto", "floor"]);
 const OPENROUTER_VARIANT_PATTERN = /:(nitro|exacto|floor)$/;
 
 const OPENAI_COMPATIBLE_PROVIDER_CONFIG = {
+  cerebras: {
+    baseURL: "https://api.cerebras.ai/v1",
+    envVar: "CEREBRAS_API_KEY",
+    service: "cerebras",
+  },
   deepseek: {
     baseURL: "https://api.deepseek.com/v1",
     envVar: "DEEPSEEK_API_KEY",
@@ -113,7 +118,7 @@ const OPENAI_COMPATIBLE_PROVIDER_CONFIG = {
     service: "zai",
   },
 } as const satisfies Record<
-  Extract<ProviderRoute, "deepseek" | "xai" | "qwen" | "zai" | "moonshotai" | "groq">,
+  Extract<ProviderRoute, "deepseek" | "xai" | "qwen" | "zai" | "moonshotai" | "groq" | "cerebras">,
   {
     service: ModelService;
     envVar: string;
@@ -128,6 +133,7 @@ const OPENAI_COMPATIBLE_PROVIDER_ORDER = [
   "zai",
   "moonshotai",
   "groq",
+  "cerebras",
 ] as const satisfies readonly (keyof typeof OPENAI_COMPATIBLE_PROVIDER_CONFIG)[];
 
 const MODEL_SERVICE_ORDER = [
@@ -140,6 +146,7 @@ const MODEL_SERVICE_ORDER = [
   "groq",
   "zai",
   "moonshotai",
+  "cerebras",
 ] as const satisfies readonly ModelService[];
 
 /**
@@ -275,6 +282,13 @@ function createClient(
       envVar: OPENAI_COMPATIBLE_PROVIDER_CONFIG.deepseek.envVar,
       provider: "deepseek",
       service: "deepseek",
+    }),
+    cerebras: createOpenAICompatibleProvider({
+      apiKey: getConfiguredServiceApiKey(config, "cerebras"),
+      baseURL: OPENAI_COMPATIBLE_PROVIDER_CONFIG.cerebras.baseURL,
+      envVar: OPENAI_COMPATIBLE_PROVIDER_CONFIG.cerebras.envVar,
+      provider: "cerebras",
+      service: "cerebras",
     }),
     groq: createOpenAICompatibleProvider({
       apiKey: getConfiguredServiceApiKey(config, "groq"),
@@ -432,7 +446,8 @@ function createClient(
       case "qwen":
       case "zai":
       case "moonshotai":
-      case "groq": {
+      case "groq":
+      case "cerebras": {
         return compatibleProviders[provider].model(providerModelId, options);
       }
       default: {
@@ -467,7 +482,8 @@ function createClient(
       case "qwen":
       case "zai":
       case "moonshotai":
-      case "groq": {
+      case "groq":
+      case "cerebras": {
         return getConfiguredServiceApiKey(
           config,
           OPENAI_COMPATIBLE_PROVIDER_CONFIG[provider].service,
@@ -518,7 +534,8 @@ function createClient(
       case "qwen":
       case "zai":
       case "moonshotai":
-      case "groq": {
+      case "groq":
+      case "cerebras": {
         return OPENAI_COMPATIBLE_PROVIDER_CONFIG[provider].envVar;
       }
     }
@@ -769,6 +786,9 @@ function getConfiguredServiceApiKey(
     }
     case "deepseek": {
       return config?.deepseekKey ?? envValue("DEEPSEEK_API_KEY");
+    }
+    case "cerebras": {
+      return envValue("CEREBRAS_API_KEY");
     }
     case "inception":
     case "minimax":

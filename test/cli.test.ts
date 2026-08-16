@@ -10,6 +10,7 @@ function runCli(...args: string[]) {
       ...process.env,
       AI_GATEWAY_API_KEY: "",
       ANTHROPIC_API_KEY: "",
+      CEREBRAS_API_KEY: "",
       DEEPSEEK_API_KEY: "",
       GOOGLE_GEMINI_API_KEY: "",
       GROQ_API_KEY: "",
@@ -104,6 +105,7 @@ describe("CLI", () => {
     expect(data.providers.some((provider) => provider.provider === "xai")).toBe(true);
     expect(data.providers.some((provider) => provider.provider === "moonshotai")).toBe(true);
     expect(data.providers.some((provider) => provider.provider === "groq")).toBe(true);
+    expect(data.providers.some((provider) => provider.provider === "cerebras")).toBe(true);
     expect(data.services.some((service) => service.service === "moonshotai")).toBe(true);
     expect(data.availableLanguageProviders).toEqual([]);
     expect(data.availableModelServices).toEqual([]);
