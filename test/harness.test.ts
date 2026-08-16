@@ -3,7 +3,7 @@ import { bestDiscountedEndpoint, compareModel, resolveCatalogId } from "../src/c
 import type { CatalogEntry, RouterCatalog } from "../src/catalog";
 import { containsGrader, exactMatchGrader, jsonShapeGrader, keywordGrader } from "../src/eval";
 import { MODEL_DECISION_SET, resolveDecision } from "../src/decisions";
-import { classifyRole, rankingMetric, WORKLOAD_ROLES } from "../src/taxonomy";
+import { classifyRole, exceedsStakesCeiling, rankingMetric, WORKLOAD_ROLES } from "../src/taxonomy";
 import { canRouteModelToProvider, resolveProviderModelId } from "../src/models";
 import { PROVIDER_ROUTES } from "../src/providers/registry";
 import { auditAgainstCatalogs, roleDistribution, summariseUsage } from "../src/audit";
@@ -309,5 +309,20 @@ describe("cerebras route", () => {
 
   test("does not claim models Cerebras cannot serve", () => {
     expect(canRouteModelToProvider("anthropic/claude-opus-4.8", "cerebras")).toBe(false);
+  });
+});
+
+describe("route stakes ceiling", () => {
+  test("flags open-weight-only routes for work that ships unreviewed", () => {
+    expect(exceedsStakesCeiling("cerebras", "shipped")).toBe(true);
+    expect(exceedsStakesCeiling("groq", "shipped")).toBe(true);
+    expect(exceedsStakesCeiling("cerebras", "checked")).toBe(false);
+    expect(exceedsStakesCeiling("cerebras", "draft")).toBe(false);
+  });
+
+  test("does not cap routes that carry frontier models", () => {
+    expect(exceedsStakesCeiling("gateway", "shipped")).toBe(false);
+    expect(exceedsStakesCeiling("openrouter", "shipped")).toBe(false);
+    expect(exceedsStakesCeiling("anthropic", "shipped")).toBe(false);
   });
 });

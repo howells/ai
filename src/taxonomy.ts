@@ -195,6 +195,35 @@ export const ROLE_SIGNALS: readonly { role: WorkloadRole; patterns: readonly Reg
   { role: "converse", patterns: [/\bchat\b/i, /conversat/i, /interview/i, /\breply\b/i] },
 ];
 
+/**
+ * Highest stakes a route should serve without a task-specific eval.
+ *
+ * Some routes serve only a small open-weight lineup with no frontier model in
+ * it. That is a real constraint and it belongs in the type system rather than
+ * in someone's memory: a route can be the fastest thing available and still be
+ * the wrong place to put work that reaches a user unreviewed.
+ *
+ * A route capped at `checked` is not barred from `shipped` work — it is barred
+ * from *assuming* it. Run `ai eval` on the actual task and the ceiling is
+ * answered with evidence instead of caution. Measured on 2026-08-16, Cerebras
+ * gpt-oss-120b scored highest of four candidates on structured extraction, so
+ * the cap is a prompt to measure, not a verdict.
+ */
+export const ROUTE_STAKES_CEILING: Readonly<Record<string, Stakes>> = {
+  cerebras: "checked",
+  groq: "checked",
+  ollama: "checked",
+};
+
+/** True when a route should not take this workload without a task eval. */
+export function exceedsStakesCeiling(route: string, stakes: Stakes): boolean {
+  const ceiling = ROUTE_STAKES_CEILING[route];
+  if (!ceiling) {
+    return false;
+  }
+  return STAKES.indexOf(stakes) > STAKES.indexOf(ceiling);
+}
+
 /** Classify a source-derived string into a workload role, if one matches. */
 export function classifyRole(haystack: string): WorkloadRole | undefined {
   for (const signal of ROLE_SIGNALS) {

@@ -719,8 +719,15 @@ export const DEFAULT_TASK_MODELS: TaskModelMatrix = {
 } as const;
 
 /**
- * Cerebras tiers. Text runs on the open-weight lineup; every vision variant
- * routes to Gemma, the only multimodal model Cerebras serves.
+ * Cerebras tiers.
+ *
+ * Cerebras serves a small open-weight lineup and has no frontier model, so the
+ * `powerful` and `reasoning` slots return the strongest thing it has rather
+ * than something genuinely frontier-class. Requesting those tiers on this route
+ * is a statement about latency, not about capability — see
+ * ROUTE_STAKES_CEILING in ./taxonomy.
+ *
+ * Every vision variant routes to Gemma, the only multimodal model it serves.
  */
 function splitCerebrasTiers(): Record<ModelTier, TierModelMatrix> {
   const text = splitVariantModels({

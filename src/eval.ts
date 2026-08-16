@@ -58,6 +58,15 @@ export interface EvalSuite {
   system?: string;
   /** Output token ceiling per case. */
   maxOutputTokens?: number;
+  /**
+   * Reasoning effort applied to every case.
+   *
+   * Thinking models spend the output budget on reasoning before emitting an
+   * answer, so a ceiling sized for the answer alone truncates them mid-token
+   * and scores a capable model at zero. Suites that grade the final answer
+   * rather than the working should pin this low.
+   */
+  reasoning?: "minimal" | "low" | "medium" | "high";
 }
 
 function normalise(value: string): string {
@@ -125,6 +134,12 @@ export interface EvalCaseResult {
   output: string;
   /** Milliseconds for the call. */
   durationMs: number;
+  /**
+   * True when generation stopped at the token ceiling rather than finishing.
+   * A truncated answer scores badly for a reason that has nothing to do with
+   * the model's ability, so it is surfaced rather than folded into the score.
+   */
+  truncated: boolean;
   inputTokens: number;
   outputTokens: number;
   error?: string;
@@ -143,6 +158,12 @@ export interface EvalRunResult {
   passed: number;
   /** Cases attempted. */
   total: number;
+  /**
+   * Cases that hit the token ceiling. Any non-zero count invalidates the score
+   * as a capability measure — raise the ceiling or lower reasoning effort and
+   * re-run before comparing.
+   */
+  truncated: number;
   /** Total milliseconds across all cases. */
   totalMs: number;
   /** Total tokens billed across all cases. */
@@ -190,6 +211,7 @@ export async function runEval(options: EvalRunOptions): Promise<EvalRunResult> {
           provider: route,
           temperature: null,
           tools: "none",
+          ...(suite.reasoning ? { reasoning: suite.reasoning } : {}),
         }),
         ...(options.signal ? { abortSignal: options.signal } : {}),
       });
@@ -200,6 +222,7 @@ export async function runEval(options: EvalRunOptions): Promise<EvalRunResult> {
         weight,
         output: generated.text,
         durationMs: Math.round(performance.now() - start),
+        truncated: generated.finishReason === "length",
         inputTokens: generated.usage.inputTokens ?? 0,
         outputTokens: generated.usage.outputTokens ?? 0,
       });
@@ -210,6 +233,7 @@ export async function runEval(options: EvalRunOptions): Promise<EvalRunResult> {
         weight,
         output: "",
         durationMs: Math.round(performance.now() - start),
+        truncated: false,
         inputTokens: 0,
         outputTokens: 0,
         error: error instanceof Error ? error.message : String(error),
@@ -229,6 +253,7 @@ export async function runEval(options: EvalRunOptions): Promise<EvalRunResult> {
     score: totalWeight > 0 ? weighted / totalWeight : 0,
     passed: results.filter((result) => result.score >= 1).length,
     total: results.length,
+    truncated: results.filter((result) => result.truncated).length,
     totalMs: results.reduce((sum, result) => sum + result.durationMs, 0),
     inputTokens: results.reduce((sum, result) => sum + result.inputTokens, 0),
     outputTokens: results.reduce((sum, result) => sum + result.outputTokens, 0),
