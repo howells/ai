@@ -224,6 +224,30 @@ export function exceedsStakesCeiling(route: string, stakes: Stakes): boolean {
   return STAKES.indexOf(stakes) > STAKES.indexOf(ceiling);
 }
 
+/**
+ * Provider-routing preference implied by a workload.
+ *
+ * Discounts on OpenRouter live on a specific upstream provider, and the
+ * default route does not necessarily pick it: measured 2026-08-16,
+ * `deepseek-v4-flash` defaulted to CoreWeave while `prefer: "cheapest"`
+ * selected StreamLake, the endpoint carrying the 56% discount.
+ *
+ * Preferring the cheapest upstream is therefore how a discount is captured.
+ * Pinning the provider by name would capture it too, and would then quietly
+ * rot the day the promotion ends — the same hand-maintained-list failure that
+ * put five wrong entries in the Gateway availability set.
+ *
+ * Interactive work keeps the default route, because the cheapest upstream is
+ * frequently not the fastest one.
+ */
+export function preferenceForWorkload(profile: WorkloadProfile): "auto" | "cheapest" | "fastest" {
+  if (profile.latency === "interactive") {
+    return "fastest";
+  }
+  // Batch work has nobody waiting, so price is the only axis that matters.
+  return profile.latency === "batch" ? "cheapest" : "auto";
+}
+
 /** Classify a source-derived string into a workload role, if one matches. */
 export function classifyRole(haystack: string): WorkloadRole | undefined {
   for (const signal of ROLE_SIGNALS) {

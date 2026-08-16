@@ -3,7 +3,13 @@ import { bestDiscountedEndpoint, compareModel, resolveCatalogId } from "../src/c
 import type { CatalogEntry, RouterCatalog } from "../src/catalog";
 import { containsGrader, exactMatchGrader, jsonShapeGrader, keywordGrader } from "../src/eval";
 import { MODEL_DECISION_SET, resolveDecision } from "../src/decisions";
-import { classifyRole, exceedsStakesCeiling, rankingMetric, WORKLOAD_ROLES } from "../src/taxonomy";
+import {
+  classifyRole,
+  exceedsStakesCeiling,
+  preferenceForWorkload,
+  rankingMetric,
+  WORKLOAD_ROLES,
+} from "../src/taxonomy";
 import { canRouteModelToProvider, resolveProviderModelId } from "../src/models";
 import { PROVIDER_ROUTES } from "../src/providers/registry";
 import { auditAgainstCatalogs, roleDistribution, summariseUsage } from "../src/audit";
@@ -324,5 +330,22 @@ describe("route stakes ceiling", () => {
     expect(exceedsStakesCeiling("gateway", "shipped")).toBe(false);
     expect(exceedsStakesCeiling("openrouter", "shipped")).toBe(false);
     expect(exceedsStakesCeiling("anthropic", "shipped")).toBe(false);
+  });
+});
+
+describe("routing preference", () => {
+  test("prefers the cheapest upstream for batch work, where discounts live", () => {
+    expect(preferenceForWorkload(WORKLOAD_ROLES.embed)).toBe("cheapest");
+    expect(preferenceForWorkload(WORKLOAD_ROLES.triage)).toBe("cheapest");
+  });
+
+  test("prefers speed when a human is waiting", () => {
+    expect(preferenceForWorkload(WORKLOAD_ROLES.converse)).toBe("fastest");
+    expect(preferenceForWorkload(WORKLOAD_ROLES.decompose)).toBe("fastest");
+  });
+
+  test("leaves background work on the default route", () => {
+    expect(preferenceForWorkload(WORKLOAD_ROLES.extraction)).toBe("auto");
+    expect(preferenceForWorkload(WORKLOAD_ROLES.editorial)).toBe("auto");
   });
 });
