@@ -1,6 +1,6 @@
 {
   "name": "@howells/ai",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "Unified AI client for all projects — Gateway, OpenRouter, direct providers, tiered language models, and retrieval models.",
   "license": "MIT",
   "repository": {
@@ -73,12 +73,13 @@
     "build": "tsdown",
     "benchmark:build": "pnpm --filter @howells/ai-benchmark build",
     "benchmark:dev": "pnpm --filter @howells/ai-benchmark dev",
-    "check": "pnpm check-types && pnpm test && pnpm lint && pnpm build && pnpm benchmark:build",
+    "check": "pnpm check-types && pnpm build && pnpm test && pnpm lint && pnpm benchmark:build",
     "check-types": "tsc --noEmit",
     "test": "bun test test",
     "test:live": "LIVE_AI_TESTS=1 bun test test/live.test.ts",
     "lint": "howells-oxfmt --check src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts && howells-oxlint --config=oxlint.config.ts src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts",
     "lint:fix": "howells-oxfmt --write src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts README.md && howells-oxlint --fix --config=oxlint.config.ts src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts",
+    "prepack": "pnpm build",
     "format": "howells-oxfmt --write src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts README.md"
   },
   "dependencies": {
@@ -86,12 +87,12 @@
     "@ai-sdk/gateway": "^4.0.0",
     "@ai-sdk/google": "^4.0.0",
     "@ai-sdk/openai": "^4.0.0",
-    "@ai-sdk/react": "catalog:",
-    "@howells/envy": "catalog:",
+    "@ai-sdk/react": "^4.0.0",
+    "@howells/envy": "^0.3.7",
     "@openrouter/ai-sdk-provider": "^3.0.0",
-    "ai": "catalog:",
+    "ai": "^7.0.0",
     "voyage-ai-provider": "^4.0.0",
-    "zod": "catalog:"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@howells/lint": "catalog:",
