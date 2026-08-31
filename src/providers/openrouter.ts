@@ -56,14 +56,15 @@ export function createOpenRouterProvider(
       headers["HTTP-Referer"] = app.url;
     }
     if (app?.name) {
-      headers["X-Title"] = app.name;
+      headers["X-OpenRouter-Title"] = app.name;
     }
 
     return headers;
   }
 
   function getUser(options?: ModelOptions) {
-    return options?.agent ? `${options.agent}/${env}` : undefined;
+    const parts = [options?.agent, env, options?.sessionId].filter(Boolean);
+    return parts.length > 1 ? parts.join("/") : undefined;
   }
 
   function getClient() {

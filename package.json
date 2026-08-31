@@ -1,116 +1,116 @@
 {
-	"name": "@howells/ai",
-	"version": "0.5.1",
-	"description": "Unified AI client for all projects \u2014 Gateway, OpenRouter, direct providers, tiered language models, and retrieval models.",
-	"license": "MIT",
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/howells/ai.git"
-	},
-	"bin": {
-		"ai": "dist/cli.mjs",
-		"howells-ai": "dist/cli.mjs"
-	},
-	"files": [
-		"dist",
-		"README.md"
-	],
-	"type": "module",
-	"main": "./dist/index.mjs",
-	"types": "./dist/index.d.mts",
-	"exports": {
-		".": {
-			"types": "./dist/index.d.mts",
-			"import": "./dist/index.mjs",
-			"default": "./dist/index.mjs"
-		},
-		"./react": {
-			"types": "./dist/react.d.mts",
-			"import": "./dist/react.mjs",
-			"default": "./dist/react.mjs"
-		},
-		"./models": {
-			"types": "./dist/models.d.mts",
-			"import": "./dist/models.mjs",
-			"default": "./dist/models.mjs"
-		},
-		"./server": {
-			"types": "./dist/server.d.mts",
-			"import": "./dist/server.mjs",
-			"default": "./dist/server.mjs"
-		},
-		"./catalog": {
-			"types": "./dist/catalog.d.mts",
-			"import": "./dist/catalog.mjs",
-			"default": "./dist/catalog.mjs"
-		},
-		"./bench": {
-			"types": "./dist/bench.d.mts",
-			"import": "./dist/bench.mjs",
-			"default": "./dist/bench.mjs"
-		},
-		"./eval": {
-			"types": "./dist/eval.d.mts",
-			"import": "./dist/eval.mjs",
-			"default": "./dist/eval.mjs"
-		},
-		"./decisions": {
-			"types": "./dist/decisions.d.mts",
-			"import": "./dist/decisions.mjs",
-			"default": "./dist/decisions.mjs"
-		},
-		"./package.json": "./package.json",
-		"./taxonomy": {
-			"types": "./dist/taxonomy.d.mts",
-			"import": "./dist/taxonomy.mjs",
-			"default": "./dist/taxonomy.mjs"
-		}
-	},
-	"publishConfig": {
-		"access": "public"
-	},
-	"scripts": {
-		"build": "tsdown",
-		"benchmark:build": "pnpm --filter @howells/ai-benchmark build",
-		"benchmark:dev": "pnpm --filter @howells/ai-benchmark dev",
-		"check": "pnpm check-types && pnpm test && pnpm lint && pnpm build && pnpm benchmark:build",
-		"check-types": "tsc --noEmit",
-		"test": "bun test test",
-		"test:live": "LIVE_AI_TESTS=1 bun test test/live.test.ts",
-		"lint": "howells-oxfmt --check src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts && howells-oxlint --config=oxlint.config.ts src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts",
-		"lint:fix": "howells-oxfmt --write src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts README.md && howells-oxlint --fix --config=oxlint.config.ts src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts",
-		"format": "howells-oxfmt --write src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts README.md"
-	},
-	"dependencies": {
-		"@ai-sdk/anthropic": "^4.0.0",
-		"@ai-sdk/gateway": "^4.0.0",
-		"@ai-sdk/google": "^4.0.0",
-		"@ai-sdk/openai": "^4.0.0",
-		"@ai-sdk/react": "catalog:",
-		"@howells/envy": "catalog:",
-		"@openrouter/ai-sdk-provider": "^3.0.0",
-		"ai": "catalog:",
-		"voyage-ai-provider": "^4.0.0",
-		"zod": "catalog:"
-	},
-	"devDependencies": {
-		"@howells/lint": "catalog:",
-		"@types/node": "catalog:",
-		"oxlint-tsgolint": "0.23.0",
-		"tsdown": "^0.22.3",
-		"typescript": "catalog:"
-	},
-	"peerDependencies": {
-		"typescript": "^5 || ^6"
-	},
-	"engines": {
-		"node": ">=22.18.0"
-	},
-	"packageManager": "pnpm@11.5.2",
-	"knip": {
-		"ignore": [
-			"oxfmt.config.ts",
-			"oxlint.config.ts"
-		]
-	}
+  "name": "@howells/ai",
+  "version": "0.6.0",
+  "description": "Unified AI client for all projects — Gateway, OpenRouter, direct providers, tiered language models, and retrieval models.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/howells/ai.git"
+  },
+  "bin": {
+    "ai": "dist/cli.mjs",
+    "howells-ai": "dist/cli.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs",
+      "default": "./dist/index.mjs"
+    },
+    "./react": {
+      "types": "./dist/react.d.mts",
+      "import": "./dist/react.mjs",
+      "default": "./dist/react.mjs"
+    },
+    "./models": {
+      "types": "./dist/models.d.mts",
+      "import": "./dist/models.mjs",
+      "default": "./dist/models.mjs"
+    },
+    "./server": {
+      "types": "./dist/server.d.mts",
+      "import": "./dist/server.mjs",
+      "default": "./dist/server.mjs"
+    },
+    "./catalog": {
+      "types": "./dist/catalog.d.mts",
+      "import": "./dist/catalog.mjs",
+      "default": "./dist/catalog.mjs"
+    },
+    "./bench": {
+      "types": "./dist/bench.d.mts",
+      "import": "./dist/bench.mjs",
+      "default": "./dist/bench.mjs"
+    },
+    "./eval": {
+      "types": "./dist/eval.d.mts",
+      "import": "./dist/eval.mjs",
+      "default": "./dist/eval.mjs"
+    },
+    "./decisions": {
+      "types": "./dist/decisions.d.mts",
+      "import": "./dist/decisions.mjs",
+      "default": "./dist/decisions.mjs"
+    },
+    "./package.json": "./package.json",
+    "./taxonomy": {
+      "types": "./dist/taxonomy.d.mts",
+      "import": "./dist/taxonomy.mjs",
+      "default": "./dist/taxonomy.mjs"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "benchmark:build": "pnpm --filter @howells/ai-benchmark build",
+    "benchmark:dev": "pnpm --filter @howells/ai-benchmark dev",
+    "check": "pnpm check-types && pnpm test && pnpm lint && pnpm build && pnpm benchmark:build",
+    "check-types": "tsc --noEmit",
+    "test": "bun test test",
+    "test:live": "LIVE_AI_TESTS=1 bun test test/live.test.ts",
+    "lint": "howells-oxfmt --check src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts && howells-oxlint --config=oxlint.config.ts src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts",
+    "lint:fix": "howells-oxfmt --write src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts README.md && howells-oxlint --fix --config=oxlint.config.ts src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts",
+    "format": "howells-oxfmt --write src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts README.md"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^4.0.0",
+    "@ai-sdk/gateway": "^4.0.0",
+    "@ai-sdk/google": "^4.0.0",
+    "@ai-sdk/openai": "^4.0.0",
+    "@ai-sdk/react": "catalog:",
+    "@howells/envy": "catalog:",
+    "@openrouter/ai-sdk-provider": "^3.0.0",
+    "ai": "catalog:",
+    "voyage-ai-provider": "^4.0.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@howells/lint": "catalog:",
+    "@types/node": "catalog:",
+    "oxlint-tsgolint": "0.23.0",
+    "tsdown": "^0.22.3",
+    "typescript": "catalog:"
+  },
+  "peerDependencies": {
+    "typescript": "^5 || ^6"
+  },
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "packageManager": "pnpm@11.5.2",
+  "knip": {
+    "ignore": [
+      "oxfmt.config.ts",
+      "oxlint.config.ts"
+    ]
+  }
 }

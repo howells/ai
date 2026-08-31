@@ -35,6 +35,7 @@
 import type { LanguageModel } from "ai";
 import { envValue } from "./env";
 import {
+  ANTHROPIC_MODELS,
   assertLanguageModelCompatible,
   canRouteModelToProvider,
   getLanguageModelCapabilities,
@@ -80,6 +81,8 @@ import type {
 
 const OPENROUTER_VARIANTS = new Set(["nitro", "exacto", "floor"]);
 const OPENROUTER_VARIANT_PATTERN = /:(nitro|exacto|floor)$/;
+
+const OPENROUTER_BLOCKED_MODEL_IDS = new Set<string>([ANTHROPIC_MODELS.CLAUDE_FABLE_5]);
 
 const OPENAI_COMPATIBLE_PROVIDER_CONFIG = {
   cerebras: {
@@ -376,6 +379,13 @@ function createClient(
 
   function resolveOpenRouterModelId(modelId: string, options?: ModelOptions): string {
     const resolvedId = resolveProviderModelId(modelId, "openrouter");
+    const canonicalId = resolvedId.split(":", 1)[0] ?? resolvedId;
+    if (OPENROUTER_BLOCKED_MODEL_IDS.has(canonicalId)) {
+      throw new Error(
+        `Model "${canonicalId}" is blocked on OpenRouter. ` +
+          "Fable is reserved for explicit direct Anthropic review workflows.",
+      );
+    }
     const variant = options?.openRouterVariant;
     if (!variant) {
       return resolvedId;

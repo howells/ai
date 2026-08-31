@@ -30,6 +30,35 @@ interface NormalizedCache {
   ttl?: CacheTTL;
 }
 
+function resolveOpenRouterResponseCacheHeaders(
+  options: GenerationOptions,
+): Record<string, string> | undefined {
+  if (options.provider !== "openrouter" || options.responseCache === undefined) {
+    return undefined;
+  }
+  if (options.responseCache === "off") {
+    return { "X-OpenRouter-Cache": "false" };
+  }
+
+  const headers: Record<string, string> = { "X-OpenRouter-Cache": "true" };
+  const ttlSeconds =
+    options.responseCache === "5m"
+      ? 300
+      : options.responseCache === "1h"
+        ? 3600
+        : options.responseCache.ttlSeconds;
+  if (ttlSeconds !== undefined) {
+    if (!Number.isInteger(ttlSeconds) || ttlSeconds < 1 || ttlSeconds > 86_400) {
+      throw new Error("OpenRouter response-cache TTL must be an integer from 1 to 86400 seconds.");
+    }
+    headers["X-OpenRouter-Cache-TTL"] = String(ttlSeconds);
+  }
+  if (typeof options.responseCache === "object" && options.responseCache.clear) {
+    headers["X-OpenRouter-Cache-Clear"] = "true";
+  }
+  return headers;
+}
+
 function normalizeCache(cache: PromptCachePolicy | undefined): NormalizedCache | undefined {
   if (cache === undefined) {
     return undefined;
@@ -394,7 +423,7 @@ function applyOpenAIOptions(
     serviceTier: mapOpenAIServiceTier(options.serviceTier),
     strictJsonSchema: options.structured === "strict" ? true : undefined,
     textVerbosity: options.verbosity,
-    user: options.user,
+    user: options.user ?? options.sessionId,
   });
 }
 
@@ -429,7 +458,8 @@ function applyAnthropicOptions(
     cacheControl,
     disableParallelToolUse:
       options.parallelTools === undefined ? undefined : !options.parallelTools,
-    metadata: options.user ? { userId: options.user } : undefined,
+    metadata:
+      options.user || options.sessionId ? { userId: options.user ?? options.sessionId } : undefined,
     sendReasoning: reasoning === undefined ? undefined : reasoning.effort !== "off",
     structuredOutputMode:
       options.structured === "tool"
@@ -513,7 +543,7 @@ function applyOpenRouterOptions(
     // OpenRouter's REST API uses snake_case for OpenAI-compatible fields and
     // providerOptions are spread directly into the request body.
     parallel_tool_calls: options.parallelTools,
-    user: options.user,
+    user: options.user ?? options.sessionId,
     cache_control,
     provider,
     plugins,
@@ -543,7 +573,7 @@ function applyGatewayOptions(
     order: routing?.order?.length ? routing.order : undefined,
     sort,
     tags: options.tags?.length ? options.tags : undefined,
-    user: options.user,
+    user: options.user ?? options.sessionId,
     zeroDataRetention: privacy.zeroDataRetention,
   });
 }
@@ -591,6 +621,11 @@ export function resolveGenerationOptions(
   const resolved: ResolvedGenerationOptions = {};
   const maxOutputTokens = resolveMaxOutputTokens(options);
   const providerOptions = resolveProviderOptions(options);
+  const headers = resolveOpenRouterResponseCacheHeaders(options);
+
+  if (headers) {
+    resolved.headers = headers;
+  }
 
   if (maxOutputTokens !== undefined) {
     resolved.maxOutputTokens = maxOutputTokens;

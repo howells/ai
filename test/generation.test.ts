@@ -178,6 +178,33 @@ describe("resolveGenerationOptions", () => {
     });
   });
 
+  test("maps session attribution and exact-response caching for OpenRouter", () => {
+    const result = resolveGenerationOptions({
+      cache: "ephemeral",
+      provider: "openrouter",
+      responseCache: { ttlSeconds: 900 },
+      sessionId: "run_123",
+    });
+
+    expect(result.headers).toEqual({
+      "X-OpenRouter-Cache": "true",
+      "X-OpenRouter-Cache-TTL": "900",
+    });
+    expect(providerOptionsFor(result, "openrouter")).toMatchObject({
+      cache_control: { type: "ephemeral" },
+      user: "run_123",
+    });
+  });
+
+  test("rejects invalid OpenRouter response-cache TTLs", () => {
+    expect(() =>
+      resolveGenerationOptions({
+        provider: "openrouter",
+        responseCache: { ttlSeconds: 0 },
+      }),
+    ).toThrow("OpenRouter response-cache TTL must be an integer from 1 to 86400 seconds");
+  });
+
   test("supports reasoning by explicit token budget", () => {
     const anthropic = resolveGenerationOptions({
       provider: "anthropic",

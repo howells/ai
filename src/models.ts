@@ -97,6 +97,8 @@ export const GLM_MODELS = {
   GLM_4_7_FLASH: "z-ai/glm-4.7-flash",
   /** Current GLM flagship for coding and agent workflows. */
   GLM_5_2: "z-ai/glm-5.2",
+  /** Low-cost multimodal GLM model for coding, agent, and structured-output workloads. */
+  GLM_5_3_FLASH: "z-ai/glm-5.3-flash",
   /** Native multimodal GLM agent model. */
   GLM_5V_TURBO: "z-ai/glm-5v-turbo",
 } as const;
@@ -117,6 +119,8 @@ export const GOOGLE_MODELS = {
 export const OPENAI_MODELS = {
   /** Current flagship OpenAI model for powerful routing and coding (Codex runs on it). */
   GPT_5_5: "openai/gpt-5.5",
+  /** Low-cost multimodal model for routine text, tools, and structured vision workloads. */
+  GPT_5_6_LUNA: "openai/gpt-5.6-luna-20260709",
   /** Current small OpenAI model for fast/default direct routing. */
   GPT_5_4_MINI: "openai/gpt-5.4-mini",
   /** Current low-cost OpenAI model for nano-style defaults. */
@@ -290,6 +294,12 @@ export const LANGUAGE_MODEL_CATALOG = [
     tasks: ["coding", "agentic"],
   },
   {
+    id: GLM_MODELS.GLM_5_3_FLASH,
+    name: "GLM 5.3 Flash",
+    service: "zai",
+    tasks: ["general", "coding", "agentic", "bulk", "chat", "vision"],
+  },
+  {
     id: GLM_MODELS.GLM_5V_TURBO,
     name: "GLM 5V Turbo",
     service: "zai",
@@ -396,6 +406,12 @@ export const LANGUAGE_MODEL_CATALOG = [
     name: "GPT-5.5",
     service: "openai",
     tasks: ["general", "reasoning", "coding", "agentic", "creative", "longContext"],
+  },
+  {
+    id: OPENAI_MODELS.GPT_5_6_LUNA,
+    name: "GPT-5.6 Luna",
+    service: "openai",
+    tasks: ["general", "vision", "chat", "bulk", "agentic"],
   },
   {
     id: GROQ_MODELS.GPT_OSS_120B,
@@ -1272,6 +1288,7 @@ const LANGUAGE_MODEL_FEATURES: Record<string, { tools: boolean; vision: boolean 
           ANTHROPIC_MODELS.CLAUDE_SONNET_4_6,
           ANTHROPIC_MODELS.CLAUDE_HAIKU_4_5,
           GLM_MODELS.GLM_5V_TURBO,
+          GLM_MODELS.GLM_5_3_FLASH,
           GLM_MODELS.GLM_4_6V,
           GOOGLE_MODELS.GEMINI_3_5_FLASH,
           GOOGLE_MODELS.GEMINI_3_FLASH_PREVIEW,
@@ -1282,6 +1299,7 @@ const LANGUAGE_MODEL_FEATURES: Record<string, { tools: boolean; vision: boolean 
           OPENAI_MODELS.GPT_5_4_NANO,
           OPENAI_MODELS.GPT_5_4_MINI,
           OPENAI_MODELS.GPT_5_5,
+          OPENAI_MODELS.GPT_5_6_LUNA,
           OPENROUTER_MODELS.FREE,
           XAI_MODELS.GROK_4_3,
           QWEN_MODELS.QWEN_3_7_PLUS,
@@ -1624,6 +1642,9 @@ const PROVIDER_MODEL_IDS: Record<string, Partial<Record<ProviderRoute, string>>>
   "z-ai/glm-5.2": {
     gateway: "zai/glm-5.2",
   },
+  "z-ai/glm-5.3-flash": {
+    gateway: "zai/glm-5.3-flash",
+  },
   "z-ai/glm-5v-turbo": {
     gateway: "zai/glm-5v-turbo",
   },
@@ -1643,12 +1664,14 @@ const PROVIDER_MODEL_IDS: Record<string, Partial<Record<ProviderRoute, string>>>
  * models are local and have no Gateway route by definition.
  */
 const GATEWAY_UNAVAILABLE_MODEL_IDS = new Set<string>([
+  GLM_MODELS.GLM_5_3_FLASH,
   NEX_AGI_MODELS.NEX_N2_PRO,
   OLLAMA_MODELS.GEMMA_4_31B,
   OLLAMA_MODELS.GPT_OSS_120B,
   OLLAMA_MODELS.QWEN_3_6_35B,
   OLLAMA_MODELS.QWEN_3_CODER_30B,
   OPENROUTER_MODELS.FREE,
+  OPENAI_MODELS.GPT_5_6_LUNA,
   QWEN_MODELS.QWEN_3_NEXT_80B_A3B_INSTRUCT_FREE,
 ]);
 
