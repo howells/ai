@@ -132,6 +132,7 @@ export type {
   OutputVerbosity,
   PrivacyConstraint,
   PromptCachePolicy,
+  ResponseCachePolicy,
   ProviderConfigCapabilities,
   ProviderLanguageModelMatrix,
   ProviderModelDescriptor,

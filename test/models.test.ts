@@ -155,9 +155,11 @@ describe("model matrix", () => {
     expect(VOYAGE_MODELS.MULTIMODAL_3).toBe("voyage-multimodal-3");
     expect(QWEN_MODELS.QWEN_3_VL_235B_A22B).toBe("qwen/qwen3-vl-235b-a22b-instruct");
     expect(GLM_MODELS.GLM_5_2).toBe("z-ai/glm-5.2");
+    expect(GLM_MODELS.GLM_5_3_FLASH).toBe("z-ai/glm-5.3-flash");
     expect(GLM_MODELS.GLM_4_7_FLASH).toBe("z-ai/glm-4.7-flash");
     expect(KIMI_MODELS.KIMI_K2_7_CODE).toBe("moonshotai/kimi-k2.7-code");
     expect(OPENROUTER_MODELS.FREE).toBe("openrouter/free");
+    expect(OPENAI_MODELS.GPT_5_6_LUNA).toBe("openai/gpt-5.6-luna-20260709");
     expect(GROQ_MODELS.GPT_OSS_20B).toBe("openai/gpt-oss-20b");
     expect(XAI_MODELS.GROK_4_3).toBe("x-ai/grok-4.3");
     expect(MINIMAX_MODELS.MINIMAX_M3).toBe("minimax/minimax-m3");

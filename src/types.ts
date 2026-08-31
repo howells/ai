@@ -112,7 +112,7 @@ export type ModelOverrides = Partial<Record<ModelTier, Partial<TierModelMatrix>>
 
 /** App-level configuration for OpenRouter attribution headers. */
 export interface AppConfig {
-  /** App name shown in OpenRouter rankings (X-Title header). */
+  /** App name shown in OpenRouter rankings (X-OpenRouter-Title header). */
   name: string;
   /** App URL for OpenRouter rankings (HTTP-Referer header). */
   url?: string;
@@ -198,6 +198,8 @@ export interface EmbeddingModelOptions {
 export interface ModelOptions {
   /** Agent identifier for usage attribution (e.g. "search", "enrichment"). */
   agent?: string;
+  /** Stable request-session or workflow-run identifier for OpenRouter usage attribution. */
+  sessionId?: string;
   /** Select the tool-capable variant for the requested tier. */
   tools?: boolean;
   /** Select the vision-capable variant for the requested tier. */
@@ -265,6 +267,9 @@ export type CacheTTL = "5m" | "1h";
  * carries an explicit TTL where providers (Anthropic, OpenRouter) expose one.
  */
 export type PromptCachePolicy = "off" | "ephemeral" | { type?: "ephemeral"; ttl?: CacheTTL };
+
+/** Exact-response caching at the OpenRouter edge. Separate from provider prompt caching. */
+export type ResponseCachePolicy = "off" | "5m" | "1h" | { clear?: boolean; ttlSeconds?: number };
 
 /** Normalized latency/cost priority where providers expose one. */
 export type ServiceTier = "auto" | "standard" | "flex" | "priority";
@@ -442,6 +447,10 @@ export interface GenerationOptions {
   cache?: PromptCachePolicy;
   /** End-user or agent identifier for providers that accept one. */
   user?: string;
+  /** Stable session/run identifier. Used as provider user attribution when user is omitted. */
+  sessionId?: string;
+  /** OpenRouter exact-response cache policy. Only use for replay-safe requests. */
+  responseCache?: ResponseCachePolicy;
   /** Latency/cost priority for providers that expose one. */
   serviceTier?: ServiceTier;
   /**
@@ -490,6 +499,7 @@ export interface GenerationOptions {
 
 /** AI SDK call settings produced by resolveGenerationOptions(). */
 export interface ResolvedGenerationOptions {
+  headers?: Record<string, string>;
   maxOutputTokens?: number;
   temperature?: number;
   topP?: number;

@@ -112,7 +112,9 @@ await streamText({
 | `parallelTools`          | OpenAI/OpenRouter parallel tool calls, Anthropic inverse disable flag                                                                                                                        |
 | `outputLength`           | AI SDK `maxOutputTokens` preset                                                                                                                                                              |
 | `creativity`             | AI SDK `temperature` preset                                                                                                                                                                  |
-| `cache`                  | Anthropic `cacheControl`, OpenRouter `cache_control`. Pass `"ephemeral"` or `{ ttl: "5m" \| "1h" }`.                                                                                         |
+| `cache`                  | Provider prompt-prefix caching: Anthropic `cacheControl`, OpenRouter `cache_control`. Pass `"ephemeral"` or `{ ttl: "5m" \| "1h" }`.                                                         |
+| `responseCache`          | OpenRouter exact-response caching. Pass `"5m"`, `"1h"`, or `{ ttlSeconds, clear? }`; only enable for replay-safe requests.                                                                   |
+| `sessionId`              | Stable request-session or workflow-run identifier sent as OpenRouter `user` attribution when `user` is omitted.                                                                              |
 | `serviceTier`            | OpenAI/Google service tier where supported                                                                                                                                                   |
 | `routing`                | Normalized route intent. Gateway `sort/only/order/zeroDataRetention/...`, OpenRouter `provider.{sort, only, ignore, order, allow_fallbacks, max_price, quantizations, zdr, data_collection}` |
 | `fallbackModels`         | Gateway `models`, OpenRouter `models` (model fallback chain)                                                                                                                                 |
@@ -587,8 +589,12 @@ can rotate with OpenRouter's current free inventory and requested capabilities.
 Tag OpenRouter requests for per-agent cost tracking:
 
 ```typescript
-ai.model("fast", { agent: "search", provider: "openrouter" });
-// Sends user tag when provider is "openrouter"
+ai.model("fast", {
+  agent: "search",
+  provider: "openrouter",
+  sessionId: "search-run-123",
+});
+// Sends search/{environment}/search-run-123 as OpenRouter user attribution.
 ```
 
 ## Model Constants
@@ -628,6 +634,7 @@ DEEPSEEK_MODELS.DEEPSEEK_V4_FLASH; // "deepseek/deepseek-v4-flash"
 
 // GLM / Z.ai
 GLM_MODELS.GLM_5_2; // "z-ai/glm-5.2"
+GLM_MODELS.GLM_5_3_FLASH; // "z-ai/glm-5.3-flash"
 GLM_MODELS.GLM_5V_TURBO; // "z-ai/glm-5v-turbo"
 GLM_MODELS.GLM_4_7; // "z-ai/glm-4.7"
 GLM_MODELS.GLM_4_7_FLASH; // "z-ai/glm-4.7-flash"
@@ -651,6 +658,7 @@ GOOGLE_MODELS.GEMINI_3_1_FLASH_LITE; // "google/gemini-3.1-flash-lite"
 OPENAI_MODELS.GPT_5_4_NANO; // "openai/gpt-5.4-nano"
 OPENAI_MODELS.GPT_5_4_MINI; // "openai/gpt-5.4-mini"
 OPENAI_MODELS.GPT_5_5; // "openai/gpt-5.5"
+OPENAI_MODELS.GPT_5_6_LUNA; // "openai/gpt-5.6-luna-20260709"
 
 // OpenRouter-managed
 OPENROUTER_MODELS.FREE; // "openrouter/free"

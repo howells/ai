@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
+  ANTHROPIC_MODELS,
   createAI,
   KIMI_MODELS,
   NEX_AGI_MODELS,
@@ -487,6 +488,37 @@ describe("createAI", () => {
         }),
       ),
     ).toBe("claude-sonnet-4-6");
+  });
+
+  test("blocks Fable on OpenRouter while preserving direct Anthropic use", () => {
+    const ai = createAI({
+      anthropicKey: "anthropic-key",
+      openRouterKey: "openrouter-key",
+    });
+
+    expect(() =>
+      ai.modelById(ANTHROPIC_MODELS.CLAUDE_FABLE_5, {
+        provider: "openrouter",
+      }),
+    ).toThrow("Fable is reserved for explicit direct Anthropic review workflows");
+    expect(() =>
+      ai.modelById(ANTHROPIC_MODELS.CLAUDE_FABLE_5, {
+        provider: "anthropic",
+      }),
+    ).not.toThrow();
+  });
+
+  test("attaches agent, environment, and session attribution to OpenRouter models", () => {
+    const ai = createAI({ openRouterKey: "openrouter-key" });
+    const model = ai.modelById(OPENAI_MODELS.GPT_5_6_LUNA, {
+      agent: "surface-detection",
+      provider: "openrouter",
+      sessionId: "run_123",
+    });
+
+    expect((model as unknown as { settings: { user?: string } }).settings.user).toBe(
+      "surface-detection/test/run_123",
+    );
   });
 
   test("applies OpenRouter model variants as virtual model suffixes", () => {
