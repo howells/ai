@@ -589,6 +589,14 @@ can rotate with OpenRouter's current free inventory and requested capabilities.
 Tag OpenRouter requests for per-agent cost tracking:
 
 ```typescript
+const ai = createAI({
+  app: { name: "My App", url: "https://example.com" },
+  openRouterPolicy: {
+    requireAppAttribution: true,
+    requireSessionId: true,
+  },
+});
+
 ai.model("fast", {
   agent: "search",
   provider: "openrouter",
@@ -596,6 +604,12 @@ ai.model("fast", {
 });
 // Sends search/{environment}/search-run-123 as OpenRouter user attribution.
 ```
+
+Strict attribution is opt-in so applications can migrate without an outage.
+Enable both checks in production apps: they reject OpenRouter language-model
+calls without a stable session ID and reject any OpenRouter model or embedding
+selection without an app name and URL. OpenRouter is reserved for in-app
+inference; `task: "coding"` is always rejected on that route.
 
 ## Model Constants
 

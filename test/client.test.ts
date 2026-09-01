@@ -320,7 +320,7 @@ describe("createAI", () => {
     );
   });
 
-  test("selects task-specific tier models and falls back per provider", () => {
+  test("rejects coding tasks through OpenRouter and preserves direct-provider coding", () => {
     const ai = createAI({
       anthropicKey: "anthropic-key",
       gatewayKey: "gateway-key",
@@ -336,10 +336,16 @@ describe("createAI", () => {
       openRouterKey: "openrouter-key",
     });
 
+    expect(() =>
+      ai.model("standard", {
+        provider: "openrouter",
+        task: "coding",
+      }),
+    ).toThrow("OpenRouter is reserved for in-app inference");
     expect(
       modelIdOf(
         ai.model("standard", {
-          provider: "openrouter",
+          provider: "gateway",
           task: "coding",
         }),
       ),
@@ -347,7 +353,7 @@ describe("createAI", () => {
     expect(
       modelIdOf(
         ai.model("standard", {
-          provider: "openrouter",
+          provider: "gateway",
           task: "coding",
           tools: true,
         }),
@@ -362,6 +368,38 @@ describe("createAI", () => {
         }),
       ),
     ).toBe("claude-sonnet-4-6");
+  });
+
+  test("can require complete app and session attribution for OpenRouter", () => {
+    const missingApp = createAI({
+      openRouterKey: "openrouter-key",
+      openRouterPolicy: { requireAppAttribution: true },
+    });
+    expect(() => missingApp.model("fast", { provider: "openrouter" })).toThrow(
+      "OpenRouter app attribution is required",
+    );
+    expect(() => missingApp.embeddingModel({ provider: "openrouter" })).toThrow(
+      "OpenRouter app attribution is required",
+    );
+
+    const strict = createAI({
+      app: { name: "MaterialGraph", url: "https://materialgraph.co" },
+      openRouterKey: "openrouter-key",
+      openRouterPolicy: {
+        requireAppAttribution: true,
+        requireSessionId: true,
+      },
+    });
+    expect(() => strict.model("fast", { provider: "openrouter" })).toThrow(
+      "OpenRouter session attribution is required",
+    );
+    expect(() =>
+      strict.model("fast", {
+        agent: "catalog-extraction",
+        provider: "openrouter",
+        sessionId: "catalog-run-123",
+      }),
+    ).not.toThrow();
   });
 
   test("uses provider-specific task defaults when one provider is pinned", () => {

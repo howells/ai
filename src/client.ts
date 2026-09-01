@@ -420,6 +420,35 @@ function createClient(
     );
   }
 
+  function assertOpenRouterProductInference(options?: ModelOptions): void {
+    if (options?.task === "coding") {
+      throw new Error(
+        'OpenRouter is reserved for in-app inference and cannot be used with task "coding". ' +
+          "Use an approved direct provider or a coding-tool subscription instead.",
+      );
+    }
+
+    if (config?.openRouterPolicy?.requireAppAttribution && (!config.app?.name || !config.app.url)) {
+      throw new Error(
+        "OpenRouter app attribution is required. Pass app: { name, url } to createAI().",
+      );
+    }
+
+    if (config?.openRouterPolicy?.requireSessionId && !options?.sessionId) {
+      throw new Error(
+        "OpenRouter session attribution is required. Pass a stable sessionId for this workflow run.",
+      );
+    }
+  }
+
+  function assertOpenRouterEmbeddingAttribution(): void {
+    if (config?.openRouterPolicy?.requireAppAttribution && (!config.app?.name || !config.app.url)) {
+      throw new Error(
+        "OpenRouter app attribution is required. Pass app: { name, url } to createAI().",
+      );
+    }
+  }
+
   function resolveModel(modelId: string, options?: ModelOptions): LanguageModel {
     const provider = resolveRequestedProvider(options);
     assertOpenRouterVariantAllowed(provider, options);
@@ -429,6 +458,7 @@ function createClient(
     }
 
     if (provider === "openrouter") {
+      assertOpenRouterProductInference(options);
       return openrouter.model(resolveOpenRouterModelId(modelId, options), options);
     }
 
@@ -611,6 +641,7 @@ function createClient(
     const serviceApiKey = service ? getServiceApiKey(service) : undefined;
 
     if (provider === "openrouter") {
+      assertOpenRouterProductInference(options);
       const requestConfig = openrouter.requestConfig(options);
       return {
         ...descriptor,
@@ -671,6 +702,7 @@ function createClient(
 
     if (provider === "openrouter") {
       assertExplicitProviderConfigured("openrouter");
+      assertOpenRouterEmbeddingAttribution();
       return input === "image"
         ? openrouter.embedModel(matrix.multimodalEmbed.openrouter)
         : openrouter.embedModel(matrix.embed.openrouter);

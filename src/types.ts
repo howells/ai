@@ -118,6 +118,14 @@ export interface AppConfig {
   url?: string;
 }
 
+/** Optional enforcement for product inference routed through OpenRouter. */
+export interface OpenRouterPolicy {
+  /** Require both app name and URL so requests do not appear as an unknown app. */
+  requireAppAttribution?: boolean;
+  /** Require a stable workflow/session ID on every OpenRouter language-model call. */
+  requireSessionId?: boolean;
+}
+
 /** Configuration for createAI(). */
 export interface AIConfig {
   /** OpenRouter API key. Defaults to process.env.OPENROUTER_API_KEY. */
@@ -156,6 +164,8 @@ export interface AIConfig {
   models?: ModelOverrides;
   /** App attribution for OpenRouter. */
   app?: AppConfig;
+  /** Product-inference guardrails for OpenRouter. */
+  openRouterPolicy?: OpenRouterPolicy;
 }
 
 /**
