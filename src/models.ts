@@ -636,8 +636,8 @@ export const DEFAULT_TASK_MODELS: TaskModelMatrix = {
   },
   bulk: {
     fast: {
-      text: GLM_MODELS.GLM_4_7_FLASH,
-      tools: GLM_MODELS.GLM_4_7_FLASH,
+      text: GLM_MODELS.GLM_5_3_FLASH,
+      tools: GLM_MODELS.GLM_5_3_FLASH,
     },
     nano: {
       text: OPENAI_MODELS.GPT_5_4_NANO,
@@ -1217,8 +1217,8 @@ export const PROVIDER_TASK_DEFAULT_MODELS: ProviderTaskModelMatrix = {
       standard: everyVariant(GLM_MODELS.GLM_5_2),
     },
     bulk: {
-      fast: everyVariant(GLM_MODELS.GLM_4_7_FLASH),
-      nano: everyVariant(GLM_MODELS.GLM_4_7_FLASH),
+      fast: everyVariant(GLM_MODELS.GLM_5_3_FLASH),
+      nano: everyVariant(GLM_MODELS.GLM_5_3_FLASH),
     },
     chat: {
       fast: everyVariant(GLM_MODELS.GLM_4_7),

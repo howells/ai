@@ -124,6 +124,7 @@ export type {
   ModelOptions,
   ModelOverrides,
   OpenRouterModelVariant,
+  OpenRouterPolicy,
   ModelService,
   ModelSlot,
   ModelTask,
