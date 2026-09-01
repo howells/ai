@@ -1,4 +1,4 @@
-import type { ImagePart, TextPart, UserModelMessage } from "ai";
+import type { FilePart, TextPart, UserModelMessage } from "ai";
 
 /** Image payload shape accepted by the package vision helpers. */
 export type VisionImageData = string | URL | Uint8Array | ArrayBuffer | Buffer;
@@ -16,7 +16,7 @@ export type VisionInput =
     };
 
 /** AI SDK multimodal prompt content built from text plus image parts. */
-export type VisionPrompt = (TextPart | ImagePart)[];
+export type VisionPrompt = (TextPart | FilePart)[];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -39,42 +39,67 @@ function normalizeImageData(value: VisionImageData): VisionImageData {
   return value;
 }
 
+function imageDataUrl(value: VisionImageData): string | undefined {
+  const serialized = value instanceof URL ? value.href : value;
+  return typeof serialized === "string" && serialized.toLowerCase().startsWith("data:image/")
+    ? serialized
+    : undefined;
+}
+
 function mediaTypeFromDataUrl(value: VisionImageData): `image/${string}` | undefined {
-  if (typeof value !== "string" || !value.startsWith("data:image/")) {
+  const dataUrl = imageDataUrl(value);
+  if (dataUrl === undefined) {
     return undefined;
   }
-  const [header] = value.split(",", 1);
-  const mediaType = header?.slice("data:".length).split(";")[0];
+  const [header] = dataUrl.split(",", 1);
+  const mediaType = header?.slice("data:".length).split(";")[0]?.toLowerCase();
   return mediaType?.startsWith("image/") ? (mediaType as `image/${string}`) : undefined;
 }
 
-/** Convert a supported image input into an AI SDK image content part. */
-export function imagePart(input: VisionInput): ImagePart {
+function fileData(value: VisionImageData): VisionImageData {
+  const dataUrl = imageDataUrl(value);
+  if (dataUrl !== undefined) {
+    const separator = dataUrl.indexOf(",");
+    if (separator === -1) {
+      throw new Error("Invalid image data URL.");
+    }
+    const header = dataUrl.slice(0, separator);
+    if (!header.toLowerCase().split(";").includes("base64")) {
+      throw new Error("Image data URLs must use base64 encoding.");
+    }
+    return dataUrl.slice(separator + 1);
+  }
+
+  const normalized = normalizeImageData(value);
+  return normalized;
+}
+
+/** Convert a supported image input into an AI SDK file content part. */
+export function imagePart(input: VisionInput): FilePart {
   if (isRecord(input)) {
     if ("url" in input) {
-      const image = normalizeImageData(input.url);
+      const data = fileData(input.url);
       return {
-        image,
-        mediaType: input.mediaType ?? mediaTypeFromDataUrl(image),
-        type: "image",
+        data,
+        mediaType: input.mediaType ?? mediaTypeFromDataUrl(input.url) ?? "image",
+        type: "file",
       };
     }
 
     if ("data" in input) {
-      const image = normalizeImageData(input.data);
+      const data = fileData(input.data);
       return {
-        image,
-        mediaType: input.mediaType ?? mediaTypeFromDataUrl(image),
-        type: "image",
+        data,
+        mediaType: input.mediaType ?? mediaTypeFromDataUrl(input.data) ?? "image",
+        type: "file",
       };
     }
   }
 
-  const image = normalizeImageData(input);
   return {
-    image,
-    mediaType: mediaTypeFromDataUrl(image),
-    type: "image",
+    data: fileData(input),
+    mediaType: mediaTypeFromDataUrl(input) ?? "image",
+    type: "file",
   };
 }
 
