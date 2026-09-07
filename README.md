@@ -768,3 +768,10 @@ for DeepSeek, xAI, Qwen, Z.ai, and Moonshot/Kimi.
 - Language models route through Vercel AI Gateway by default
 - OpenRouter and direct provider routes are available per call
 - Embeddings/reranking through Voyage AI or Google
+
+## TypeScript compatibility
+
+Development checks use native TypeScript 7. The published declarations support
+TypeScript 5, 6 and 7; the package does not expose the compiler API. Declaration
+builds remain on the existing tsdown pipeline and are checked through the packed
+package export surface.
