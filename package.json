@@ -74,7 +74,7 @@
     "benchmark:build": "pnpm --filter @howells/ai-benchmark build",
     "benchmark:dev": "pnpm --filter @howells/ai-benchmark dev",
     "check": "pnpm check-types && pnpm build && pnpm test && pnpm lint && pnpm benchmark:build",
-    "check-types": "node node_modules/@typescript/native/bin/tsc --noEmit",
+    "check-types": "tsc --noEmit",
     "test": "bun test test",
     "test:live": "LIVE_AI_TESTS=1 bun test test/live.test.ts",
     "lint": "howells-oxfmt --check src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts && howells-oxlint --config=oxlint.config.ts src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts",
@@ -97,10 +97,9 @@
   "devDependencies": {
     "@howells/lint": "catalog:",
     "@types/node": "catalog:",
-    "@typescript/native": "npm:typescript@7.0.2",
     "oxlint-tsgolint": "0.23.0",
-    "tsdown": "^0.22.3",
-    "typescript": "npm:@typescript/typescript6@6.0.2"
+    "tsdown": "^0.23.0",
+    "typescript": "catalog:"
   },
   "peerDependencies": {
     "typescript": "^5 || ^6 || ^7"
