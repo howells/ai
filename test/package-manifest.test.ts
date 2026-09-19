@@ -27,9 +27,11 @@ describe("published package manifest", () => {
     try {
       run("pnpm", ["pack", "--pack-destination", destination], packageRoot);
       const tarball = readdirSync(destination).find((name) => name.endsWith(".tgz"));
-      expect(tarball).toBeDefined();
+      if (tarball === undefined) {
+        throw new Error(`pnpm pack produced no tarball in ${destination}`);
+      }
       const manifest: unknown = JSON.parse(
-        run("tar", ["-xOf", path.join(destination, tarball!), "package/package.json"], destination),
+        run("tar", ["-xOf", path.join(destination, tarball), "package/package.json"], destination),
       );
       const dependencies = (manifest as { dependencies: Record<string, string> }).dependencies;
       expect(
