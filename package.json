@@ -70,39 +70,37 @@
     "access": "public"
   },
   "scripts": {
-    "prepare": "howells-husky",
     "build": "tsdown",
-    "benchmark:build": "pnpm --filter @howells/ai-benchmark build",
-    "benchmark:dev": "pnpm --filter @howells/ai-benchmark dev",
-    "check": "pnpm check-types && pnpm build && pnpm test && pnpm lint && pnpm benchmark:build",
-    "check-types": "tsc --noEmit",
-    "typecheck": "tsc --noEmit",
-    "test": "bun test test",
-    "test:live": "LIVE_AI_TESTS=1 bun test test/live.test.ts",
+    "build:benchmark": "pnpm --filter @howells/ai-benchmark build",
+    "dev": "pnpm --filter @howells/ai-benchmark dev",
     "lint": "howells-oxfmt --check src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts && howells-oxlint --config=oxlint.config.ts src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts",
     "lint:fix": "howells-oxfmt --write src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts README.md && howells-oxlint --fix --config=oxlint.config.ts src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts",
     "prepack": "pnpm build",
-    "format": "howells-oxfmt --write src test apps/benchmark tsdown.config.ts tsconfig.json package.json pnpm-workspace.yaml oxlint.config.ts oxfmt.config.ts README.md"
+    "prepare": "howells-husky",
+    "prepush": "pnpm typecheck && pnpm lint && pnpm test",
+    "test": "bun test test",
+    "test:live": "LIVE_AI_TESTS=1 bun test test/live.test.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ai-sdk/anthropic": "^4.0.0",
-    "@ai-sdk/gateway": "^4.0.0",
-    "@ai-sdk/google": "^4.0.0",
-    "@ai-sdk/openai": "^4.0.0",
-    "@ai-sdk/react": "^4.0.0",
-    "@howells/envy": "^0.3.7",
-    "@openrouter/ai-sdk-provider": "^3.0.0",
-    "ai": "^7.0.0",
-    "voyage-ai-provider": "^4.0.0",
-    "zod": "^4.4.3"
+    "@ai-sdk/anthropic": "catalog:",
+    "@ai-sdk/gateway": "catalog:",
+    "@ai-sdk/google": "catalog:",
+    "@ai-sdk/openai": "catalog:",
+    "@ai-sdk/react": "catalog:",
+    "@howells/envy": "catalog:",
+    "@openrouter/ai-sdk-provider": "catalog:",
+    "ai": "catalog:",
+    "voyage-ai-provider": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@howells/husky": "^0.2.3",
+    "@howells/husky": "catalog:",
     "@howells/lint": "catalog:",
     "@types/node": "catalog:",
-    "lint-staged": "^17.5.1",
-    "oxlint-tsgolint": "0.23.0",
-    "tsdown": "^0.23.0",
+    "lint-staged": "catalog:",
+    "oxlint-tsgolint": "catalog:",
+    "tsdown": "catalog:",
     "typescript": "catalog:"
   },
   "peerDependencies": {
@@ -114,11 +112,5 @@
   "engines": {
     "node": ">=22.18.0"
   },
-  "packageManager": "pnpm@11.5.2",
-  "knip": {
-    "ignore": [
-      "oxfmt.config.ts",
-      "oxlint.config.ts"
-    ]
-  }
+  "packageManager": "pnpm@11.5.2"
 }

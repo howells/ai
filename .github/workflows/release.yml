@@ -117,13 +117,13 @@ jobs:
           fi
           echo "$name@$version is not published yet (registry returned $status)."
 
-      # `pnpm check` also builds apps/benchmark, a Next app that is not in the
-      # published `files` and cannot affect the tarball. These four are the ones
+      # apps/benchmark is a Next app outside the published `files` and cannot
+      # affect the tarball, so it is not built here. These four are the ones
       # that can.
       - name: Verify and pack
         run: |
           set -euo pipefail
-          pnpm check-types
+          pnpm typecheck
           pnpm build
           pnpm test
           pnpm lint

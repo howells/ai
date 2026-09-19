@@ -22,4 +22,4 @@ The `ai` and `howells-ai` binaries share one entry: `models`, `providers`, `doct
 
 ## Commands
 
-`pnpm check` is the gate: types, build, Bun tests, lint and the `apps/benchmark` build. `pnpm test:live` is the opt-in live run.
+`pnpm prepush` is the gate: typecheck, lint, Bun tests. `pnpm build:benchmark` builds `apps/benchmark`, which is outside the published files. `pnpm test:live` is the opt-in live run.

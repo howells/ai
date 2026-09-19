@@ -181,7 +181,7 @@ Normal tests are deterministic and do not call providers:
 
 ```bash
 pnpm test
-pnpm check-types
+pnpm typecheck
 pnpm build
 ```
 

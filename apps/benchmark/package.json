@@ -3,30 +3,30 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --port=23010",
     "build": "pnpm --dir ../.. build && next build",
+    "dev": "next dev --port=23010",
+    "e2e": "playwright test",
     "start": "next start --port=23010",
-    "check-types": "tsc --noEmit -p tsconfig.check.json",
-    "test:e2e": "playwright test"
+    "typecheck": "tsc --noEmit -p tsconfig.check.json"
   },
   "dependencies": {
     "@howells/ai": "workspace:*",
-    "@neondatabase/serverless": "^1.1.0",
+    "@neondatabase/serverless": "catalog:",
     "@tailwindcss/postcss": "catalog:",
-    "geist": "^1.7.0",
+    "geist": "catalog:",
     "next": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "streamdown": "^2.5.0",
+    "streamdown": "catalog:",
     "tailwindcss": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@playwright/test": "^1.55.1",
+    "@playwright/test": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "postcss": "^8.5.8",
+    "postcss": "catalog:",
     "typescript": "catalog:"
   }
 }
