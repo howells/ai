@@ -11,8 +11,10 @@
   },
   "dependencies": {
     "@howells/ai": "workspace:*",
+    "@howells/neon": "catalog:",
     "@neondatabase/serverless": "catalog:",
     "@tailwindcss/postcss": "catalog:",
+    "drizzle-orm": "catalog:",
     "geist": "catalog:",
     "next": "catalog:",
     "react": "catalog:",

@@ -1,4 +1,4 @@
-import { neon } from "@neondatabase/serverless";
+import { createResilientSql } from "@howells/neon/http";
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 import { getBenchmarkPolicy } from "./benchmark-policy";
 
@@ -8,6 +8,6 @@ let sql: BenchmarkSql | undefined;
 
 /** Return the mandatory hosted benchmark database client. */
 export function getBenchmarkSql(): BenchmarkSql {
-  sql ??= neon(getBenchmarkPolicy().databaseUrl);
+  sql ??= createResilientSql(getBenchmarkPolicy().databaseUrl);
   return sql;
 }

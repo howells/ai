@@ -97,6 +97,7 @@
   "devDependencies": {
     "@howells/husky": "catalog:",
     "@howells/lint": "catalog:",
+    "@howells/neon": "catalog:",
     "@types/node": "catalog:",
     "lint-staged": "catalog:",
     "oxlint-tsgolint": "catalog:",

@@ -1,5 +1,8 @@
 import next from "@howells/lint/oxlint/next";
 import { disabledReactDoctorRules } from "@howells/lint/oxlint/react-doctor-rules";
+import { createOxlintConfig } from "@howells/neon/lint";
+
+const neon = createOxlintConfig();
 
 const legacyCompatibilityRules = {
   complexity: "off",
@@ -67,6 +70,7 @@ export default {
   rules: {
     ...disabledReactDoctorRules,
     ...legacyCompatibilityRules,
+    ...neon.rules,
   },
   overrides: [
     {
@@ -76,5 +80,6 @@ export default {
         ...legacyCompatibilityRules,
       },
     },
+    ...(neon.overrides ?? []),
   ],
 };
