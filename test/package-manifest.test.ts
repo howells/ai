@@ -4,7 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { describe, expect, it } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "vitest";
+import { z } from "zod";
 
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 
@@ -16,31 +17,42 @@ const run = (command: string, args: readonly string[], cwd: string): string =>
     stdio: ["ignore", "pipe", "pipe"],
   });
 
-describe("published package manifest", () => {
-  // Every version is pinned once in pnpm-workspace.yaml, so the manifest in the
-  // repository says `catalog:` and only the packed tarball says a range npm can
-  // resolve. Reading the manifest on disk would measure the wrong artefact:
-  // `pnpm pack` is what expands the specifier, and a tarball that still carries
-  // one installs fine from the repository and fails for the first stranger.
-  it("packs registry-resolvable dependency ranges", () => {
-    const destination = mkdtempSync(path.join(tmpdir(), "howells-ai-pack-"));
-    try {
-      run("pnpm", ["pack", "--pack-destination", destination], packageRoot);
-      const tarball = readdirSync(destination).find((name) => name.endsWith(".tgz"));
-      if (tarball === undefined) {
-        throw new Error(`pnpm pack produced no tarball in ${destination}`);
-      }
-      const manifest: unknown = JSON.parse(
-        run("tar", ["-xOf", path.join(destination, tarball), "package/package.json"], destination),
-      );
-      const dependencies = (manifest as { dependencies: Record<string, string> }).dependencies;
-      expect(
-        Object.entries(dependencies).filter(
-          ([, version]) => version.startsWith("catalog:") || version.startsWith("workspace:"),
-        ),
-      ).toEqual([]);
-    } finally {
-      rmSync(destination, { force: true, recursive: true });
+const manifestSchema = z.object({ dependencies: z.record(z.string(), z.string()) });
+
+// These read the packed tarball, never the working tree: `pnpm pack` is what
+// runs the build and expands the manifest, so it is the artefact a consumer gets.
+describe("published package", () => {
+  const destination = mkdtempSync(path.join(tmpdir(), "howells-ai-pack-"));
+  let tarball = "";
+
+  const packed = (file: string): string =>
+    run("tar", ["-xOf", tarball, `package/${file}`], destination);
+
+  beforeAll(() => {
+    run("pnpm", ["pack", "--pack-destination", destination], packageRoot);
+    const name = readdirSync(destination).find((entry) => entry.endsWith(".tgz"));
+    if (name === undefined) {
+      throw new Error(`pnpm pack produced no tarball in ${destination}`);
     }
+    tarball = path.join(destination, name);
   }, 300_000);
+
+  afterAll(() => {
+    rmSync(destination, { force: true, recursive: true });
+  });
+
+  test("packs registry-resolvable dependency ranges", () => {
+    const { dependencies } = manifestSchema.parse(JSON.parse(packed("package.json")));
+    const unresolved = Object.entries(dependencies).filter(
+      ([, version]) => version.startsWith("catalog:") || version.startsWith("workspace:"),
+    );
+    expect(unresolved).toStrictEqual([]);
+  });
+
+  // The root entry is a lookup a repo imports for two constants. Anything it
+  // imports is a dependency every consumer loads for nothing.
+  test("ships a root entry that imports nothing", () => {
+    const code = packed("dist/index.mjs").replaceAll(/\/\*[\s\S]*?\*\//gu, "");
+    expect(code).not.toMatch(/\bimport\b|\brequire\(/u);
+  });
 });

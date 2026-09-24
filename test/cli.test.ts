@@ -1,160 +1,31 @@
-import { describe, expect, test } from "bun:test";
+import { spawnSync } from "node:child_process";
 
-const decoder = new TextDecoder();
+import { describe, expect, test } from "vitest";
+import { z } from "zod";
 
-function runCli(...args: string[]) {
-  const result = Bun.spawnSync({
-    cmd: ["bun", "src/cli.ts", ...args],
-    cwd: process.cwd(),
-    env: {
-      ...process.env,
-      AI_GATEWAY_API_KEY: "",
-      ANTHROPIC_API_KEY: "",
-      CEREBRAS_API_KEY: "",
-      DEEPSEEK_API_KEY: "",
-      GOOGLE_GEMINI_API_KEY: "",
-      GROQ_API_KEY: "",
-      MOONSHOT_API_KEY: "",
-      OPENAI_API_KEY: "",
-      OPENROUTER_API_KEY: "",
-      QWEN_API_KEY: "",
-      VERCEL_ENV: "",
-      VOYAGE_API_KEY: "",
-      XAI_API_KEY: "",
-      ZAI_API_KEY: "",
-    },
+import { models } from "../src/index.ts";
+
+const cli = (...args: string[]) =>
+  spawnSync("node", ["src/cli.ts", ...args], { encoding: "utf-8" });
+
+const modelsEnvelope = z.object({
+  data: z.array(z.object({ job: z.string(), model: z.string(), settings: z.string() })),
+  success: z.literal(true),
+});
+
+describe("howells-ai", () => {
+  test("models --json prints every pick", () => {
+    const result = cli("models", "--json");
+    expect(result.status).toBe(0);
+    const { data } = modelsEnvelope.parse(JSON.parse(result.stdout));
+    expect(Object.fromEntries(data.map((row) => [row.job, row.model]))).toStrictEqual({
+      ...models,
+    });
   });
 
-  return {
-    exitCode: result.exitCode,
-    stderr: decoder.decode(result.stderr),
-    stdout: decoder.decode(result.stdout),
-  };
-}
-
-describe("CLI", () => {
-  test("prints help", () => {
-    const result = runCli("--help");
-
-    expect(result.exitCode).toBe(0);
-    expect(result.stdout).toContain("ai models");
-    expect(result.stdout).toContain("ai doctor");
-  });
-
-  test("prints model matrix JSON", () => {
-    const result = runCli("models", "--provider", "openrouter", "--json");
-
-    expect(result.exitCode).toBe(0);
-    const response = JSON.parse(result.stdout) as {
-      success: boolean;
-      data: {
-        provider: string;
-        task: string;
-        tier: string;
-        variant: string;
-        resolved: string;
-      }[];
-    };
-    const { data } = response;
-
-    expect(response.success).toBe(true);
-    expect(data.length).toBeGreaterThan(0);
-    expect(data.every((row) => row.provider === "openrouter")).toBe(true);
-    expect(data.every((row) => row.task === "general")).toBe(true);
-    expect(data.some((row) => row.resolved === "google/gemini-3.5-flash")).toBe(true);
-  });
-
-  test("prints task-specific model matrix JSON", () => {
-    const result = runCli("models", "--provider", "openrouter", "--task", "coding", "--json");
-
-    expect(result.exitCode).toBe(0);
-    const response = JSON.parse(result.stdout) as {
-      success: boolean;
-      data: {
-        provider: string;
-        task: string;
-        tier: string;
-        variant: string;
-        resolved: string;
-      }[];
-    };
-    const { data } = response;
-
-    expect(response.success).toBe(true);
-    expect(data.every((row) => row.task === "coding")).toBe(true);
-    expect(data.some((row) => row.resolved === "openai/gpt-5.5")).toBe(true);
-  });
-
-  test("prints provider status JSON without requiring keys", () => {
-    const result = runCli("providers", "--json");
-
-    expect(result.exitCode).toBe(0);
-    const response = JSON.parse(result.stdout) as {
-      success: boolean;
-      data: {
-        providers: { provider: string; configured: boolean }[];
-        services: { service: string; configured: boolean }[];
-        availableLanguageProviders: string[];
-        availableModelServices: string[];
-      };
-    };
-    const { data } = response;
-
-    expect(response.success).toBe(true);
-    expect(data.providers.some((provider) => provider.provider === "openai")).toBe(true);
-    expect(data.providers.some((provider) => provider.provider === "xai")).toBe(true);
-    expect(data.providers.some((provider) => provider.provider === "moonshotai")).toBe(true);
-    expect(data.providers.some((provider) => provider.provider === "groq")).toBe(true);
-    expect(data.providers.some((provider) => provider.provider === "cerebras")).toBe(true);
-    expect(data.services.some((service) => service.service === "moonshotai")).toBe(true);
-    expect(data.availableLanguageProviders).toEqual([]);
-    expect(data.availableModelServices).toEqual([]);
-  });
-
-  test("runs static doctor without requiring keys", () => {
-    const result = runCli("doctor", "--json");
-
-    expect(result.exitCode).toBe(0);
-    const response = JSON.parse(result.stdout) as {
-      success: boolean;
-      data: {
-        ok: boolean;
-        modelRoutes: number;
-      };
-    };
-    const { data } = response;
-
-    expect(response.success).toBe(true);
-    expect(data.ok).toBe(true);
-    expect(data.modelRoutes).toBeGreaterThan(0);
-  });
-
-  test("prints command schemas for agents", () => {
-    const result = runCli("models", "--schema");
-
-    expect(result.exitCode).toBe(0);
-    const response = JSON.parse(result.stdout) as {
-      success: boolean;
-      data: { command: string; exitCodes: Record<string, string> };
-    };
-
-    expect(response.success).toBe(true);
-    expect(response.data.command).toBe("models");
-    expect(response.data.exitCodes["64"]).toBe("usage error");
-    expect(JSON.stringify(response.data)).toContain("task");
-  });
-
-  test("reports live test failure when no providers are configured", () => {
-    const result = runCli("test", "--json");
-
-    expect(result.exitCode).toBe(1);
-    const response = JSON.parse(result.stdout) as {
-      success: boolean;
-      data: { ok: boolean; failures: { error?: string }[] };
-    };
-
-    expect(response.success).toBe(false);
-    expect(response.data.ok).toBe(false);
-    expect(response.data.failures[0]?.error).toContain("no configured language providers");
+  test("bench refuses the embed job before reading a key", () => {
+    const result = cli("bench", "--job", "embed");
+    expect(result.status).toBe(64);
+    expect(result.stderr).toContain("embed");
   });
 });

@@ -50,11 +50,6 @@ jobs:
           node-version: 24.15.0
           cache: pnpm
 
-      # The test script runs under Bun. Nothing else here needs it.
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
       # Trusted publishing needs npm 11.5.1 or later. Node 24.15 already ships
       # 11.12.1, so assert rather than reinstall: a global npm install is a
       # moving part that buys nothing and can itself fail.
@@ -117,9 +112,7 @@ jobs:
           fi
           echo "$name@$version is not published yet (registry returned $status)."
 
-      # apps/benchmark is a Next app outside the published `files` and cannot
-      # affect the tarball, so it is not built here. These four are the ones
-      # that can.
+      # The four checks that can affect the tarball.
       - name: Verify and pack
         run: |
           set -euo pipefail

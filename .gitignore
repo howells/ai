@@ -5,7 +5,6 @@ dist
 *.tsbuildinfo
 .env
 .env.*
-!apps/benchmark/.env.example
 *.tgz
 .DS_Store
 .vercel

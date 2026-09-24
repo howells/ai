@@ -1,312 +1,368 @@
 /**
- * Cross-route latency measurement.
+ * Cross-route latency measurement over OpenRouter.
  *
- * Routers publish price but not speed: OpenRouter's `latency_last_30m` and
- * `throughput_last_30m` are null across every endpoint it serves, and
- * third-party medians measure someone else's traffic from someone else's
- * region. A claim that one route is faster than another is only worth acting
- * on if this machine measured it, so this module measures it.
+ * OpenRouter serves most models through several upstream providers, and it
+ * publishes price but not speed. A claim that one route is faster than another
+ * is only worth acting on if this machine measured it, so this module measures
+ * it: the same prompt, the same model, one route pinned at a time.
  *
- * Every reported duration is in milliseconds and named accordingly. Samples
- * are summarised by median and interquartile range, never by mean — one cold
- * start otherwise swamps a five-run cohort.
+ * Every duration is in milliseconds and named accordingly. Samples are
+ * summarised by median and interquartile range, never by mean: one cold start
+ * otherwise swamps a five-run cohort.
  */
 
-import { streamText } from "ai";
-import type { AIClient } from "./client";
-import type { ProviderRoute } from "./types";
-import { resolveProviderModelId } from "./models";
-import { rankingMetric } from "./taxonomy";
-import type { LatencyClass } from "./taxonomy";
+import { z } from "zod";
+
+import type { RequestSettings } from "./index.ts";
+
+const CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 /** Prompt used when a caller supplies none. Sized to force real generation. */
-const DEFAULT_BENCH_PROMPT =
+export const DEFAULT_BENCH_PROMPT =
   "List the seven colours of the visible spectrum, one per line, with a five-word description of each.";
 
 /** Output token ceiling that keeps a sample cheap but long enough to time. */
 const DEFAULT_MAX_OUTPUT_TOKENS = 160;
 
+const WARM_UP_OUTPUT_TOKENS = 16;
+
+/** OpenRouter's own routing, with no upstream provider pinned. */
+export const DEFAULT_ROUTE = "auto";
+
 /** One completed streaming call. */
 export interface BenchSample {
-  /** Milliseconds from request start to the first streamed text delta. */
-  ttftMs: number;
-  /** Milliseconds from request start to stream completion. */
-  totalMs: number;
-  /** Output tokens the provider reported. */
-  outputTokens: number;
-  /** Input tokens the provider reported. */
+  /** Input tokens OpenRouter reported. */
   inputTokens: number;
-  /**
-   * True when the response arrived incrementally. False means the provider
-   * buffered it, so `outputTokensPerSecond` is measured over the whole call
-   * rather than over a generation window that did not exist.
-   */
-  streamed: boolean;
+  /** Output tokens OpenRouter reported. */
+  outputTokens: number;
   /** Output tokens per second. */
   outputTokensPerSecond: number;
+  /** The upstream provider OpenRouter used. */
+  provider: string | undefined;
+  /**
+   * False when the upstream buffered the whole reply, so the token rate is
+   * measured over the whole call rather than a generation window that did not
+   * exist.
+   */
+  streamed: boolean;
+  /** Milliseconds from request start to stream completion. */
+  totalMs: number;
+  /** Milliseconds from request start to the first streamed text. */
+  ttftMs: number;
 }
 
 /** Summary statistics for a route's samples. */
 export interface BenchStatistics {
-  /** Median time to first token, milliseconds. */
-  medianTtftMs: number;
-  /** Interquartile range of time to first token, milliseconds. */
   iqrTtftMs: number;
-  /** Median wall-clock duration, milliseconds. */
-  medianTotalMs: number;
-  /** Median output tokens per second. */
   medianOutputTokensPerSecond: number;
-  /** Number of samples that completed. */
+  medianTotalMs: number;
+  medianTtftMs: number;
   sampleCount: number;
 }
 
-/** Everything measured for one canonical model on one route. */
+/** Everything measured for one model on one route. */
 export interface BenchRouteResult {
-  /** Route the samples ran through. */
-  route: ProviderRoute;
-  /** Canonical model ID requested. */
-  canonicalModelId: string;
-  /** Route-native model ID actually called. */
-  resolvedModelId: string;
-  /** Successful samples, in execution order. */
-  samples: readonly BenchSample[];
-  /** Summary of `samples`, undefined when every attempt failed. */
-  statistics: BenchStatistics | undefined;
-  /** Failure messages, one per failed attempt. */
+  /** One message per failed attempt. */
   errors: readonly string[];
+  modelId: string;
+  /** Upstream provider slug, or `auto` for OpenRouter's own routing. */
+  route: string;
+  samples: readonly BenchSample[];
+  /** Undefined when every attempt failed. */
+  statistics: BenchStatistics | undefined;
 }
 
-/** Options for benchmarking one route. */
+/** What decides the winner: first token for interactive work, total time otherwise. */
+export type BenchMetric = "ttft" | "total";
+
+/** Options for benchmarking one model on one route. */
 export interface BenchRouteOptions {
-  /** Configured AI client supplying credentials and generation options. */
-  ai: AIClient;
-  /** Canonical (OpenRouter-style) model ID. */
+  apiKey: string;
+  maxOutputTokens?: number;
   modelId: string;
-  /** Route to measure. */
-  route: ProviderRoute;
-  /** Prompt to send. Identical across routes or the comparison is void. */
+  /** Identical across routes or the comparison is void. */
   prompt?: string;
+  /** Upstream provider slug, or `auto`. */
+  route: string;
   /** Measured runs, excluding the discarded warm-up. */
   runs?: number;
-  /** Output token ceiling. */
-  maxOutputTokens?: number;
-  /**
-   * Discard one unmeasured call first, absorbing connection setup and any
-   * cold start so the cohort measures steady state.
-   */
-  warmUp?: boolean;
+  /** Merged into every request body, e.g. `settings.vision`. */
+  settings?: RequestSettings;
   signal?: AbortSignal;
-}
-
-function quantile(sorted: readonly number[], fraction: number): number {
-  if (sorted.length === 0) {
-    return 0;
-  }
-  const position = (sorted.length - 1) * fraction;
-  const lower = Math.floor(position);
-  const upper = Math.ceil(position);
-  const low = sorted[lower] ?? 0;
-  if (lower === upper) {
-    return low;
-  }
-  const high = sorted[upper] ?? low;
-  return low + (high - low) * (position - lower);
-}
-
-function summarise(samples: readonly BenchSample[]): BenchStatistics | undefined {
-  if (samples.length === 0) {
-    return undefined;
-  }
-  const ttft = samples.map((sample) => sample.ttftMs).sort((a, b) => a - b);
-  const total = samples.map((sample) => sample.totalMs).sort((a, b) => a - b);
-  const throughput = samples.map((sample) => sample.outputTokensPerSecond).sort((a, b) => a - b);
-
-  return {
-    medianTtftMs: Math.round(quantile(ttft, 0.5)),
-    iqrTtftMs: Math.round(quantile(ttft, 0.75) - quantile(ttft, 0.25)),
-    medianTotalMs: Math.round(quantile(total, 0.5)),
-    medianOutputTokensPerSecond: Math.round(quantile(throughput, 0.5) * 10) / 10,
-    sampleCount: samples.length,
-  };
-}
-
-async function runOnce(options: BenchRouteOptions, resolvedModelId: string): Promise<BenchSample> {
-  const { ai, modelId, route } = options;
-  const start = performance.now();
-  let ttftMs: number | undefined;
-
-  const result = streamText({
-    model: ai.modelById(resolvedModelId, { provider: route }),
-    prompt: options.prompt ?? DEFAULT_BENCH_PROMPT,
-    ...ai.generationOptions({
-      maxOutputTokens: options.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
-      modelId,
-      provider: route,
-      temperature: null,
-      tools: "none",
-    }),
-    ...(options.signal ? { abortSignal: options.signal } : {}),
-  });
-
-  for await (const _delta of result.textStream) {
-    ttftMs ??= performance.now() - start;
-  }
-
-  const totalMs = performance.now() - start;
-  const usage = await result.usage;
-  const outputTokens = usage.outputTokens ?? 0;
-  const generationMs = totalMs - (ttftMs ?? totalMs);
-
-  // A provider that buffers and flushes the whole response at once leaves a
-  // generation window near zero, which would report an absurd token rate.
-  // Fall back to the full call duration, which is the honest figure for a
-  // response that never really streamed.
-  const streamed = generationMs > totalMs * 0.1;
-  const windowMs = streamed ? generationMs : totalMs;
-
-  return {
-    ttftMs: Math.round(ttftMs ?? totalMs),
-    totalMs: Math.round(totalMs),
-    outputTokens,
-    inputTokens: usage.inputTokens ?? 0,
-    streamed,
-    outputTokensPerSecond:
-      windowMs > 0 ? Math.round((outputTokens / (windowMs / 1000)) * 10) / 10 : 0,
-  };
-}
-
-/**
- * Measure one canonical model on one route.
- *
- * Runs are sequential by design. Concurrent samples contend for the same
- * local socket pool and upstream rate limit, which inflates time to first
- * token in a way that has nothing to do with the route being measured.
- */
-export async function benchRoute(options: BenchRouteOptions): Promise<BenchRouteResult> {
-  const resolvedModelId = resolveProviderModelId(options.modelId, options.route);
-  const samples: BenchSample[] = [];
-  const errors: string[] = [];
-
-  if (options.warmUp ?? true) {
-    try {
-      await runOnce({ ...options, maxOutputTokens: 16 }, resolvedModelId);
-    } catch (error) {
-      errors.push(`warm-up: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  }
-
-  for (let run = 0; run < (options.runs ?? 3); run += 1) {
-    try {
-      samples.push(await runOnce(options, resolvedModelId));
-    } catch (error) {
-      errors.push(error instanceof Error ? error.message : String(error));
-    }
-  }
-
-  return {
-    route: options.route,
-    canonicalModelId: options.modelId,
-    resolvedModelId,
-    samples,
-    statistics: summarise(samples),
-    errors,
-  };
+  /** Discard one unmeasured call first, absorbing connection setup and cold start. */
+  warmUp?: boolean;
 }
 
 /** Options for comparing one model across several routes. */
 export interface BenchCompareOptions extends Omit<BenchRouteOptions, "route"> {
-  /** Routes to measure, in order. */
-  routes: readonly ProviderRoute[];
-  /**
-   * Latency class of the workload being routed. Decides whether the winner is
-   * chosen on time to first token or on total completion time. Defaults to
-   * `background`, matching the overwhelming majority of fleet call sites.
-   */
-  latencyClass?: LatencyClass;
+  /** Defaults to `total`: most calls block on the whole reply. */
+  metric?: BenchMetric;
+  routes: readonly string[];
 }
 
 /** One model measured across every requested route. */
 export interface BenchComparison {
-  canonicalModelId: string;
+  /** The route the metric selects. */
+  fastest: string | undefined;
+  fastestByTotal: string | undefined;
+  fastestByTtft: string | undefined;
+  metric: BenchMetric;
+  /** True when first-token and total-time rankings disagree, so the metric decided. */
+  metricDisagrees: boolean;
+  modelId: string;
   prompt: string;
   results: readonly BenchRouteResult[];
-  /**
-   * Statistic the recommendation is based on. `total` unless the workload is
-   * interactive: 88 of 91 fleet call sites block on the whole response, so
-   * time to first token describes almost none of them.
-   */
-  metric: "ttft" | "total";
-  /** Route the metric selects. This is the recommendation. */
-  fastest: ProviderRoute | undefined;
-  /** Route with the lowest median time to first token. */
-  fastestByTtft: ProviderRoute | undefined;
-  /** Route with the lowest median total completion time. */
-  fastestByTotal: ProviderRoute | undefined;
-  /** Route with the highest median output throughput. */
-  fastestByThroughput: ProviderRoute | undefined;
-  /**
-   * True when ranking by TTFT and by total time disagree. A flip means the
-   * choice of metric decided the answer, and should be stated rather than
-   * hidden behind a single winner.
-   */
-  metricDisagrees: boolean;
 }
+
+const streamChunkSchema = z.object({
+  choices: z
+    .array(z.object({ delta: z.object({ content: z.string().nullish() }).nullish() }))
+    .nullish(),
+  error: z.object({ message: z.string().nullish() }).nullish(),
+  provider: z.string().nullish(),
+  usage: z
+    .object({ completion_tokens: z.number().nullish(), prompt_tokens: z.number().nullish() })
+    .nullish(),
+});
+
+type StreamChunk = z.infer<typeof streamChunkSchema>;
+
+const quantile = (sorted: readonly number[], fraction: number): number => {
+  const position = (sorted.length - 1) * fraction;
+  const low = sorted[Math.floor(position)] ?? 0;
+  const high = sorted[Math.ceil(position)] ?? low;
+  return low + (high - low) * (position - Math.floor(position));
+};
+
+const ascending = (a: number, b: number): number => a - b;
+
+/** Median and interquartile summary of a set of samples. */
+export const summarise = (samples: readonly BenchSample[]): BenchStatistics | undefined => {
+  if (samples.length === 0) {
+    return undefined;
+  }
+  const ttft = samples.map((sample) => sample.ttftMs).toSorted(ascending);
+  const total = samples.map((sample) => sample.totalMs).toSorted(ascending);
+  const rate = samples.map((sample) => sample.outputTokensPerSecond).toSorted(ascending);
+  return {
+    iqrTtftMs: Math.round(quantile(ttft, 0.75) - quantile(ttft, 0.25)),
+    medianOutputTokensPerSecond: Math.round(quantile(rate, 0.5) * 10) / 10,
+    medianTotalMs: Math.round(quantile(total, 0.5)),
+    medianTtftMs: Math.round(quantile(ttft, 0.5)),
+    sampleCount: samples.length,
+  };
+};
 
 /**
- * Measure the same model, with the same prompt, across several routes.
- *
- * Routes run sequentially and each is measured independently, so the result
- * isolates router overhead rather than blending it with upstream variance.
+ * Run `task` over `items` strictly one after another. Concurrent samples
+ * contend for the same socket pool and rate limit, which inflates first-token
+ * time for reasons unrelated to the route.
  */
-export async function benchCompare(options: BenchCompareOptions): Promise<BenchComparison> {
-  const prompt = options.prompt ?? DEFAULT_BENCH_PROMPT;
-  const results: BenchRouteResult[] = [];
+const inSequence = async <T, R>(
+  items: readonly T[],
+  task: (item: T) => Promise<R>,
+): Promise<R[]> => {
+  const [first, ...rest] = items;
+  if (first === undefined) {
+    return [];
+  }
+  const head = await task(first);
+  return [head, ...(await inSequence(rest, task))];
+};
 
-  for (const route of options.routes) {
-    results.push(await benchRoute({ ...options, prompt, route }));
+/** The chat completions request body, in OpenRouter's own field names. */
+interface ChatRequest extends RequestSettings {
+  max_tokens: number;
+  messages: readonly { content: string; role: "user" }[];
+  model: string;
+  provider?: { allow_fallbacks: false; only: readonly string[] };
+  stream: true;
+}
+
+const requestBody = (options: BenchRouteOptions, maxOutputTokens: number): string => {
+  const body: ChatRequest = {
+    ...options.settings,
+    max_tokens: maxOutputTokens,
+    messages: [{ content: options.prompt ?? DEFAULT_BENCH_PROMPT, role: "user" }],
+    model: options.modelId,
+    stream: true,
+  };
+  if (options.route !== DEFAULT_ROUTE) {
+    body.provider = { allow_fallbacks: false, only: [options.route] };
+  }
+  return JSON.stringify(body);
+};
+
+/** Each complete `data:` payload in an SSE buffer, and whatever is left over. */
+const splitEvents = (buffer: string) => {
+  const lines = buffer.split("\n");
+  const rest = lines.pop() ?? "";
+  const payloads = lines
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => line.slice("data:".length).trim())
+    .filter((payload) => payload !== "" && payload !== "[DONE]");
+  return { payloads, rest };
+};
+
+const hasText = (chunk: StreamChunk): boolean =>
+  (chunk.choices ?? []).some((choice) => (choice.delta?.content ?? "") !== "");
+
+/** What a finished stream said, with the time its first text arrived. */
+interface StreamReading {
+  firstTextAt: number | undefined;
+  inputTokens: number;
+  outputTokens: number;
+  provider: string | undefined;
+}
+
+const readStream = async (
+  body: ReadableStream<Uint8Array>,
+  start: number,
+): Promise<StreamReading> => {
+  const reading: StreamReading = {
+    firstTextAt: undefined,
+    inputTokens: 0,
+    outputTokens: 0,
+    provider: undefined,
+  };
+  let buffer = "";
+  const decoder = new TextDecoder();
+  const toText = new TransformStream<Uint8Array, string>({
+    transform: (bytes, controller) => {
+      controller.enqueue(decoder.decode(bytes, { stream: true }));
+    },
+  });
+  for await (const text of body.pipeThrough(toText)) {
+    const { payloads, rest } = splitEvents(buffer + text);
+    buffer = rest;
+    for (const payload of payloads) {
+      const chunk = streamChunkSchema.parse(JSON.parse(payload));
+      if (chunk.error) {
+        throw new Error(chunk.error.message ?? "OpenRouter stream error");
+      }
+      reading.provider ??= chunk.provider ?? undefined;
+      reading.inputTokens = chunk.usage?.prompt_tokens ?? reading.inputTokens;
+      reading.outputTokens = chunk.usage?.completion_tokens ?? reading.outputTokens;
+      if (reading.firstTextAt === undefined && hasText(chunk)) {
+        reading.firstTextAt = performance.now() - start;
+      }
+    }
+  }
+  return reading;
+};
+
+const runOnce = async (
+  options: BenchRouteOptions,
+  maxOutputTokens: number,
+): Promise<BenchSample> => {
+  const start = performance.now();
+  const response = await fetch(CHAT_COMPLETIONS_URL, {
+    body: requestBody(options, maxOutputTokens),
+    headers: {
+      authorization: `Bearer ${options.apiKey}`,
+      "content-type": "application/json",
+      "x-title": "@howells/ai bench",
+    },
+    method: "POST",
+    signal: options.signal ?? null,
+  });
+  if (!response.ok || response.body === null) {
+    const detail = await response.text();
+    throw new Error(`OpenRouter ${response.status}: ${detail.slice(0, 200)}`);
   }
 
-  let fastestByTtft: BenchRouteResult | undefined;
-  let fastestByTotal: BenchRouteResult | undefined;
-  let fastestByThroughput: BenchRouteResult | undefined;
-
-  for (const result of results) {
-    const statistics = result.statistics;
-    if (!statistics) {
-      continue;
-    }
-    if (!fastestByTtft || statistics.medianTtftMs < (fastestByTtft.statistics?.medianTtftMs ?? 0)) {
-      fastestByTtft = result;
-    }
-    if (
-      !fastestByTotal ||
-      statistics.medianTotalMs < (fastestByTotal.statistics?.medianTotalMs ?? 0)
-    ) {
-      fastestByTotal = result;
-    }
-    if (
-      !fastestByThroughput ||
-      statistics.medianOutputTokensPerSecond >
-        (fastestByThroughput.statistics?.medianOutputTokensPerSecond ?? 0)
-    ) {
-      fastestByThroughput = result;
-    }
-  }
-
-  const metric = rankingMetric(options.latencyClass ?? "background");
-  const fastest = metric === "ttft" ? fastestByTtft : fastestByTotal;
+  const reading = await readStream(response.body, start);
+  const totalMs = performance.now() - start;
+  const ttftMs = reading.firstTextAt ?? totalMs;
+  // A buffered reply leaves a generation window near zero and an absurd token
+  // rate, so the whole call is the honest window for it.
+  const streamed = totalMs - ttftMs > totalMs * 0.1;
+  const windowMs = streamed ? totalMs - ttftMs : totalMs;
 
   return {
-    canonicalModelId: options.modelId,
+    inputTokens: reading.inputTokens,
+    outputTokens: reading.outputTokens,
+    outputTokensPerSecond: Math.round((reading.outputTokens / (windowMs / 1000)) * 10) / 10,
+    provider: reading.provider,
+    streamed,
+    totalMs: Math.round(totalMs),
+    ttftMs: Math.round(ttftMs),
+  };
+};
+
+type Attempt = { sample: BenchSample } | { error: string };
+
+const attempt = async (options: BenchRouteOptions, maxOutputTokens: number): Promise<Attempt> => {
+  try {
+    return { sample: await runOnce(options, maxOutputTokens) };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : String(error) };
+  }
+};
+
+/** Measure one model on one route, one run at a time. */
+export const benchRoute = async (options: BenchRouteOptions): Promise<BenchRouteResult> => {
+  const errors: string[] = [];
+  if (options.warmUp ?? true) {
+    const warmUp = await attempt(options, WARM_UP_OUTPUT_TOKENS);
+    if ("error" in warmUp) {
+      errors.push(`warm-up: ${warmUp.error}`);
+    }
+  }
+
+  const runs = Array.from({ length: options.runs ?? 3 }, (_, index) => index);
+  const attempts = await inSequence(
+    runs,
+    async () => await attempt(options, options.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS),
+  );
+  const samples = attempts.flatMap((result) => ("sample" in result ? [result.sample] : []));
+  errors.push(...attempts.flatMap((result) => ("error" in result ? [result.error] : [])));
+
+  return {
+    errors,
+    modelId: options.modelId,
+    route: options.route,
+    samples,
+    statistics: summarise(samples),
+  };
+};
+
+const lowest = (
+  results: readonly BenchRouteResult[],
+  pick: (statistics: BenchStatistics) => number,
+): string | undefined => {
+  let best: { route: string; value: number } | undefined;
+  for (const result of results) {
+    if (result.statistics !== undefined) {
+      const value = pick(result.statistics);
+      if (best === undefined || value < best.value) {
+        best = { route: result.route, value };
+      }
+    }
+  }
+  return best?.route;
+};
+
+/** Measure the same model with the same prompt across several routes, one after another. */
+export const benchCompare = async (options: BenchCompareOptions): Promise<BenchComparison> => {
+  const prompt = options.prompt ?? DEFAULT_BENCH_PROMPT;
+  const metric = options.metric ?? "total";
+  const results = await inSequence(
+    options.routes,
+    async (route) => await benchRoute({ ...options, prompt, route }),
+  );
+  const byTtft = lowest(results, (statistics) => statistics.medianTtftMs);
+  const byTotal = lowest(results, (statistics) => statistics.medianTotalMs);
+
+  return {
+    fastest: metric === "ttft" ? byTtft : byTotal,
+    fastestByTotal: byTotal,
+    fastestByTtft: byTtft,
+    metric,
+    metricDisagrees: byTtft !== undefined && byTotal !== undefined && byTtft !== byTotal,
+    modelId: options.modelId,
     prompt,
     results,
-    metric,
-    fastest: fastest?.route,
-    fastestByTtft: fastestByTtft?.route,
-    fastestByTotal: fastestByTotal?.route,
-    fastestByThroughput: fastestByThroughput?.route,
-    metricDisagrees: Boolean(
-      fastestByTtft && fastestByTotal && fastestByTtft.route !== fastestByTotal.route,
-    ),
   };
-}
+};
