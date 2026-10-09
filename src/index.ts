@@ -39,11 +39,9 @@ export const models = Object.freeze({
   /**
    * Pulling structured facts out of text, including reading long documents.
    *
-   * MaterialGraph composition parsing: 135 of 166 facts at a 3.8 s median call,
-   * against 125 of 166 at 32 s for deepseek-v4-flash with reasoning on,
-   * 18 Sep 2026.
+   * Luna by standing rule, with reasoning off.
    */
-  extract: "deepseek/deepseek-v4.1-flash",
+  extract: "openai/gpt-6-luna",
 
   /**
    * Grading another model's output against a rubric.
@@ -56,17 +54,16 @@ export const models = Object.freeze({
   /**
    * Hard, multi-step reasoning where quality outweighs speed and cost.
    *
-   * Benchmark-led: Artificial Analysis Intelligence Index 57.6 and Arena,
-   * 24 Sep 2026.
+   * Luna by standing rule.
    */
-  reason: "anthropic/claude-opus-5.5",
+  reason: "openai/gpt-6-luna",
 
   /**
    * Cheap, fast sorting and classification, images included.
    *
-   * 12 of 12 image kinds classified at 883 ms, 17 Sep 2026.
+   * Luna by standing rule.
    */
-  triage: "google/gemini-3.5-flash-lite",
+  triage: "openai/gpt-6-luna",
 
   /**
    * Reading images: finding, placing and describing what is in them.
@@ -80,10 +77,9 @@ export const models = Object.freeze({
   /**
    * Prose a person will read.
    *
-   * Benchmark-led: Artificial Analysis Intelligence Index 57.6 and Arena,
-   * 24 Sep 2026.
+   * Luna by standing rule.
    */
-  write: "anthropic/claude-opus-5.5",
+  write: "openai/gpt-6-luna",
 } as const);
 
 /** A kind of work a repo asks a model to do. */
@@ -113,7 +109,7 @@ export type RequestSettings = Readonly<{ reasoning?: Reasoning }>;
 export const settings: Readonly<Record<Job, RequestSettings>> = Object.freeze({
   agent: Object.freeze({}),
   embed: Object.freeze({}),
-  /** Reasoning off, as MaterialGraph's composition parser sends it (MG-1966). */
+  /** Luna's house setting: reasoning off (MaterialGraph, MG-1966). */
   extract: Object.freeze({ reasoning: Object.freeze({ enabled: false } as const) }),
   judge: Object.freeze({}),
   reason: Object.freeze({}),

@@ -9,12 +9,12 @@ The root entry is two frozen objects and imports nothing.
 | Job       | Model ID                         | Settings             | Evidence                                                                                                                                   |
 | --------- | -------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | `agent`   | `openai/gpt-6-luna`              | provider default     | Samplize consultant, 45 turns: 2 hard fails and judge score 0.94 against gpt-5.6-luna's 4 and 0.91, at half the cost, 24 Sep 2026          |
-| `extract` | `deepseek/deepseek-v4.1-flash`   | reasoning off        | MaterialGraph composition parsing: 135/166 facts at 3.8 s against 125/166 at 32 s, 18 Sep 2026. Also for reading long documents            |
+| `extract` | `openai/gpt-6-luna`              | reasoning off        | Standing rule: Luna for every OpenRouter text and vision call                                                                              |
 | `judge`   | `openai/gpt-6-luna`              | provider default     | quarry triage scoring equal to gpt-5.6-luna at half the cost; taxonomy cells slightly less stable (6 of 40 moved against 4.5), 24 Sep 2026 |
 | `vision`  | `openai/gpt-6-luna`              | reasoning effort low | First box in 3.2 s against 5.3 s, placement matching gpt-5.6-luna's own run-to-run agreement, 24 Sep 2026. Guard against zero-size boxes   |
-| `triage`  | `google/gemini-3.5-flash-lite`   | none                 | 12 of 12 image kinds at 883 ms, 17 Sep 2026                                                                                                |
-| `write`   | `anthropic/claude-opus-5.5`      | none                 | Benchmark-led: Artificial Analysis Intelligence 57.6, Arena, 24 Sep 2026                                                                   |
-| `reason`  | `anthropic/claude-opus-5.5`      | none                 | Benchmark-led: Artificial Analysis Intelligence 57.6, Arena, 24 Sep 2026                                                                   |
+| `triage`  | `openai/gpt-6-luna`              | provider default     | Standing rule                                                                                                                              |
+| `write`   | `openai/gpt-6-luna`              | provider default     | Standing rule                                                                                                                              |
+| `reason`  | `openai/gpt-6-luna`              | provider default     | Standing rule                                                                                                                              |
 | `embed`   | `voyageai/voyage-multimodal-3.5` | none                 | Won MaterialGraph's cross-modal eval; one space for text and images                                                                        |
 
 Don't force low reasoning on `agent`: at low it barely reasons and did worse (6 hard fails against 2). Mastra fills a missing reasoning option from the agent's own `defaultOptions`, so an agent that sets low there must remove it.
