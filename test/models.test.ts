@@ -38,7 +38,7 @@ describe("the request settings", () => {
 
   test("is plain JSON data", () => {
     expect(z.json().safeParse(settings).success).toBe(true);
-    expect(asProviderOptions(settings.vision)).toStrictEqual({ reasoning: { effort: "low" } });
+    expect(asProviderOptions(settings.vision)).toMatchObject({ reasoning: { effort: "low" } });
   });
 
   test("is frozen all the way down", () => {
@@ -49,12 +49,20 @@ describe("the request settings", () => {
     }
   });
 
-  test("carries the measured settings and nothing else", () => {
-    expect(settings.extract).toStrictEqual({ reasoning: { enabled: false } });
-    expect(settings.vision).toStrictEqual({ reasoning: { effort: "low" } });
-    const others = Object.entries(settings).filter(
-      ([job, value]) => job !== "extract" && job !== "vision" && Object.keys(value).length > 0,
-    );
-    expect(others).toStrictEqual([]);
+  test("keeps measured reasoning and pins language jobs to origin providers", () => {
+    expect(settings.extract.reasoning).toStrictEqual({ enabled: false });
+    expect(settings.vision.reasoning).toStrictEqual({ effort: "low" });
+    expect(settings.embed).toStrictEqual({});
+    for (const [job, value] of Object.entries(settings)) {
+      if (job === "embed") {
+        continue;
+      }
+      expect(value.provider).toStrictEqual({
+        allow_fallbacks: false,
+        only: ["openai", "anthropic"],
+      });
+      expect(Object.isFrozen(value.provider)).toBe(true);
+      expect(Object.isFrozen(value.provider?.only)).toBe(true);
+    }
   });
 });

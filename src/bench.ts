@@ -175,7 +175,7 @@ interface ChatRequest extends RequestSettings {
   max_tokens: number;
   messages: readonly { content: string; role: "user" }[];
   model: string;
-  provider?: { allow_fallbacks: false; only: readonly string[] };
+  provider?: { allow_fallbacks: false; only: string[] };
   stream: true;
 }
 
@@ -185,6 +185,8 @@ const requestBody = (options: BenchRouteOptions, maxOutputTokens: number): strin
     max_tokens: maxOutputTokens,
     messages: [{ content: options.prompt ?? DEFAULT_BENCH_PROMPT, role: "user" }],
     model: options.modelId,
+    // Auto-routing is an explicit benchmark control, independent of the production policy.
+    provider: undefined,
     stream: true,
   };
   if (options.route !== DEFAULT_ROUTE) {

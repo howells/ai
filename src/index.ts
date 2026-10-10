@@ -95,26 +95,53 @@ export type ReasoningEffort = "max" | "xhigh" | "high" | "medium" | "low" | "min
 export type Reasoning = Readonly<{ effort: ReasoningEffort }> | Readonly<{ enabled: false }>;
 
 /**
- * Request settings in OpenRouter's own request vocabulary. Spread them into
+ * Request settings in OpenRouter's own request vocabulary. Provider allowlists
+ * use JSON-compatible array types and are frozen at runtime. Spread them into
  * `providerOptions.openrouter` (AI SDK, Mastra) or straight into a request body.
  * An alias rather than an interface, so it stays assignable to the AI SDK's
  * JSON object type.
  */
-export type RequestSettings = Readonly<{ reasoning?: Reasoning }>;
+export type RequestSettings = Readonly<{
+  reasoning?: Reasoning;
+  provider?: Readonly<{ only: string[]; allow_fallbacks: false }>;
+}>;
+
+/** Freeze runtime policy while retaining the array type required by JSON provider options. */
+const originProviderSettings = () => {
+  const only = ["openai", "anthropic"];
+  Object.freeze(only);
+  return Object.freeze({ allow_fallbacks: false as const, only });
+};
 
 /**
- * Settings measured with each Pick. A job with nothing measured gets an empty
- * object, so `settings[job]` is always safe to spread.
+ * Measured settings and origin-provider routing for each language Pick.
+ * Embedding settings keep their existing vector-provider policy.
  */
 export const settings: Readonly<Record<Job, RequestSettings>> = Object.freeze({
-  agent: Object.freeze({}),
+  agent: Object.freeze({
+    provider: originProviderSettings(),
+  }),
   embed: Object.freeze({}),
   /** Luna's house setting: reasoning off (MaterialGraph, MG-1966). */
-  extract: Object.freeze({ reasoning: Object.freeze({ enabled: false } as const) }),
-  judge: Object.freeze({}),
-  reason: Object.freeze({}),
-  triage: Object.freeze({}),
+  extract: Object.freeze({
+    provider: originProviderSettings(),
+    reasoning: Object.freeze({ enabled: false } as const),
+  }),
+  judge: Object.freeze({
+    provider: originProviderSettings(),
+  }),
+  reason: Object.freeze({
+    provider: originProviderSettings(),
+  }),
+  triage: Object.freeze({
+    provider: originProviderSettings(),
+  }),
   /** Low effort, the setting the 24 Sep 2026 vision test measured. */
-  vision: Object.freeze({ reasoning: Object.freeze({ effort: "low" } as const) }),
-  write: Object.freeze({}),
+  vision: Object.freeze({
+    provider: originProviderSettings(),
+    reasoning: Object.freeze({ effort: "low" } as const),
+  }),
+  write: Object.freeze({
+    provider: originProviderSettings(),
+  }),
 });
