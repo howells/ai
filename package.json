@@ -1,6 +1,6 @@
 {
   "name": "@howells/ai",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "The best model for each job: one OpenRouter model ID per kind of work, with the request settings measured alongside it.",
   "license": "MIT",
   "repository": {

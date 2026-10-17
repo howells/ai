@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0
+
+### Changed
+
+- Every language job (`agent`, `extract`, `judge`, `reason`, `triage`, `vision`, `write`) picks `openai/gpt-6-luna`, the standing production model. `embed` stays `voyageai/voyage-multimodal-3.5`.
+- Every language job's settings carry `provider: { only: [...], allow_fallbacks: false }`, so a request goes to the model's own provider and never to a reseller route. Embedding settings are unchanged.
+- `@howells/ai/bench` strips the provider pin, so auto-routing stays a measurable control.
+
 ## 1.0.0
 
 `@howells/ai` is now a lookup: which model does each job, and with what request settings. It no longer wraps the AI SDK or creates clients. Call OpenRouter through your own AI SDK or Mastra setup and pass it the pick.
