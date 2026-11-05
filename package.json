@@ -38,11 +38,8 @@
     "build": "tsdown",
     "lint": "howells-check src test tsdown.config.ts oxlint.config.ts oxfmt.config.ts",
     "lint:fix": "howells-fix src test tsdown.config.ts oxlint.config.ts oxfmt.config.ts",
-    "lint:ratchet": "howells-ratchet",
-    "lint:rebaseline": "howells-ratchet --write",
     "prepack": "pnpm build",
     "prepare": "howells-husky",
-    "prepush": "pnpm typecheck && pnpm lint:ratchet && pnpm test",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
