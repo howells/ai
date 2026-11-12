@@ -21,8 +21,8 @@ Issues live in Linear, workspace material-instruments, team AI. See `docs/agents
 
 ### Triage labels
 
-Default triage labels. See `docs/agents/triage-labels.md`.
+Default triage labels. See `~/Sites/home/docs/agents/triage-labels.md`.
 
 ### Domain docs
 
-Single-context. See `docs/agents/domain.md`.
+Single-context. See `~/Sites/home/docs/agents/domain.md`.
