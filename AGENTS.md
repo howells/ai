@@ -17,7 +17,7 @@ Don't overwrite others' uncommitted work.
 
 ### Issue tracker
 
-Issues live in Linear, workspace material-instruments, team AI. See `docs/agents/issue-tracker.md`.
+Linear, workspace `material-instruments`, team `AI`. See `~/Sites/home/docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
